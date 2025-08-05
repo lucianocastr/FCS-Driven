@@ -1,0 +1,45 @@
+## Archivos y carpetas de Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+## Archivos binarios y de compilación
+bin/
+obj/
+[Bb]uild/
+[Ll]og/
+*.log
+
+## Archivos de depuración
+*.pdb
+*.cache
+*.mdb
+
+## Archivos de publicación
+*.publishsettings
+*.dbmdl
+*.bak
+*.orig
+
+## Archivos de configuración local
+*.local
+*.env
+.env
+appsettings.Development.json
+
+## Paquetes y dependencias
+packages/
+*.nupkg
+*.snupkg
+*.nuspec
+project.lock.json
+
+## Archivos generados por Rider o Resharper
+.idea/
+*.DotSettings.user
+
+## Archivos de sistema
+.DS_Store
+Thumbs.db
