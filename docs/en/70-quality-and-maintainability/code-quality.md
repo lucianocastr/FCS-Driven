@@ -64,7 +64,6 @@ public class MyService : IMyService
 | frmMain | Large file (~4300 lines) | Medium | Consider splitting |
 | Serial | Sync/async mixing | Low | Works correctly |
 | Tests | Low coverage | High | Add unit tests |
-| Docs | Incomplete EN mirror | Medium | In progress |
 
 ### Refactoring Opportunities
 

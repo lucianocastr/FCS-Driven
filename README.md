@@ -1,6 +1,6 @@
 <div align="center">
 
-![Fiplex Logo](assets/logo.png)
+![Fiplex Logo](docs/assets/logo.png)
 
 # Fiplex Control Software
 
@@ -152,14 +152,14 @@ For development without physical hardware:
 
 | Section | Language | Description |
 |---------|----------|-------------|
-| [Introduction](en/00-introduction/overview.md) | EN | Project overview and application map |
-| [Architecture](en/10-architecture/logical-architecture.md) | EN | System architecture and design patterns |
-| [Solution Structure](en/20-solution-and-projects/solution-structure.md) | EN | Project organization and dependencies |
-| [Forms](en/30-forms/forms-index.md) | EN | WinForms documentation |
-| [Operational Flows](en/40-operational-flows/operational-flows.md) | EN | Key workflows and sequences |
-| [Error Handling](en/50-errors-and-logging/error-handling.md) | EN | Logging and error management |
-| [Integrations](en/60-integrations/external-integrations.md) | EN | External system integrations |
-| [Code Quality](en/70-quality-and-maintainability/code-quality.md) | EN | Quality standards and practices |
+| [Introduction](docs/en/00-introduction/overview.md) | EN | Project overview and application map |
+| [Architecture](docs/en/10-architecture/logical-architecture.md) | EN | System architecture and design patterns |
+| [Solution Structure](docs/en/20-solution-and-projects/solution-structure.md) | EN | Project organization and dependencies |
+| [Forms](docs/en/30-forms/forms-index.md) | EN | WinForms documentation |
+| [Operational Flows](docs/en/40-operational-flows/operational-flows.md) | EN | Key workflows and sequences |
+| [Error Handling](docs/en/50-errors-and-logging/error-handling.md) | EN | Logging and error management |
+| [Integrations](docs/en/60-integrations/external-integrations.md) | EN | External system integrations |
+| [Code Quality](docs/en/70-quality-and-maintainability/code-quality.md) | EN | Quality standards and practices |
 
 ---
 
@@ -211,7 +211,7 @@ flowchart TB
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see our [Contributing Guide](../CONTRIBUTING.md) for details on:
+We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) for details on:
 
 - Code of conduct
 - Development setup
@@ -222,7 +222,7 @@ We welcome contributions! Please see our [Contributing Guide](../CONTRIBUTING.md
 
 ## 📝 Changelog
 
-See [CHANGELOG.md](../CHANGELOG.md) for version history and release notes.
+See [CHANGELOG.md](CHANGELOG.md) for version history and release notes.
 
 ---
 

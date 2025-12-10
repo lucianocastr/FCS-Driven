@@ -98,11 +98,6 @@ Each device has its own HTML UI in `pages/htdocs_{tdev}{ndev}/`.
 - **Microsoft.Extensions.DependencyInjection** - Dependency injection
 - **Duende.IdentityModel.OidcClient** - OIDC authentication
 
-## Migration from VB.NET
-
-> ⚠️ **Important Note**: This project is an active migration from VB.NET.
-> Comments `// Equivalente VB.NET:` indicate parity with legacy code logic.
-
 ---
 
 **Next**: [Application Map](./application-map.md)

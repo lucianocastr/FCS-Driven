@@ -8,34 +8,34 @@ The application consists of 14 WinForms forms organized by functionality:
 
 ### Main Navigation
 
-| Form | File | Description |
-|------|------|-------------|
-| **frmMain** | `frmMain.cs` | Main window with WebView2, menus, device connection |
-| **Login** | `Login.cs` | OIDC authentication with Azure AD/Firebase |
-| **SubscriptionInfo** | `SubscriptionInfo.cs` | Subscription and CLSS training information |
+| Form | File | Description | Doc |
+|------|------|-------------|-----|
+| **frmMain** | `frmMain.cs` | Main window with WebView2, menus, device connection | [📄](./frmMain.md) |
+| **Login** | `Login.cs` | OIDC authentication with Azure AD/Firebase | [📄](./Login.md) |
+| **SubscriptionInfo** | `SubscriptionInfo.cs` | Subscription and CLSS training information | [📄](./SubscriptionInfo.md) |
 
 ### Device Configuration
 
-| Form | File | Description |
-|------|------|-------------|
-| **frmPassword** | `frmPassword.cs` | Device password capture/change |
-| **frmLicense** | `frmLicense.cs` | Hardware licenses (2 bands) |
-| **frmLicenseMaster** | `frmLicenseMaster.cs` | Hardware licenses (4 bands) |
-| **frmEthernetInstall** | `frmEthernetInstall.cs` | Ethernet Rabbit module configuration |
+| Form | File | Description | Doc |
+|------|------|-------------|-----|
+| **frmPassword** | `frmPassword.cs` | Device password capture/change | [📄](./frmPassword.md) |
+| **frmLicense** | `frmLicense.cs` | Hardware licenses (2 bands) | [📄](./frmLicense.md) |
+| **frmLicenseMaster** | `frmLicenseMaster.cs` | Hardware licenses (4 bands) | [📄](./frmLicenseMaster.md) |
+| **frmEthernetInstall** | `frmEthernetInstall.cs` | Ethernet Rabbit module configuration | [📄](./frmEthernetInstall.md) |
 
 ### License and Terms
 
-| Form | File | Description |
-|------|------|-------------|
-| **frmInitLicense** | `frmInitLicense.cs` | IFC 510.5.3 terms and conditions |
-| **frmLicenseKey** | `frmLicenseKey.cs` | Hardware license key entry |
-| **LicenseKeyDialog** | `LicenseKeyDialog.cs` | License key dialog |
+| Form | File | Description | Doc |
+|------|------|-------------|-----|
+| **frmInitLicense** | `frmInitLicense.cs` | IFC 510.5.3 terms and conditions | [📄](./frmInitLicense.md) |
+| **frmLicenseKey** | `frmLicenseKey.cs` | Hardware license key entry | [📄](./frmLicenseKey.md) |
+| **LicenseKeyDialog** | `LicenseKeyDialog.cs` | License key dialog | — |
 
 ### Utilities
 
-| Form | File | Description |
-|------|------|-------------|
-| **frmMessage** | `frmMessage.cs` | Progress dialog for long operations |
+| Form | File | Description | Doc |
+|------|------|-------------|-----|
+| **frmMessage** | `frmMessage.cs` | Progress dialog for long operations | [📄](./frmMessage.md) |
 
 ## Navigation Diagram
 

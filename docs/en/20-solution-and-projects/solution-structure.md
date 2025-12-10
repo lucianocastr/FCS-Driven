@@ -20,8 +20,7 @@ The **Fiplex.Control.Software.WinForms** project is a Windows Forms desktop appl
 ├── 📁 Assets/                       # Visual resources
 │   ├── 📁 Icons/                    # Application icons
 │   ├── 📁 Images/                   # Images
-│   ├── 📁 Logos/                    # Logos
-│   └── 📁 Temp/                     # Temporary files
+│   └── 📁 Logos/                    # Logos
 │
 ├── 📁 Core/                         # Domain logic
 │   ├── 📁 Commands/                 # HTTP→Serial routing
