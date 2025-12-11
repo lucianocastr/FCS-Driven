@@ -1,0 +1,109 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--<![-->
+	<head>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" >
+		<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" >
+		<meta http-equiv="cache-control" content="no-transform">
+		<link href="base.css" rel="stylesheet" type="text/css">
+		<link href="meter.css" rel="stylesheet" type="text/css">
+		<title>Fiplex Control Software</title>
+		<script language="JavaScript" type="text/javascript" src="base.js"></script>
+		<script language="JavaScript" type="text/javascript" src="frames.js"></script>
+		<script language="JavaScript" type="text/javascript" src="net.js"></script>
+		<script language="JavaScript" type="text/javascript" src="render.js"></script>
+		<script language="JavaScript" type="text/javascript" src="optlinkR1.js"></script>
+	</head>
+	<body onload="optOnLoadFunc();" style="width:97%;">
+		<div style="width:100%; outline:thin solid #db5902;">
+			<div id="header" class="ttitle">OPTICAL&nbsp;INTERFACE&nbsp;LINK</div>
+			<div class="contentbox" style="min-height:100%">
+				<table class="contenttable">
+					<tr>
+						<td class="contentcell">
+							<table cellpadding="3" cellspacing="3">
+								<thead>
+									<th></th>
+									<th></th>
+								</thead>
+								<tbody>
+									<tr>
+										<td><img id="optFrSync"  src="/bullet_grey.png" class="centered"></td>
+										<th class="thdlft">Sync&nbsp;to&nbsp;Master</th>
+									</tr>
+									<tr>
+										<td><img id="txrxStat_1" src="/bullet_grey.png" class="centered"></td>
+										<th class="thdlft">Tx/Rx&nbsp;status</th>
+									</tr>
+									<tr>
+										<td><img id="dataLock_1" src="/bullet_grey.png" class="centered"></td>
+										<th class="thdlft">Data&nbsp;Lock</th>
+									</tr>
+									<tr>
+										<td><img id="dataSync_1" src="/bullet_grey.png" class="centered"></td>
+										<th class="thdlft">Data&nbsp;Sync</th>
+									</tr>
+									<tr>
+										<td><img id="optModKO_1" src="/bullet_grey.png" class="centered"></td>
+										<th class="thdlft">Module&nbsp;status</th>
+									</tr>
+									<tr>
+										<td><img id="optTxErr_1" src="/bullet_grey.png" class="centered"></td>
+										<th class="thdlft">Optical&nbsp;Tx&nbsp;Error</th>
+									</tr>
+									<tr>
+										<td><img id="optRxErr_1" src="/bullet_grey.png" class="centered"></td>
+										<th class="thdlft">Optical&nbsp;Rx&nbsp;Error</th>
+									</tr>
+								</tbody>
+							</table>
+						</td>
+						<td class="contentcell">
+							<table cellpadding="3" cellspacing="3" style="float: right;">
+								<thead>
+									<th></th>
+									<th></th>
+									<th></th>
+								</thead>
+								<tbody>
+									<tr>
+										<th class="thdrht">Errors</th>
+										<td id="errors_1" class="tval"></td>
+										<td></td>
+									</tr>
+									<tr>
+										<th class="thdrht">Supply&nbsp;Voltage</th>
+										<td id="voltage_1" class="tval"></td>
+										<td>V</td>
+									</tr>
+									<tr>
+										<th class="thdrht">Bias&nbsp;Current</th>
+										<td id="bias_1" class="tval"></td>
+										<td>mA</td>
+									</tr>
+									<tr>
+										<th class="thdrht">Temperature</th>
+										<td id="temperat_1" class="tval"></td>
+										<td>&ordm;C</td>
+									</tr>
+									<tr>
+										<th class="thdrht">Tx&nbsp;Power</th>
+										<td id="txpower_1" class="tval"></td>
+										<td>dBm</td>
+									</tr>
+									<tr>
+										<th class="thdrht">Rx&nbsp;Power</th>
+										<td id="rxPowMet_1"></td>
+										<td id="rxPowTxt_1" class="tval"></td>
+										<td>dBm</td>
+									</tr>									
+								</tbody>
+							</table>
+						</td>
+					</tr>
+				</table>
+			</div>
+		</div>
+	</body>
+</html>

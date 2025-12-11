@@ -1,0 +1,24 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--<![-->
+	<head>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" >
+		<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" >
+		<meta http-equiv="cache-control" content="no-transform">
+		<link href="/base.css" rel="stylesheet" type="text/css">
+		<script language="JavaScript" type="text/javascript" src="/base.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/thrsh.js"></script>
+		<title>Fiplex Control Software</title>
+	</head>
+	<body onload="onloadInit();" style="position: relative; left: -70px;">
+		<form id="thrsh_form" name="thrsh_form" action="/thrsh.zhtml" METHOD="POST">
+			<input type="hidden" id="thrsh_str" name="thrsh_str" value="" size="100" >
+			<div id="page"></div>
+			</br>
+		</form>
+		<form id="thrsh_req_form" name="thrsh_req_form" action="/thrsh.zhtml" METHOD="POST">
+			<input type="hidden" id="thrsh_req" name="thrsh_req">
+		</form>
+	</body>
+</html>

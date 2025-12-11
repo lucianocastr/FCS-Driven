@@ -1,0 +1,156 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--<![-->
+	<head>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" >
+		<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" >
+		<meta http-equiv="cache-control" content="no-transform">
+		<link href="/base.css" rel="stylesheet" type="text/css">
+		<script language="JavaScript" type="text/javascript" src="/base.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/time.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/navi.js"></script>
+		<title>Fiplex Control Software</title>
+	</head>
+	<body class="n" onload="initNav();" onunload="endNav();">
+		<img hidden src="cross.png">
+		<img hidden src="tick.png">
+		<table border="0" cellpadding="0" cellspacing="0">
+			<tr valign="top">
+				<td align="right" class="navi">
+					<img src="/blank.gif" alt="" width="145" height="20"><br>
+				</td>
+			</tr>
+			<tr valign="top"><td align="right" class="navi"><br><span class="nh">Content</span></td></tr>
+			<tr><td height="1" bgcolor="#fb7922" colspan="1" style="background-image:url(/strichel.gif)" class="white"></td></tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="start" id="start" class="nh" target="content" href="/start.zhtml" onclick="h(this);">Status</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="tags" id="tags" class="n" target="content" href="/tags.zhtml" onclick="h(this);">Tag</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="ip" id="ip" class="n" target="content" href="/ipsetting.zhtml" onclick="h(this);">IP</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="spectrum" id="spectrum" class="n" target="content" href="/spect.zhtml" onclick="h(this);">Spectrum</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="time" id="time" class="n" target="content" href="/time.zhtml" onclick="h(this);">Date&nbsp;&amp;&nbsp;Time</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="fhelp" id="fhelp" class="n" target="filterHelp" href="#">Filter&nbsp;Info</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="ftool" id="ftool" class="n" target="toolWin" href="/ftool.zhtml">Filter&nbsp;Tool</a><br>
+				</td>
+			</tr>
+			<tr valign="top" id="passwordRow">
+				<td align="right" class="navi">
+					<a name="pass" id="pass" class="n" target="content" href="/password.zhtml" onclick="h(this);">Password</a><br>
+				</td>
+			</tr>
+			<tr valign="top" id="communityRow">
+				<td align="right" class="navi">
+					<a name="comm" id="comm" class="n" target="content" href="/comm.zhtml" onclick="h(this);">Snmp</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="factory" id="factory" style="display:none;" class="n" target="content" href="/factory/fact.zhtml" onclick="h(this);">Factory</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="serialNr" id="serialNr" style="display:none;" class="n" target="content" href="/factory/sern.zhtml" onclick="h(this);">Serial&nbsp;Number</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="equalizer" id="equalizer" style="display:none;" class="n" target="content" href="/factory/equ.zhtml" onclick="h(this);">Equalizer</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<img src="/blank.gif" alt="" width="145" height="20"><br>
+				</td>
+			</tr>
+			<tr valign="top"><td align="right" class="navi"><br><span class="nh">Configuration</span></td></tr>
+			<tr><td height="1" bgcolor="#fb7922" colspan="1" style="background-image:url(/strichel.gif)" class="white"></td></tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="apply" id="apply" class="n" target="navi" href="#" onclick="parent.content.submitform();">Apply&nbsp;Changes</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<a name="refresh" id="refresh" class="n" target="navi" href="#" onclick="parent.content.reloadData();">Reload&nbsp;Settings</a><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<img src="/blank.gif" alt="" width="145" height="15"><br>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<div style="width:70%; height:45px;">
+						<img src="/blank.gif" alt="" width="45" height="45" id="cmdResult"><br>
+					</div>
+				</td>
+			</tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<img src="/blank.gif" alt="" width="145" height="10"><br>
+				</td>
+			</tr>
+			<tr valign="top"><td align="right" class="navi"><br><span class="nh">Version</span></td></tr>
+			<tr><td height="1" bgcolor="#fb7922" colspan="1" style="background-image:url(/strichel.gif)" class="white"></td></tr>
+			<tr valign="top">
+				<td align="right" class="navi">
+					<img src="/blank.gif" alt="" width="145" height="10"><br>
+					<span class="navi">&nbsp;
+						[FW: <span id='fwBox'></span> ]<br>
+						[SW: <span id='swBox'></span> ]<br>
+						[HW:&nbsp;&nbsp;&nbsp;1C&nbsp;]<br>
+						[WEB:&nbsp;4.2.2&nbsp;]<br>
+					</span>
+					<span class="navi" id="serverVer" style="display:none;">&nbsp;
+						[HTTP: <span id='serverBox' style="display:none;"></span> ]<br>
+					</span>
+					<span class="navi">&nbsp;
+						[SN: <span id='sernrBox'></span> ]<br>
+					</span>
+					<br><br>
+				</td>
+			</tr>
+			<tr valign="bottom">
+				<td align="right" class="navi">
+					<div>
+					<p class=navi>&copy;2023<br>
+					<a target="blank" href="http://fiplex.com/"><img border=0 src="/logo.png"></a>
+					</p>
+					</div>
+				</td>
+			</tr>
+		</table>
+		<form id="version_req_form" name="version_req_form" action="/navi.html" METHOD="POST">
+			<input type="hidden" id="version_req" name="version_req">
+			<input type="hidden" id="time_req" name="time_req">
+			<input type="hidden" id="sernr_req" name="sernr_req">
+		</form>
+	</body>
+</html>

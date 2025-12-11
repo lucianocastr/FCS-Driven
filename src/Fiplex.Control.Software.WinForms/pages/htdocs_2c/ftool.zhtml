@@ -1,0 +1,22 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html style="text-align: center;">
+<!--<![-->
+	<head>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" >
+		<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" >
+		<meta http-equiv="cache-control" content="no-transform">
+		<link id="cssfile" href="/a/c/base.css" rel="stylesheet" type="text/css">
+		<title>Fiplex Control Software</title>
+		<script language="JavaScript" type="text/javascript" src="/a/j/base.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/a/j/objfactory.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/a/j/config.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/a/j/fhelp.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/a/j/ftool_2c.js"></script>
+	</head>
+	<body onload="ftonload()">
+		<form id="ftoolform" name="ftoolform" action="/ftool.zhtml" METHOD="POST">
+			<div id="contentbox" name="contentbox" class="toolcont">
+			</div>
+	</body>
+</html>

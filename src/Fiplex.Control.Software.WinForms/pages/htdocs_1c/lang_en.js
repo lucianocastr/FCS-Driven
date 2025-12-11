@@ -1,0 +1,36 @@
+<!--
+var TextEn = new Object();
+TextEn['ENABLE'] = 'Enable';
+TextEn['SQUELCH'] = 'Squelch';
+TextEn['SQTHRS'] = 'Threshold';
+TextEn['POWER'] = 'Power';
+TextEn['OVF'] = 'Overflow';
+TextEn['GAIN'] = 'Gain';
+TextEn['TEMPERATURE'] = 'Temperature';
+TextEn['STATUS'] = 'Status';
+TextEn['DISPLAY'] = 'Show';
+TextEn['CONTROL'] = 'BAND&nbsp;CONTROL';
+TextEn['CHANNEL'] = 'CHANNEL&nbsp;CONTROL';
+TextEn['DNLINK'] = 'DOWNLINK';
+TextEn['UPLINK'] = 'UPLINK';
+TextEn['GAINLIM'] = "Main&nbsp;Gain";
+TextEn['POWERLIM'] = "Power&nbsp;Limit";
+TextEn['MUTEMODE'] = "Squelch&nbsp;Mode";
+TextEn['LINKED'] = "Linked";
+TextEn['INDEPENDENT'] = 'Not Linked';
+TextEn['FINEGAIN'] = "Fine&nbsp;Gain&nbsp;";
+TextEn['FINEPOWER'] = "Fine&nbsp;Power&nbsp;Limit";
+TextEn['BW'] = "Bandwidth";
+TextEn['INPUT'] = "INPUT";
+TextEn['OUTPUT'] = "OUTPUT";
+TextEn['SIGNAL'] = "Signal&nbsp;IN";
+TextEn['ISOL'] = 'Isolation';
+TextEn['POWIN'] = 'Power&nbsp;IN';
+TextEn['POWOUT'] = 'Power&nbsp;OUT';
+TextEn['FREQUENCY'] = 'Frequency';
+TextEn['CHON'] = 'CHANNEL&nbsp;ENABLED';
+TextEn['CHOFF'] = 'CHANNEL&nbsp;DISABLED';
+TextEn["TBS"] = 'Base&nbsp;Station';
+TextEn["FPGA"] = 'HW&nbsp;Fail';
+TextEn["AGC"] = 'AGC';
+// -->

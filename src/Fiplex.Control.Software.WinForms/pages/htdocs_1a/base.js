@@ -1,0 +1,278 @@
+<!--
+if (!window.console) console = {log: function() {}, error:function(){} };
+
+(function() {
+	if (!Array.prototype.indexOf) {
+		Array.prototype.indexOf = function (searchElement, fromIndex) {
+			if ( this === undefined || this === null ) {
+				throw new TypeError( '"this" is null or not defined' );
+			}
+			var length = this.length >>> 0;
+			fromIndex = +fromIndex || 0;
+			if (Math.abs(fromIndex) === Infinity) {
+				fromIndex = 0;
+			}
+			if (fromIndex < 0) {
+				fromIndex += length;
+				if (fromIndex < 0) {
+					fromIndex = 0;
+				}
+			}
+			for (;fromIndex < length; fromIndex++) {
+				if (this[fromIndex] === searchElement) {
+					return fromIndex;
+				}
+			}
+			return -1;
+		};
+	}
+})();
+(function() {
+	if(typeof String.prototype.isPrintable !== 'function'){
+		String.prototype.isPrintable=function(){
+			var re=/[^ -~]/;
+			return !re.test(this);
+		}
+	}
+})();
+(function() {
+	if(typeof String.prototype.trim !== 'function'){
+		  String.prototype.trim = function() {
+			return this.replace(/^\s+|\s+$/g, ''); 
+		}
+	}
+})();
+
+var last;
+function h(t) {
+	if (typeof last == "undefined") {
+		last = document.anchors[0];
+	}
+	last.className = 'n';
+	t.className = 'nh';
+	t.blur();
+	last = t;
+}
+
+function getFrameSizeById(frameID) {
+	var result = {height:0, width:0};
+	var frame = parent.document.getElementById(frameID);
+	if (!frame)
+		frame = parent.parent.document.getElementById(frameID);
+        if (frame && frame.scrollWidth) {
+		result.height = frame.scrollHeight;
+		result.width = frame.scrollWidth;
+        }
+	return result;
+}
+
+function getWindowPosition() {
+	var result = {x:0, y:0};
+	if (navigator.appName.indexOf("Netscape")!=-1 && parseInt(navigator.appVersion)>=5) {
+		result.x = window.screenX;
+		result.y = window.screenY;
+	} else if (navigator.appName.indexOf("Microsoft")!= -1 && parseInt(navigator.appVersion)>=4) {
+		result.x = window.screenLeft;
+		result.y = window.screenTop;
+	}
+	return result;
+}
+
+function remove_element(el)
+{
+	if (!el)
+		return;
+	while (el.lastChild)
+		el.removeChild(el.lastChild);
+	var parent = el.parentNode;
+	parent.removeChild(el);
+}
+
+function remove_children(node)
+{
+	if (!node)
+		return;
+	while (node.lastChild)
+		node.removeChild(node.lastChild);
+}
+
+function ptq(q) {
+	var x = q.replace(/;/g, '&').split('&'), i, name, t;
+	for (q={}, i=0; i<x.length; i++) {
+		t = x[i].split('=', 2);
+		name = unescape(t[0]);
+		if (!q[name])
+			q[name] = [];
+		if (t.length > 1)
+			q[name][q[name].length] = unescape(t[1]);
+		else
+			q[name][q[name].length] = true;
+	}
+	return q;
+}
+
+function loadPageVar(sVar) {
+	return decodeURI(window.location.search.replace(new RegExp("^(?:.*[&\\?]" + encodeURI(sVar).replace(/[\.\+\*]/g, "\\$&") + "(?:\\=([^&]*))?)?.*$", "i"), "$1"));
+}
+
+function entify(s) {
+	return (''+s).
+	replace(/&/g, '&amp;').
+	replace(/</g, '&lt;').
+	replace(/"/g, '&quot;').
+	replace(/>/g, '&gt;');
+}
+
+function cursorWait() {
+	document.body.style.cursor = 'wait';
+}
+
+function cursorClear() {
+	document.body.style.cursor = 'default';
+}
+
+var ERR_OK = 0;
+var ERR_FAIL = -1;
+var ERR_PENDING = -2;
+var ERR_NONE = -3;
+
+function to_float(numInt) {
+	var num = Number();	
+	if (numInt > 32767)
+		numInt -= 65536;
+	num = numInt / 256;
+	return(num);
+}
+
+function to_ufloat(numInt) {
+	var num = Number();	
+	num = numInt / 256;
+	return(num);
+}
+
+function to_phase(numInt) {
+	var num = Number();	
+	num = numInt / 64;
+	return(num);
+}
+
+function to_stab(numInt) {
+	var num = Number();	
+	num = numInt / 32;
+	return(num);
+}
+
+function cSignedByte(num) {
+	if (typeof(num) !== "undefined" && !isNaN(num)) {
+		if (num > 127)
+			num -= 256;
+	}
+	return num;
+}
+
+function rSignedByte(num) {
+	if (typeof(num) !== "undefined" && !isNaN(num)) {
+		if (num < 0)
+			num += 256;
+	}
+	return num;
+}
+
+function hexformat(number, width) {
+	var num = new Number(number);
+	var str = num.toString(16);
+	while (str.length < width) str = "0" + str;
+	if (str.length > width) str = str.substring(str.length - width);
+	return str.toUpperCase();
+}
+function double_to_uint(fval)
+{
+	var v = Math.round(fval * 256);
+	if (v > 32767)
+		v = 32767;
+	else if (v < -32767)
+		v = -32767;
+	if (v < 0)
+		v += 65536;
+	return v;
+}
+function isKeyDecimalNumber(ev) {
+	ev = ev || window.event;
+	var c = ev.which || ev.keyCode;
+	var charcode = ev.charCode ? ev.charCode : ev.keyCode;
+	var isvalid = (c == 8 || c == 9 || c == 16 || c == 20 || 
+		c == 35 || c == 36 || c == 37  || c == 39);
+	var ispunct = (c == 43 || c == 45 || c == 46 || c == 190 || c==109 || c==189);
+	if ((c >= 48 && c <= 57) || isvalid || ispunct)
+		return true;
+	else
+		return charcode === 0;
+}
+function numbersOnly(ev) {
+	ev = ev || window.event;
+	var c = ev.which || ev.keyCode;
+	var charcode = ev.charCode ? ev.charCode : ev.keyCode;
+	var isvalid = (c == 8 || c == 9 || c == 16 || c == 20 || 
+		c == 35 || c == 36 || c == 37  || c == 39);
+	if ((c >= 48 && c <= 57) || isvalid)
+		return true;
+	else
+		return charcode === 0;
+}
+function hexNumbersOnly(ev) {
+	ev = ev || window.event;
+	var c = ev.which || ev.keyCode;
+	var charcode = ev.charCode ? ev.charCode : ev.keyCode;
+	var isvalid = (c == 8 || c == 9 || c == 16 || c == 20 || 
+		c == 35 || c == 36 || c == 37  || c == 39);
+	if ((c >= 48 && c <= 57) || (c >= 65 && c <= 70) || (c >= 97 && c <= 102) || isvalid)
+		return true;
+	else
+		return charcode === 0;
+}
+Object.size = function(obj) {
+    var size = 0, key;
+    for (key in obj) {
+        if (obj.hasOwnProperty(key)) size++;
+    }
+    return size;
+};
+
+var fList = new Object();
+function initFormChangeCheck() {
+	for (var fOi = 0; fOi < document.forms[0].elements.length; fOi++) {
+		var el = document.forms[0].elements[fOi];
+		switch (el.type) {
+		case "password":
+		case "hidden":
+		case "text": fList[el.name] = el.value; break;
+		case "checkbox": fList[el.name] = el.checked; break;
+		case "select-one": fList[el.name] = el.selectedIndex; break;
+		}
+	}
+}
+function checkChange() {
+	var changed = false;
+	for (var fOi = 0; fOi < document.forms[0].elements.length; fOi++) {
+		var el = document.forms[0].elements[fOi];
+		if (el.name == "")
+			continue;
+		switch (el.type) {
+		case "password":
+		case "hidden":
+		case "text": changed = (fList[el.name] != el.value); break;
+		case "checkbox": changed = (fList[el.name] != el.checked); break;
+		case "select-one": changed = (fList[el.name] != el.selectedIndex); break;
+		}
+		if (changed)
+			break;
+	}
+	return changed;
+}
+function showResultIcon(num) {
+	try {
+		var el = window.parent.navi.document.getElementById("cmdResult");
+		el.src = (num == ERR_OK)? "/tick.png" : ((num == ERR_FAIL)? "/cross.png" : "/blank.gif");
+	} catch (err) {}
+}
+// -->

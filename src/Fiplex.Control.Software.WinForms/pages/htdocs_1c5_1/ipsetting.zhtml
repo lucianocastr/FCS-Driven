@@ -1,0 +1,74 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--<![-->
+	<head>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" >
+		<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" >
+		<meta http-equiv="cache-control" content="no-transform">
+		<link href="/base.css" rel="stylesheet" type="text/css">
+		<script language="JavaScript" type="text/javascript" src="/base.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/pipset.js"></script>
+		<style type="text/css">
+			table.iptable {
+				border-collapse:collapse;
+				text-align:center;
+			}
+			iptable.th {
+				padding-right:10px;
+			}
+			input.iptable {
+				text-align:center;
+			}
+		</style>
+		<title>Fiplex Control Software</title>
+	</head>
+	<body onload="onloadInit()">
+		<form id="ip_form" name="ip_form" action="/ip_close.html" METHOD="POST">
+			<input type="hidden" id="np_ip_str" name="np_ip_str" value="" size="41" maxlength="40">
+			<h1>IP SETTINGS</h1><br/>
+			<table class="iptable"><tbody>
+			<tr><th class="thdrht">IP ADDRESS</th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_00" name="ip_00" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_01" name="ip_01" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_02" name="ip_02" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_03" name="ip_03" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td>
+			</tr><br/>
+			<tr><th class="thdrht">NET MASK</th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_10" name="ip_10" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_11" name="ip_11" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_12" name="ip_12" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_13" name="ip_13" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td>
+			</tr><br/>
+			<tr><th class="thdrht">GATEWAY</th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_20" name="ip_20" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_21" name="ip_21" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_22" name="ip_22" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_23" name="ip_23" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td>
+			</tr><br/>
+			<tr><th>SNMP Manager 1 </th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_30" name="ip_30" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_31" name="ip_31" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_32" name="ip_32" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_33" name="ip_33" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td>
+			</tr><br/>
+			<tr><th>SNMP Manager 2 </th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_40" name="ip_40" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_41" name="ip_41" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_42" name="ip_42" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_43" name="ip_43" class="iptable" onkeypress="return numbersOnly(event);" onpaste="return false;"></td>
+			</tr><br/>
+			</tbody></table>
+			<br/><br/><br/><br/>
+			<h1>MODEM IP ADDRESS</h1><br/>
+			<table class="iptable"><tbody>
+			<tr><th class="thdrht">Modem-router IP</th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_m0" name="ip_m0" class="iptable" style="background-color: #CCCCCC;" disabled></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_m1" name="ip_m1" class="iptable" style="background-color: #CCCCCC;" disabled></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_m2" name="ip_m2" class="iptable" style="background-color: #CCCCCC;" disabled></td><td>.</td>
+				<td><input type="text" size="4" maxlength="3" id="ip_m3" name="ip_m3" class="iptable" style="background-color: #CCCCCC;" disabled></td>
+			</tr><br/>
+			</tbody></table>
+		</form>
+	</body>
+</html>

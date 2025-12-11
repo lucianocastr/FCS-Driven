@@ -1,0 +1,1974 @@
+function Config() {
+	this.NR_OF_RELAYS_MAX			= 10
+	this.CHNR 						= 32;
+	this.ADJNR 						= 4;
+		
+	this.resetSoft					= false;
+	
+	this.uldlLinkedFreq				= [false,false];
+	this.muteModeLinked				= [false,false];
+	this.numberOfFilterNonGrouped	= [[0,0],[0,0]];
+	this.simplexMode				= [false,false];
+	
+	this.gainIsolMargin				= [0,0];
+	this.oscFeatureEnabled			= [false,false];
+	this.runIsolationMeas			= [false,false];
+	this.oscTimeThSeconds			= [0,0];
+	this.oscRetryTimeHours			= [0,0];
+	this.oscActionAfterAlarm		= [0,0];
+	this.clearOscAlarm				= [false,false];
+	this.allSameSquelch				= [false,false]; //band0/1 [2]
+	
+	this.firstADJisFirstNet			= false;
+	
+	this.allChSameBW				= []; //band0/1 ul/dl[2][2]
+	this.paEnabled					= []; //band0/1 ul/dl [2][2]
+	
+	this.sqChEnabled				= []; //nb/adj band0/1 ul/dl nfilter [2][2][2][32] en UL NB se utiliza CH0 para el que aplica a todos los filtros
+	this.sqChThreshold				= []; //nb/adj band0/1 ul/dl nfilter [2][2][2][32] en UL NB se utiliza CH0 para el que aplica a todos los filtros
+	
+	this.gain						= []; //band0/1 ul/dl [2][2]
+	this.power						= []; //band0/1 ul/dl [2][2]
+	
+	this.filterEnabled				= []; // nb/adj ul/dl band0/1 ul/dl nfilter [2][2][2][32]
+	this.isFilterGrouped			= []; // band0/1 ul/dl nfilter [2][2][32]
+	this.bwIndex					= []; // band0/1 ul/dl nfilter [2][2][32]
+	this.bwKHz						= []; // band0/1 ul/dl nfilter [2][2][32]
+	this.freqHz						= []; // band0/1 ul/dl nfilter [2][2][32]
+	this.fineGainFilter				= []; // nb/adj band0/1 ul/dl nfilter [2][2][2][32]
+	
+	this.fstartHzAdjFilter			= []; // band0/1 ul/dl nfilter [2][2][4]
+	this.fstopHzAdjFilter			= []; // band0/1 ul/dl nfilter [2][2][4]
+	
+	this.delayTimerON				= []; // 8 --> 1boolean/relay ---
+	this.latchTimerON				= []; // 8 --> 1boolean/relay ---
+	this.delayTimer					= []; // 8 --> 1int/relay ---
+	this.latchTimer					= []; // 8 --> 1int/relay ---	
+	
+	this.autoUlPaOffTimer			= 0;
+	this.extremeTempAction 			= 0;
+	this.forcePaOn					= []; //band0/1 ul/dl [2][2]
+	this.forcePaOff					= []; //band0/1 ul/dl [2][2]	
+	this.controlChannel = [];
+	this.bbu_serial_mode = true;
+	this.bbu_type;
+	this.bbu_dismiss_deep_discharge;
+
+	for (var k=0;k<this.NR_OF_RELAYS_MAX;k++){
+		this.delayTimerON.push(false);
+		this.latchTimerON.push(false);
+		this.delayTimer.push(0);
+		this.latchTimer.push(0);
+	}	
+	
+	for (var nbadj=0;nbadj<2;nbadj++){
+		this.filterEnabled.push([]);
+		this.fineGainFilter.push([]);
+		this.sqChEnabled.push([]);
+		this.sqChThreshold.push([]);
+		for (var band=0;band<2;band++){
+			this.filterEnabled[nbadj].push([]);
+			this.fineGainFilter[nbadj].push([]);
+			this.sqChEnabled[nbadj].push([]);
+			this.sqChThreshold[nbadj].push([]);			
+			for (var uldl=0;uldl<2;uldl++){
+				this.filterEnabled[nbadj][band].push([]);
+				this.fineGainFilter[nbadj][band].push([]);
+				this.sqChEnabled[nbadj][band].push([]);
+				this.sqChThreshold[nbadj][band].push([]);					
+				for (var ch=0;ch<2*this.CHNR;ch++){ //se duplica el tamaño para single band
+					this.filterEnabled[nbadj][band][uldl].push(false);
+					this.fineGainFilter[nbadj][band][uldl].push(0);
+					this.sqChEnabled[nbadj][band][uldl].push(false);
+					this.sqChThreshold[nbadj][band][uldl].push(0);					
+				}
+			}
+		}
+	}
+	
+	for (var band=0;band<2;band++){
+		this.allChSameBW.push([]);			
+		this.paEnabled.push([]);
+		this.forcePaOn.push([]);
+		this.forcePaOff.push([]);
+		this.gain.push([]);					
+		this.power.push([]);					
+		this.isFilterGrouped.push([]);		
+		this.bwIndex.push([]);					
+		this.bwKHz.push([]);					
+		this.freqHz.push([]);				
+		this.fstartHzAdjFilter.push([]);		
+		this.fstopHzAdjFilter.push([]);		
+		for (var uldl=0;uldl<2;uldl++){
+			this.allChSameBW[band].push(false);			
+			this.paEnabled[band].push(false);
+			this.forcePaOn[band].push(false);
+			this.forcePaOff[band].push(false);
+			this.gain[band].push(0);					
+			this.power[band].push(0);
+			this.isFilterGrouped[band].push([]);		
+			this.bwIndex[band].push([]);					
+			this.bwKHz[band].push([]);	
+			this.freqHz[band].push([]);	
+			this.fstartHzAdjFilter[band].push([]);		
+			this.fstopHzAdjFilter[band].push([]);
+			for (var ch=0;ch<2*this.CHNR;ch++){ //se duplica el tamaño para single band
+				this.isFilterGrouped[band][uldl].push(false);		
+				this.bwIndex[band][uldl].push(0);					
+				this.bwKHz[band][uldl].push(0);	
+				this.freqHz[band][uldl].push(0);
+			}
+			for (var ch=0;ch<this.ADJNR;ch++){
+				this.fstartHzAdjFilter[band][uldl].push(0);		
+				this.fstopHzAdjFilter[band][uldl].push(0);				
+			}			
+		}
+	}
+	this.frm					= "";
+	
+	this.SqModeVals = {
+		'NOTLINKED': 	0,
+		'LINKED': 	1
+	}
+	this.sqThrLimits = function(simplex, b, ULlowGainMode) {
+		if (simplex) {
+			return {MIN: -100, MAX: -40};
+		} else {
+			if (b == 0) {
+				var isULlowGainMode = ULlowGainMode || false;
+				if (!isULlowGainMode) {
+					return {MIN: -110, MAX: -40};
+				} else {
+					return {MIN: -75, MAX: -40};
+				}
+			} else {
+				return {MIN: -90, MAX: -40};
+			}
+		}
+	}
+	this.GfineRange = -40;
+	this.GmainRange = [-30, -30];
+	this.limitPowerRange = [20, 20];
+	this.limitgFine = [
+		{MIN: -40,	MAX: 0},
+		{MIN: -40,	MAX: 0}
+	];
+	this.limitAbnSqTime = {MIN: 10,	MAX: 2400};
+	this.limitRetryTime = {MIN: 0,	MAX: 48};
+	this.limitAutoPaUlOffTime = {MIN: 1,	MAX: 60000};
+	
+	this.parse = function(s) {
+		if (s.length!=1602) return -1; 
+		var i;
+		var res;
+		var ind = 0;
+		this.frm = s;
+		var str = localStorage.getItem("Factory"+Prjstr+window.location.host);
+		var factory = new Factory(str);
+		//RESET
+		res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		this.resetSoft = false;//(res & 0x1)!=0;
+		for (var b=0;b<2;b++){ //Band0/1
+			//SIMPLEX,NGROUPS,MUTEMODE,LINKEDULDL
+			res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+			this.uldlLinkedFreq[b] = (res & 0x1)==0;
+			//se fuerza a false si bw ul/dl no son iguales
+			if ((factory.fstop[2*b+1]-factory.fstart[2*b+1])!=(factory.fstop[2*b]-factory.fstart[2*b])) this.uldlLinkedFreq[b]=false;
+			this.muteModeLinked[b] = (res & 0x2)!=0;
+			this.simplexMode[b] = (res & 0x80)!=0;
+			//OSCFEATURE GENERAL
+			res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+			if (b==0){
+				this.oscActionAfterAlarm[0] = (res & 0x3);
+				if (this.oscActionAfterAlarm[0]==3) this.oscActionAfterAlarm[0]=2;
+				this.clearOscAlarm[0] = false;//(res & 0x4)!=0;
+				this.oscFeatureEnabled[0] = (res & 0x8)!=0;
+				this.runIsolationMeas[0] = false;//(res & 0x10)!=0;
+			}
+			if (b==1) {
+				this.bbu_serial_mode = (res & 0x01);
+				this.bbu_type = ((res >> 1) & 0x07);
+				this.bbu_dismiss_deep_discharge = (res & 0x10);
+				this.bbu_dismiss_deep_discharge = false; 	// write-only
+			}
+			//GAINISOLMARGIN
+			this.gainIsolMargin[b] = 20; ind+=2;//parseInt(s.substring(ind,ind+2), 16); ind+=2;
+			//OSCTIMETH
+			this.oscTimeThSeconds[b] = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+			//OSCRETRYTIME
+			this.oscRetryTimeHours[b] = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+			for (var i=0;i<2;i++){//UL/DL
+				//SQEN,SAMEBW,PAON
+				res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+				if (i==0 && b==0) this.firstADJisFirstNet = (res & 0x40)!=0;
+				if (i==0) this.sqChEnabled[0][b][0][0] = (res & 0x10)!=0;
+				this.allChSameBW[b][i] = (res & 0x20)!=0;
+				if (i==1) this.allSameSquelch[b] =  (res & 0x40)!=0;
+				this.paEnabled[b][i] = (res & 0x80)!=0;
+				this.forcePaOn[b][i] = false;
+				this.forcePaOff[b][i] = false;
+				if (i==0 && b==0) this.extremeTempAction = ((res & 0x0C) >> 2);
+				//SQTH
+				if (i==0){
+					res = parseInt(s.substring(ind,ind+2), 16); if (res>127) res-=256;
+					this.sqChThreshold[0][b][0][0] = res;
+				} else {
+					res = parseInt(s.substring(ind,ind+2), 16); if (res>127) res-=256;
+					this.controlChannel[b] = res;
+				}
+				ind+=2;
+				//GAIN
+				this.gain[b][i] = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+				//POWER
+				this.power[b][i] = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+				if (this.power[b][i]>127) this.power[b][i]-=256;				
+				//SQENADJ,CHONADJ
+				res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+				for (var ch=0;ch<this.ADJNR;ch++){
+					this.sqChEnabled[1][b][i][ch] = (res & (1<<ch))!=0;
+				}
+				for (var ch=0;ch<this.ADJNR;ch++){
+					this.filterEnabled[1][b][i][ch] = (res & (1<<(ch+4)))==0;
+				}
+
+				this.numberOfFilterNonGrouped[b][i] = parseInt(s.substring(ind,ind+2), 16) & 0x3f; ind+=2;
+				
+				for (var ch=0;ch<this.CHNR;ch++){//32CH
+					//CHON,GROUPED,BW
+					res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+					this.filterEnabled[0][b][i][ch] = (res & 0x80)==0;
+					this.isFilterGrouped[b][i][ch] = (res & 0x40)!=0;
+					this.freqHz[b][i][ch] = ((res & 0x20)>>5)*factory.fstep/2; //1 extra bit for freq
+					this.bwIndex[b][i][ch] = (res & 0x7);
+					if (this.bwIndex[b][i][ch]==0) this.bwIndex[b][i][ch]=1;//No existe filtro 150KHz
+					this.bwKHz[b][i][ch] = this.computeBWFromIndex(this.bwIndex[b][i][ch]);
+					//FINE GAIN
+					this.fineGainFilter[0][b][i][ch] = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+					if (this.fineGainFilter[0][b][i][ch]>127) this.fineGainFilter[0][b][i][ch]-=256;
+					//FREQ
+					res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+					if (res>32767) res-=65536;
+					this.freqHz[b][i][ch] += factory.fref[2*b+i]+res*factory.fstep;
+				}
+				for (var ch=0;ch<this.ADJNR;ch++){//4ADJ
+					//FINE GAIN
+					this.fineGainFilter[1][b][i][ch] = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+					if (this.fineGainFilter[1][b][i][ch]>127) this.fineGainFilter[1][b][i][ch]-=256;
+					//FSTART
+					res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+					if (res>32767) res-=65536;
+					this.fstartHzAdjFilter[b][i][ch] = factory.fref[2*b+i]+res*factory.fstepAdj;
+					//FSTOP
+					res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+					if (res>32767) res-=65536;
+					this.fstopHzAdjFilter[b][i][ch] = factory.fref[2*b+i]+res*factory.fstepAdj;
+				}
+			}
+		}
+		//Squelchs
+		for (b=0;b<2;b++){
+			for (var ch=0;ch<this.CHNR;ch++){//32CH
+				res = parseInt(s.substr(ind,2), 16); ind+=2; if (res>127) res-=256;
+				this.sqChThreshold[0][b][1][ch] = res;
+			}
+			for (i=0;i<2;i++){
+				for (var ch=0;ch<this.ADJNR;ch++){//4ADJ
+					res = parseInt(s.substr(ind,2), 16); ind+=2; if (res>127) res-=256;
+					this.sqChThreshold[1][b][i][ch] = res;
+				}
+			}
+			res = parseInt(s.substring(ind,ind+8), 16); ind+=8;
+			for (var ch=0;ch<this.CHNR;ch++){//32CH
+				this.sqChEnabled[0][b][1][ch] = (res & (1<<ch))!=0;
+			}
+		}
+		this.autoUlPaOffTimer = parseInt(s.substr(ind,4), 16); ind+=4;		
+		
+		//conf timers NFPA
+		for (var k=0;k<this.NR_OF_RELAYS_MAX;k++){
+			res = parseInt(s.substring(ind,ind+8), 16); ind+=8;
+			this.delayTimerON[k] = (res & 0x80000000)!=0;
+			this.delayTimer[k] = res & 0x7fffffff;
+			res = parseInt(s.substring(ind,ind+8), 16); ind+=8;
+			this.latchTimerON[k] = (res & 0x80000000)!=0;
+			this.latchTimer[k] = res & 0x7fffffff;
+		}
+		
+		//arreglo para single band.
+		//si single band0 conf1-32 band 1 --> conf33-64 band0
+		//si single band1 conf1-32 band 0 --> conf33-64 band1
+		for (var b=0;b<2;b++){ //Band0/1
+			if (factory.singleBandEnabled[b]){
+				for (var i=0;i<2;i++){
+					for (var ch=0;ch<this.CHNR;ch++){
+						this.filterEnabled[0][b][i][ch+this.CHNR] = this.filterEnabled[0][1-b][i][ch];
+						this.fineGainFilter[0][b][i][ch+this.CHNR] = this.fineGainFilter[0][1-b][i][ch];
+						this.sqChEnabled[0][b][i][ch+this.CHNR] = this.sqChEnabled[0][1-b][i][ch];
+						this.sqChThreshold[0][b][i][ch+this.CHNR] = this.sqChThreshold[0][1-b][i][ch];
+						this.isFilterGrouped[b][i][ch+this.CHNR] = this.isFilterGrouped[1-b][i][ch];
+						this.bwIndex[b][i][ch+this.CHNR] = this.bwIndex[1-b][i][ch];
+						this.bwKHz[b][i][ch+this.CHNR] = this.bwKHz[1-b][i][ch];
+						if (b==0)
+							this.freqHz[b][i][ch+this.CHNR] = this.freqHz[1-b][i][ch]-factory.fref[2+i]+factory.fref[i];
+						else
+							this.freqHz[b][i][ch+this.CHNR] = this.freqHz[1-b][i][ch]-factory.fref[i]+factory.fref[i+2];
+					}
+				}		
+			}
+		}	
+	}
+	this.getFrm = function(){
+		var i;
+		var res,fr;
+		var mask = 0;
+		var b,ch;
+		var cfg = "";
+		var str = localStorage.getItem("Factory"+Prjstr+window.location.host);
+		var factory = new Factory(str);
+		//arreglo para single band.
+		//si single band0 conf33-64 band 0 --> conf1-32 band1
+		//si single band1 conf33-64 band 1 --> conf1-32 band0
+		for (var b=0;b<2;b++){ //Band0/1
+			if (factory.singleBandEnabled[b]){
+				for (var i=0;i<2;i++){
+					for (var ch=0;ch<this.CHNR;ch++){
+						this.filterEnabled[0][1-b][i][ch] = this.filterEnabled[0][b][i][ch+this.CHNR];
+						this.fineGainFilter[0][1-b][i][ch] = this.fineGainFilter[0][b][i][ch+this.CHNR];
+						this.sqChEnabled[0][1-b][i][ch] = this.sqChEnabled[0][b][i][ch+this.CHNR];
+						this.sqChThreshold[0][1-b][i][ch] = this.sqChThreshold[0][b][i][ch+this.CHNR];
+						this.isFilterGrouped[1-b][i][ch] = this.isFilterGrouped[b][i][ch+this.CHNR];
+						this.bwIndex[1-b][i][ch] = this.bwIndex[b][i][ch+this.CHNR];
+						this.bwKHz[1-b][i][ch] = this.bwKHz[b][i][ch+this.CHNR];
+						if (b==0)
+							this.freqHz[1-b][i][ch] = this.freqHz[b][i][ch+this.CHNR]+factory.fref[2+i]-factory.fref[i];
+						else
+							this.freqHz[1-b][i][ch] = this.freqHz[b][i][ch+this.CHNR]+factory.fref[i]-factory.fref[i+2];
+					}
+				}		
+			}
+		}		
+		//RESET
+		if (this.resetSoft) mask = 1;
+		cfg += hexformat(mask,2);	
+		for (b=0;b<2;b++){ //Band0/1
+			//SIMPLEX,NGROUPS,MUTEMODE,LINKEDULDL
+			mask=0;
+			if (!this.uldlLinkedFreq[b]) mask|=0x1;
+			if (this.muteModeLinked[b]) mask|=0x2;
+			if (this.simplexMode[b]) mask|=0x80;
+			cfg += hexformat(mask,2);	
+			//OSCFEATURE GENERAL
+			mask = 0;
+			if (b==0){
+				mask=this.oscActionAfterAlarm[0] & 0x3;
+				if (this.clearOscAlarm[0]) mask|=0x4;
+				if (this.oscFeatureEnabled[0]) mask|=0x8;
+				if (this.runIsolationMeas[0]) mask|=0x10;
+			}
+			if (b==1) {
+				if (this.bbu_serial_mode) mask|=0x01;
+				mask |= ((this.bbu_type & 0x07) << 1);
+				if (this.bbu_dismiss_deep_discharge) mask |= 0x10;
+			}
+			cfg += hexformat(mask,2);	
+			//GAINISOLMARGIN
+			cfg += hexformat(this.gainIsolMargin[b],2);
+			//OSCTIMETH
+			cfg += hexformat(this.oscTimeThSeconds[b],4);
+			//OSCRETRYTIME
+			cfg += hexformat(this.oscRetryTimeHours[b],4);
+			
+			for (i=0;i<2;i++){//UL/DL
+				//SQEN,SAMEBW,PAON
+				mask=0;
+				if (i==0 && b==0){
+					if (this.firstADJisFirstNet) mask|=0x40;
+					mask |= (this.extremeTempAction << 2) & 0x0C;
+				}
+				if (i==0){
+					if (this.sqChEnabled[0][b][0][0]) mask|=0x10;
+				}
+				if (this.allChSameBW[b][i]) mask|=0x20;
+				if (i==1){
+					if (this.allSameSquelch[b])  mask|=0x40;
+				}
+				if (this.paEnabled[b][i]) mask|=0x80;
+				if (this.forcePaOff[b][i]) mask|=0x1;
+				if (this.forcePaOn[b][i]) mask|=0x2;
+				
+				cfg += hexformat(mask,2);
+				//SQTH
+				res=0;
+				if (i==0){
+					res=this.sqChThreshold[0][b][0][0];if (res<0) res+=256;	
+				} else {
+					res=this.controlChannel[b]; if (res<0) res+=256;
+				}
+				cfg += hexformat(res,2);
+				//GAIN
+				cfg += hexformat(this.gain[b][i],2);
+				//POWER
+				res= this.power[b][i];if (res<0) res+=256;
+				cfg += hexformat(res,2);
+				//SQENADJ,CHONADJ
+				mask=0;
+				for (ch=0;ch<4;ch++){
+					if (this.sqChEnabled[1][b][i][ch]) mask|=(1<<ch);
+				}
+				for (ch=0;ch<4;ch++){
+					if (!this.filterEnabled[1][b][i][ch]) mask|=(1<<(ch+4));
+				}
+				cfg += hexformat(mask,2);
+				cfg += hexformat(this.numberOfFilterNonGrouped[b][i] & 0x3f,2);
+				
+				for (ch=0;ch<this.CHNR;ch++){//32CH
+					mask=0;
+					//CHON,GROUPED,BW
+					if (!this.filterEnabled[0][b][i][ch]) mask|=0x80;
+					if (this.isFilterGrouped[b][i][ch]) mask|=0x40;
+					mask|=this.bwIndex[b][i][ch] & 0x7;
+					this.bwKHz[b][i][ch] = this.computeBWFromIndex(this.bwIndex[b][i][ch]);
+					fr = ~~Math.round((this.freqHz[b][i][ch]-factory.fref[2*b+i])/factory.fstep*2);if (fr<0) fr+=131072; //1extra bit for freq
+					mask|= (fr & 0x1)<<5;
+					cfg += hexformat(mask,2);
+					//FINE GAIN
+					res=this.fineGainFilter[0][b][i][ch];if (res<0) res+=256;
+					cfg += hexformat(res,2);
+					//FREQ
+					cfg += hexformat((fr>>1) & 0xffff,4);
+				}
+				for (ch=0;ch<4;ch++){//4ADJ
+					//FINE GAIN
+					res=this.fineGainFilter[1][b][i][ch];if (res<0) res+=256;
+					cfg += hexformat(res,2);
+					//FSTART
+					res =~~Math.round((this.fstartHzAdjFilter[b][i][ch]-factory.fref[2*b+i])/factory.fstepAdj);if (res<0) res+=65536;
+					cfg += hexformat(res,4);
+					//FSTOP
+					res =~~Math.round((this.fstopHzAdjFilter[b][i][ch]-factory.fref[2*b+i])/factory.fstepAdj);if (res<0) res+=65536;
+					cfg += hexformat(res,4);
+				}
+			}
+		}
+		//Squelchs
+		for (b=0;b<2;b++){
+			for (var ch=0;ch<this.CHNR;ch++){//32CH
+				res = this.sqChThreshold[0][b][1][ch];if (res<0) res+=256;
+				cfg += hexformat(res,2);
+			}
+			for (i=0;i<2;i++){
+				for (var ch=0;ch<this.ADJNR;ch++){//4ADJ
+					res = this.sqChThreshold[1][b][i][ch];if (res<0) res+=256;
+					cfg += hexformat(res,2);
+				}
+			}
+			mask = 0;
+			for (var ch=this.CHNR/2;ch<this.CHNR;ch++){//CH 16-31
+				if (this.sqChEnabled[0][b][1][ch])  mask|=1<<(ch-this.CHNR/2);
+			}
+			cfg += hexformat(mask,4);
+			mask = 0;
+			for (var ch=0;ch<this.CHNR/2;ch++){//CH 0-15
+				if (this.sqChEnabled[0][b][1][ch]) mask|=1<<ch;
+			}
+			cfg += hexformat(mask,4);			
+			
+		}
+		cfg += hexformat(this.autoUlPaOffTimer,4);		
+		//timers NFPA
+		for (var k=0;k<this.NR_OF_RELAYS_MAX;k++){
+			mask = (this.delayTimer[k]>>16) & 0x7fff; 
+			if (this.delayTimerON[k]) mask|=0x8000;
+			if (mask<0) mask+=65536;
+			cfg += hexformat(mask,4);
+			mask = this.delayTimer[k] & 0xffff; if (mask<0) mask+=65536;
+			cfg += hexformat(mask,4);			
+			mask = (this.latchTimer[k]>>16) & 0x7fff; 
+			if (this.latchTimerON[k]) mask|=0x8000;
+			if (mask<0) mask+=65536;
+			cfg += hexformat(mask,4);
+			mask = this.latchTimer[k] & 0xffff; if (mask<0) mask+=65536;
+			cfg += hexformat(mask,4);
+		}
+		this.frm = cfg;
+		return cfg;
+	}
+	this.computeBWFromIndex = function(index){
+		var bw;
+		if (index<=0) bw=150;
+		else if (index==1)	bw=100;
+		else if (index==2) bw=75;
+		else if (index==3) bw=62.5;
+		else if (index==4) bw=50;
+		else if (index==5) bw=37.5;
+		else if (index==6) bw=25;
+		else bw=12.5;
+		return bw;
+	}
+	this.saveFrameStr = function(sr) {
+		localStorage.setItem("Conf"+Prjstr+window.location.host, sr);
+	}
+	this.retrieveFrameStr = function() {
+		return localStorage.getItem("Conf"+Prjstr+window.location.host);
+	}	
+}
+
+function NFPAconf(){
+	this.NR_OF_RELAYS_MAX		= 10;
+	this.NUMALARM				= 32;
+	this.retLossTh				= [0,0];
+	this.minPowerVSWR			= [0,0];
+	this.alarmNumSens			= [0,0];
+	this.timeTxLowPowHigh		= [0,0];
+	this.timeTxLowPowLow		= [0,0];
+	this.antennaDisconnectionThreshold = [0, 0];
+	this.relayLogicConfigNormal	= []; // 8 --> 1boolean/relay ---
+	this.alarmEnabled		= [];
+	this.alarmInstalled 		= [];
+	this.globalAlarmsEnabled	= []; //16 --> 1boolean/alarm ---
+	this.globalAlarmsInstalled	= []; //16 --> 1boolean/alarm ---
+	this.bandAlarmsEnabled		= []; // 8 --> 1boolean/alarm ---
+	this.bandAlarmsInstalled	= []; // 8 --> 1boolean/alarm ---
+	this.bbuAlarmsEnabled		= []; //16 --> 1boolean/alarm ---
+	this.bbuAlarmsInstalled		= []; //16 --> 1boolean/alarm ---
+	this.relayAssignGlobalAlarm	= []; //16 alarm x 8 --> 1boolean/relay ---
+	this.relayAssignBandAlarm	= []; //8 alarm x 8 --> 1boolean/relay ---
+	this.relayAssignBbuAlarm	= []; //16 alarm x 8 --> 1boolean/relay ---
+	this.delayTimerON			= []; // 8 --> 1boolean/relay ---
+	this.latchTimerON			= []; // 8 --> 1boolean/relay ---
+	this.delayTimer				= []; // 8 --> 1int/relay ---
+	this.latchTimer				= []; // 8 --> 1int/relay ---
+	this.alarmNames				= [
+		"HW Fail",
+		"High.Temp",
+		"Antenna Isolation",
+		"Antenna Isolation B1",
+		"Oscillation Detection",
+		"Oscillation Detection B1",
+		"Antenna Disconnection B0",
+		"Antenna Disconnection B1",
+
+		"External Input 1",
+		"External Input 2",
+		"External Input 3",
+		"Force RF OFF",
+		"Undefined",	// Door Open ?
+		"Undefined",
+		"Undefined",
+		"Undefined",
+
+		"Overload UL B0",
+		"Overload DL B0",
+		"DL PA Fail B0",
+		"Tx Power Low B0",
+		"VSWR B0",
+		"Rx Power Low B0",
+		"DL AGC Fail B0",
+		"UL PA Fail B0",
+
+		"Overload UL B1",
+		"Overload DL B1",
+		"DL PA Fail B1",
+		"Tx Power Low B1",
+		"VSWR B1",
+		"Rx Power Low B1",
+		"DL AGC Fail B1",
+		"UL PA Fail B1"
+	];
+	this.alarmNamesBbu =
+    ["Normal AC Power","Loss Normal AC Power","Battery Capacity Under 30%","Battery Charger Fail","BBU Communication Error","Charger Temperature","Battery Temperature","Individual Battery Voltage",
+     "Battery Disconnection","System Voltage","Battery Bank Voltage","Battery Deep Discharge","Annunciator 1","Annunciator 2","Annunciator 3","Annunciator 4"];
+	this.guiOrder = [
+		0, // "HW Fail",
+		1, // "High.Temp",
+		2, // "Antenna Isolation B0",
+		3, // "Antenna Isolation B1",
+		4, // "Oscillation Detection B0",
+		5, // "Oscillation Detection B1",
+		6, // "Antenna Disconnection B0",
+		7, // "Antenna Disconnection B1",
+ 
+		8, // "Overload UL B0",
+		9, // "Overload UL B1",
+		10, // "Overload DL B0",
+		11, // "Overload DL B1",
+		12, // "DL PA Fail B0",
+		13, // "DL PA Fail B1",
+		14, // "Tx Power Low B0",
+		15, // "Tx Power Low B1",
+
+		16, // "VSWR B0",
+		17, // "VSWR B1",
+		18, // "Rx Power Low B0",
+		19, // "Rx Power Low B1",
+		20, // "DL AGC Fail B0",
+		21, // "DL AGC Fail B1",
+		22, // "UL PA Fail B0",
+		23, // "UL PA Fail B1"
+ 
+		24, // "External Input 1",
+		25, // "External Input 2",
+		26, // "External Input 3",
+		27, // "External Input 4",
+		28, // "Undefined",	// Door Open ?
+		29, // "Undefined",
+		30, // "Undefined",
+		31 // "Undefined",
+	]; 
+	this.naturalOrder = [
+		0, // "HW Fail",
+		1, // "High.Temp",
+		2, // "Antenna Isolation B0",
+		3, // "Antenna Isolation B1",
+		4, // "Oscillation Detection B0",
+		5, // "Oscillation Detection B1",
+		6, // "Antenna Disconnection B0",
+		7, // "Antenna Disconnection B1",
+ 
+		16, // "Overload UL B0",
+		24, // "Overload UL B1",
+		17, // "Overload DL B0",
+		25, // "Overload DL B1",
+		18, // "DL PA Fail B0",
+		26, // "DL PA Fail B1",
+		19, // "Tx Power Low B0",
+		27, // "Tx Power Low B1",
+
+		20, // "VSWR B0",
+		28, // "VSWR B1",
+		21, // "Rx Power Low B0",
+		29, // "Rx Power Low B1",
+		22, // "DL AGC Fail B0",
+		30, // "DL AGC Fail B1",
+		23, // "UL PA Fail B0",
+		31, // "UL PA Fail B1"
+ 
+		8, // "External Input 1",
+		9, // "External Input 2",
+		10, // "External Input 3",
+		11, // "External Input 4",
+		12, // "Undefined",	// Door Open ?
+		13, // "Undefined",
+		14, // "Undefined",
+		15 // "Undefined",
+	]; 
+	this.externalAlarmStartIndex = 8;
+	this.relayAssignExternalAlarmStartIndex = 8;
+	/* En las siguientes funciones, el argunmento es el número de alarma
+	que aparece en gui de alarmas. Su correspondencia con el orden de alarmas
+	de la trama es el vector 'naturalOrder'.
+	 */
+	this.isUserAlarm = function(n) {
+		var s = this.externalAlarmStartIndex;
+		if ( this.naturalOrder[n] >= s && this.naturalOrder[n] < s+4 ) {
+			return true;
+		}
+		return false;
+	}
+	this.userAlarmNumber = function(n) {
+		var s = this.externalAlarmStartIndex;
+		if ( this.naturalOrder[n] >= s && this.naturalOrder[n] < s+4 ) {
+			return (this.naturalOrder[n] - s);
+		}
+		return 0;
+	}
+	this.isUndefinedAlarm = function(n) {
+		return (this.naturalOrder[n] >= 12 &&  this.naturalOrder[n] <= 15)
+			|| (this.naturalOrder[n] == 3) || (this.naturalOrder[n] == 5);
+	}
+	this.isIndexUndefinedAlarm = function(n) {
+		return (n >= 12 &&  n <= 15) || (n == 3) || (n == 5);
+	}
+	this.isIndexBandAlarm = function(n) {
+		return ((n >= 6 && n <= 7) || ( n >= 16));
+	}
+	this.isIndexBandAlarmB0 = function(n) {
+		return ( n == 6
+			|| (n >= 16 && n <= 23)
+			);
+	}
+	this.isIndexBandAlarmB1 = function(n) {
+		return ( n == 7
+			|| (n >= 24 && n <= 31)
+			);
+
+	}
+	this.isBandAlarm = function(k) {
+		var n = this.naturalOrder[k];
+		return this.isIndexBandAlarm(n);
+	}
+	this.isBandAlarmB0 = function(k) {
+		var n = this.naturalOrder[k];
+		return this.isIndexBandAlarmB0(n);
+	}
+	this.isBandAlarmB1 = function(k) {
+		var n = this.naturalOrder[k];
+		return this.isIndexBandAlarmB1(n);
+	}
+	/* true si el relé relayNr está asignado a la alarma alarmNr. 
+	La alarmas de banda comparten relays asignados entre bandas.
+	 */
+	this.relayAssingAlarmNr = function(alarmNr, relayNr) {
+		var n = this.naturalOrder[alarmNr];
+		var r, m;
+		if (n >= 16) {
+			m = (n - 16) % 8;
+			r = this.relayAssignBandAlarm[m][relayNr];
+		} else {
+			m = n;
+			r = this.relayAssignGlobalAlarm[m][relayNr];
+		}
+		return r;
+	}
+	/* pone a 'isSet' (true/false) la asignación del relé relayNr a la alarma
+	'alarmNr'. Las alarmas de banda tienen asignados los mismos relés.
+	 */
+	this.setRelayAssingAlarmNr = function(alarmNr, relayNr, isSet) {
+		var n = this.naturalOrder[alarmNr];
+		var r, m;
+		if (n >= 16) {
+			m = (n - 16) % 8;
+			this.relayAssignBandAlarm[m][relayNr] = !!isSet;			
+		} else {
+			m = n;
+			this.relayAssignGlobalAlarm[m][relayNr] = !!isSet;
+		}
+	}
+	/* para alarmas de banda, número de alarma de la otra banda en gui */
+	this.otherBandAlarmNr = function(alarmNr) {
+		switch (alarmNr) {
+			case 2: return 3; case 3: return 2; // "Antenna Isolation
+			case 4: return 5; case 5: return 4; // "Oscillation Detection
+			case 6: return 7; case 7: return 6; // "Antenna Disconnection
+			case 8: return 9; case 9: return 8; // "Overload UL
+			case 10: return 11; case 11: return 10; // "Overload DL
+			case 12: return 13; case 13: return 12; // "DL PA Fail
+			case 14: return 15; case 15: return 14; // "Tx Power Low
+			case 16: return 17; case 17: return 16; // "VSWR
+			case 18: return 19; case 19: return 18; // "Rx Power Low
+			case 20: return 21; case 21: return 20; // "RDL AGC Fail
+			case 22: return 23; case 23: return 22; // "RDL AGC Fail
+		}
+		return -1;
+	}
+	this.setDefaultRelayAssign = function(mode){ //mode = 0 - dry contacts / 1 - serial
+		this.clearRelayAssign();
+		this.clearRelayLogic();
+		//relay assign BBU alarms are assigned regardless mode:
+		//relay 1: normal AC power
+		this.relayAssignBbuAlarm[0][0] = true;
+		//relay 2: loss normal AC power
+		this.relayAssignBbuAlarm[1][1] = true;
+		//relay 3: batt capacity and batt disconnection
+		var alr = [2,8];
+		for (var k=0;k<alr.length;k++) this.relayAssignBbuAlarm[alr[k]][2] = true;
+		//relay 4: batt charger fail
+		this.relayAssignBbuAlarm[3][3] = true;
+		//relay 8: bbu comm error, charger/batt temp, individual batt voltage, system voltage, batt bank voltage, batt deep discharge, annunciators
+		var alr = [4,5,6,7,9,10,11,12,13,14,15];
+		for (var k=0;k<alr.length;k++) this.relayAssignBbuAlarm[alr[k]][7] = true;
+		if (mode==1){
+			//relay 5: antenna disconnection
+			var alr = [6,7]; //two alarms are set because ant disconnection is considered as band alarm. Anyway, uC is forcing value[7] with value[6]
+			for (var k=0;k<alr.length;k++) this.relayAssignGlobalAlarm[alr[k]][4] = true;
+			//relay 6: rx power low
+			this.relayAssignBandAlarm[5][5] = true;
+			//relay 7: hw fail, high temp, osc detection (global)
+			var alr = [0,1,4];
+			for (var k=0;k<alr.length;k++) this.relayAssignGlobalAlarm[alr[k]][6] = true;
+			//relay 7: overload UL/DL, DL PA Fail, tx power low, VSWR, DL AGC Fail, UL PA Fail (band)
+			var alr = [0,1,2,3,4,6,7];
+			for (var k=0;k<alr.length;k++) this.relayAssignBandAlarm[alr[k]][6] = true;
+		}else{
+			//relay 1: rx power low
+			this.relayAssignBandAlarm[5][0] = true;
+			//relay 2: VSWR
+			this.relayAssignBandAlarm[4][1] = true;
+			//relay 3: antenna disconnection
+			var alr = [6,7];
+			for (var k=0;k<alr.length;k++) this.relayAssignGlobalAlarm[alr[k]][2] = true;
+			//relay 4: hw fail, high temp, osc detection (global)
+			var alr = [0,1,4];
+			for (var k=0;k<alr.length;k++) this.relayAssignGlobalAlarm[alr[k]][3] = true;
+			//relay 4: overload UL/DL, DL PA Fail, tx power low, VSWR, DL AGC Fail, UL PA Fail (band)
+			var alr = [0,1,2,3,6,7];
+			for (var k=0;k<alr.length;k++) this.relayAssignBandAlarm[alr[k]][3] = true;
+		}
+	}
+	this.clearRelayAssign = function(){
+		for (var i=0;i<this.relayAssignGlobalAlarm.length;i++){
+			for (var j=0;j<this.NR_OF_RELAYS_MAX;j++){
+				this.relayAssignGlobalAlarm[i][j] = false;
+			}
+		}
+		for (var i=0;i<this.relayAssignBandAlarm.length;i++){
+			for (var j=0;j<this.NR_OF_RELAYS_MAX;j++){
+				this.relayAssignBandAlarm[i][j] = false;
+			}
+		}
+		for (var i=0;i<this.relayAssignBbuAlarm.length;i++){
+			for (var j=0;j<this.NR_OF_RELAYS_MAX;j++){
+				this.relayAssignBbuAlarm[i][j] = false;
+			}
+		}
+	}
+	this.clearRelayLogic = function(){
+		for (var i=0;i<this.relayLogicConfigNormal.length;i++){
+			this.relayLogicConfigNormal[i]= false;
+		}
+	}
+	this.setTimersFromConfig = function(cnf){
+		for (var i=0;i<this.NR_OF_RELAYS_MAX;i++){
+			this.delayTimerON[i] = cnf.delayTimerON[i];
+			this.latchTimerON[i] = cnf.latchTimerON[i];
+			this.delayTimer[i] = cnf.delayTimer[i];
+			this.latchTimer[i] = cnf.latchTimer[i];
+		}
+	}
+	this.externalAlarmPolarity 	= [];
+	this.buzzerMuteCommand = 0;
+	this.buzzerMuteTime = 0;
+	//define vector/matrix
+	for (var k=0;k<this.NR_OF_RELAYS_MAX;k++){
+		this.relayLogicConfigNormal.push(true);
+		this.delayTimerON.push(false);
+		this.latchTimerON.push(false);
+		this.delayTimer.push(0);
+		this.delayTimer.push(0);
+	}
+	for (var k=0;k<16;k++){
+		// this.globalAlarmsEnabled.push(false);
+		// this.globalAlarmsInstalled.push(false);
+		this.relayAssignGlobalAlarm.push([]);
+		for (var j=0;j<this.NR_OF_RELAYS_MAX;j++) this.relayAssignGlobalAlarm[k].push(false);
+	}
+	for (var k=0;k<this.NUMALARM;k++){
+		this.alarmEnabled.push(false);
+		this.alarmInstalled.push(false);
+	}
+	for (var k = 0; k < 4; k++) {
+		this.externalAlarmPolarity.push(false);
+	}
+	// for (var k=0;k<8;k++){
+	// 	this.bandAlarmsEnabled.push(false);
+	// 	this.bandAlarmsInstalled.push(false);
+	// }
+	for (var k=0;k<8;k++){
+		this.relayAssignBandAlarm.push([]);
+		for (var j=0;j<this.NR_OF_RELAYS_MAX;j++){
+			this.relayAssignBandAlarm[k].push(false);
+		}
+	}
+	for (var k=0;k<16;k++){
+		this.bbuAlarmsEnabled.push(false);
+		this.bbuAlarmsInstalled.push(false);
+	}
+	for (var k=0;k<16;k++){
+		this.relayAssignBbuAlarm.push([]);
+		for (var j=0;j<this.NR_OF_RELAYS_MAX;j++){
+			this.relayAssignBbuAlarm[k].push(false);
+		}
+	}
+	this.frm					= "";
+	this.parse = function(s) {
+		if (s.length<582) return -1; 
+		var res,res2;
+		var ind = 0;
+		this.frm = s;
+		for (var k=0;k<2;k++){
+			res = parseInt(s.substring(ind,ind+4), 16); ind+=4;	if (res>32767) res-=65536;
+			this.retLossTh[k] = res/100;
+			res = parseInt(s.substring(ind,ind+4), 16); ind+=4;	if (res>32767) res-=65536;
+			this.minPowerVSWR[k] = res/100;
+			this.alarmNumSens[k] = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+		}
+		for (var k=0;k<2;k++){
+			this.timeTxLowPowHigh[k] = parseInt(s.substring(ind,ind+6), 16); ind+=6;
+			this.timeTxLowPowLow[k]  = parseInt(s.substring(ind,ind+6), 16); ind+=6;
+		}
+		for (var k=0;k<2;k++){
+			this.antennaDisconnectionThreshold[k] = cSignedByte(parseInt(s.substring(ind,ind+2), 16)); ind+=2;
+		}
+		res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		for (var k=0;k<8;k++){
+			this.relayLogicConfigNormal[k] = (res & (1<<k))!=0;
+		}
+		// 4 bytes alarm anable + 2 bytes sin uso
+		for ( var i = 0, res = 0; i < 4; i++ ) {
+			res |= parseInt(s.substring(ind,ind+2), 16) << (8*i);
+			ind+=2;
+		}
+		for (var k=0;k<this.NUMALARM;k++){
+			this.alarmEnabled[k] = (res & (1<<k))!=0;
+			this.alarmInstalled[k] = this.alarmEnabled[k];
+			// alert("Parse k="+k+", enabled="+this.alarmEnabled[k]);
+			//Alarmas Antenna Isolation y Oscillation detection siempre "Enabled"--> lo hace el micro
+			// if ( this.alarmNames[k].length == 0 || this.alarmNames[k].search("Undefined") >= 0 ) {
+			// 	this.alarmEnabled[k]= false; //Alarmas no definidas
+			// }
+		}
+		res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		res += 256*parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		res2 = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		res2 += 256*parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		for (var k=0;k<16;k++){
+			this.bbuAlarmsEnabled[k] = (res & (1<<k))!=0;
+			if (k<12) {
+				this.bbuAlarmsInstalled[k] = true;
+			} else if (k>11) {
+				this.bbuAlarmsInstalled[k] = (res2 & (1<<k))!=0; //this.bbuAlarmsEnabled[k];
+			}
+		}
+		for (var k=0;k<16;k++){
+			res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+			for (var j=0;j<8;j++){
+				this.relayAssignGlobalAlarm[k][j] = (res & (1<<j))!=0;
+			}
+		}
+		for (var k=0;k<8;k++){
+			res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+			for (var j=0;j<8;j++){
+				this.relayAssignBandAlarm[k][j] = (res & (1<<j))!=0;
+			}
+		}
+		for (var k=0;k<16;k++){
+			res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+			for (var j=0;j<8;j++){
+				this.relayAssignBbuAlarm[k][j] = (res & (1<<j))!=0;
+				if (this.alarmNamesBbu[k].length == 0) this.relayAssignBbuAlarm[k][j] = 0; /* k==11 unused alarm */
+			}
+		}
+
+		for (var k=0;k<16;k++){
+			var n = ~~Math.floor(k/4);
+			var m = (k - n*4)*2;
+			res = parseInt(s.substring(ind,ind+2), 16); if (m==6) ind+=2;
+			for (var j=0;j<2;j++){
+				this.relayAssignGlobalAlarm[k][8+j] = (res & (1<<(j+m)))!=0;
+			}
+		}
+		for (var k=0;k<8;k++){
+			var n = ~~Math.floor(k/4);
+			var m = (k - n*4)*2;
+			res = parseInt(s.substring(ind,ind+2), 16); if (m==6) ind+=2;
+			for (var j=0;j<2;j++){
+				this.relayAssignBandAlarm[k][8+j] = (res & (1<<(j+m)))!=0;
+			}
+		}
+		for (var k=0;k<16;k++){
+			var n = ~~Math.floor(k/4);
+			var m = (k - n*4)*2;
+			res = parseInt(s.substring(ind,ind+2), 16); if (m==6) ind+=2;
+			for (var j=0;j<2;j++){
+				this.relayAssignBbuAlarm[k][8+j] = (res & (1<<(j+m)))!=0;
+			}
+		}
+		res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		for (var k=0;k<4;k++){
+			this.externalAlarmPolarity[k] = (res & (1<<k)) != 0;
+		}
+		res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		this.buzzerMuteCommand = 0;
+		this.buzzerMuteTime = parseInt(s.substring(ind,ind+8), 16); ind+=8;
+		for (var k=0;k<this.NR_OF_RELAYS_MAX;k++){
+			res = parseInt(s.substring(ind,ind+8), 16); ind+=8;
+			this.delayTimerON[k] = (res & 0x80000000)!=0;
+			this.delayTimer[k] = res & 0x7fffffff;
+			res = parseInt(s.substring(ind,ind+8), 16); ind+=8;
+			this.latchTimerON[k] = (res & 0x80000000)!=0;
+			this.latchTimer[k] = res & 0x7fffffff;
+		}
+		for (var k=0;k<3;k++){ 
+			this.alarmNames[8+k] = s.substring(ind,ind+30).trim();ind+=30;
+		}
+		ind+=30;
+		for (var k=0;k<4;k++){ 
+			this.alarmNamesBbu[12+k] = s.substring(ind,ind+30).trim();ind+=30;
+		}
+	}
+	this.getFrm = function(){
+		var res;
+		var mask = 0, mask2=0;
+		var b,ch;
+		var cfg = "";
+		for (var k=0;k<2;k++){
+			res = ~~Math.round(100*this.retLossTh[k]); if (res<0) res+=65536;
+			cfg += hexformat(res,4);
+			res = ~~Math.round(100*this.minPowerVSWR[k]); if (res<0) res+=65536;
+			cfg += hexformat(res,4);			
+			cfg += hexformat(this.alarmNumSens[k],4);
+		}
+		for (var k=0;k<2;k++){
+			cfg += hexformat(this.timeTxLowPowHigh[k],6);
+			cfg += hexformat(this.timeTxLowPowLow[k],6);
+		}
+		for (var k=0;k<2;k++){
+			if (this.antennaDisconnectionThreshold[k] < -128) {
+				this.antennaDisconnectionThreshold[k] = -128;
+			} else if (this.antennaDisconnectionThreshold[k] > 127) {
+				this.antennaDisconnectionThreshold[k] = 127;
+			}
+			cfg += hexformat(rSignedByte(this.antennaDisconnectionThreshold[k]),2);
+		}
+		for (var k=0, mask=0 ;k<8;k++){
+			if (this.relayLogicConfigNormal[k]) mask|= 1<<k;
+		}
+		cfg += hexformat(mask,2);
+
+		// 4 bytes alarm enable
+		for (var k=0, mask=0 ;k<this.NUMALARM;k++){
+			if ( this.alarmEnabled[k] ) mask|= 1<<k;
+		}
+		for (var i = 0; i < 4; i++ ) {
+			var v = (mask >> (i*8)) & 0xFF;
+			cfg += hexformat(v,2);
+		}
+		for (var k=0,mask=0,mask2=0;k<16;k++){
+			if (this.bbuAlarmsEnabled[k]) mask|= 1<<k;
+			if (this.bbuAlarmsInstalled[k]) mask2|= 1<<k;
+		}
+		cfg += hexformat(mask & 0xff,2);
+		cfg += hexformat((mask & 0xff00)>>8,2);
+		cfg += hexformat(mask2 & 0xff,2);
+		cfg += hexformat((mask2 & 0xff00)>>8,2);
+		for (var k=0;k<16;k++){
+			for (var j=0,mask=0;j<this.NR_OF_RELAYS_MAX;j++){
+				if (this.relayAssignGlobalAlarm[k][j]) mask|= 1<<j;
+			}
+			cfg += hexformat(mask,2);
+		}
+		for (var k=0;k<8;k++){
+			for (var j=0,mask=0;j<8;j++){
+				if (this.relayAssignBandAlarm[k][j]) mask|= 1<<j;
+			}
+			cfg += hexformat(mask,2);
+		}
+		for (var k=0;k<16;k++){
+			for (var j=0,mask=0;j<8;j++){
+				if (this.relayAssignBbuAlarm[k][j]) mask|= 1<<j;
+			}
+			cfg += hexformat(mask,2);
+		}
+		for (var k=0, mask2=0;k<16;k++){
+			var n = ~~Math.floor(k/4);
+			var m = (k - n*4)*2;
+			for (var j=0,mask=0;j<2;j++){
+				if (this.relayAssignGlobalAlarm[k][8+j]) mask|= 1<<j;
+			}
+			mask2 |= (mask << m);
+			if (m==6) {
+				cfg += hexformat(mask2,2);
+				mask2 = 0;
+			}
+		}
+		for (var k=0, mask2=0;k<8;k++){
+			var n = ~~Math.floor(k/4);
+			var m = (k - n*4)*2;
+			for (var j=0,mask=0;j<2;j++){
+				if (this.relayAssignBandAlarm[k][8+j]) mask|= 1<<j;
+			}
+			mask2 |= (mask << m);
+			if (m==6) {
+				cfg += hexformat(mask2,2);
+				mask2 = 0;
+			}
+		}
+		for (var k=0, mask2=0;k<16;k++){
+			var n = ~~Math.floor(k/4);
+			var m = (k - n*4)*2;
+			for (var j=0,mask=0;j<2;j++){
+				if (this.relayAssignBbuAlarm[k][8+j]) mask|= 1<<j;
+			}
+			mask2 |= (mask << m);
+			if (m==6) {
+				cfg += hexformat(mask2,2);
+				mask2 = 0;
+			}
+		}
+		for (var j=0,mask=0;j<4;j++){
+			if (this.externalAlarmPolarity[j]) mask|= 1<<j;
+		}
+		cfg += hexformat(mask,2);
+		cfg += hexformat(this.buzzerMuteCommand, 2);
+		cfg += hexformat(this.buzzerMuteTime, 8);
+		for (var k=0;k<this.NR_OF_RELAYS_MAX;k++){
+			mask = (this.delayTimer[k]>>16) & 0x7fff; 
+			if (this.delayTimerON[k]) mask|=0x8000;
+			if (mask<0) mask+=65536;
+			cfg += hexformat(mask,4);
+			mask = this.delayTimer[k] & 0xffff; if (mask<0) mask+=65536;
+			cfg += hexformat(mask,4);			
+			mask = (this.latchTimer[k]>>16) & 0x7fff; 
+			if (this.latchTimerON[k]) mask|=0x8000;
+			if (mask<0) mask+=65536;
+			cfg += hexformat(mask,4);
+			mask = this.latchTimer[k] & 0xffff; if (mask<0) mask+=65536;
+			cfg += hexformat(mask,4);
+		}
+		this.alarmNames[11] = "Force RF OFF";
+		for (var k=0;k<4;k++){
+			var aux = this.alarmNames[8+k].substring(0,30);
+			while (aux.length<30) aux+=" ";
+			cfg += aux;
+		}
+		for (var k=0;k<4;k++){
+			var aux = this.alarmNamesBbu[12+k].substring(0,30);
+			while (aux.length<30) aux+=" ";
+			cfg += aux;
+		}
+		
+		this.frm = cfg;
+		return cfg;
+	}
+	this.getFrmBuzzerMuteCommand = function() {
+		// this function can be used if a button is implemented for muting the buzzer
+		this.buzzerMuteCommand = 1;
+		return this.getFrme();
+	}
+	this.saveFrameStr = function(sr) {
+		localStorage.setItem("NFPAConf"+Prjstr+window.location.host, sr);
+	}
+	this.retrieveFrameStr = function() {
+		return localStorage.getItem("NFPAConf"+Prjstr+window.location.host);
+	}	
+	this.isRelayAssignNormalACpowerExclusive = function(relayNr) {
+		if (!(relayNr<12)) {
+			return false;
+		}
+		// NormalACPower = BBU alarm nr #0 
+		if (!this.relayAssignBbuAlarm[0][relayNr]) {
+			return false;
+		}
+		// if relaNr is also assigned to other ACTIVE alarm, then it is not "Normal AC Power" exclusive
+		for (var k=0;k<this.NUMALARM;k++){
+			if (this.relayAssingAlarmNr(k, relayNr)){
+				return false;
+			}
+		}
+		for (var k=1;k<16;k++){	// skip alarm nr 0, "Normal AC Power"
+			if (this.bbuAlarmsEnabled[k] && this.relayAssignBbuAlarm[k][relayNr]) {
+				return false;
+			}
+		}
+		return true;
+	}
+}
+function NFPAstatus(){
+	this.NR_OF_RELAYS_MAX		= 10;
+	this.powDirect				= [0,0];// 2 --> 1double/band
+	this.powReverse				= [0,0];// 2 --> 1double/band
+	this.retLoss				= [0,0];// 2 --> 1double/band
+	this.txLowerPowerTimeHigh	= [0,0];// 2 --> 1double/band
+	this.txLowerPowerTimeLow	= [0,0];// 2 --> 1double/band
+	this.adPowDirect			= [0,0];// 2 --> 1double/band
+	this.adDlPaCurr				= [0,0];// 2 --> 1double/band
+	this.bbLevel = [-128, -128];
+	this.bbuChargerTemperature;
+	this.bbuBatteryTemperature;
+	this.bbuIndividualBatteryVoltage;
+	this.bbuBatteryStatusVoltage = [0,0];
+	this.bbuSystemVoltage;
+	this.bbuBatteryVoltageBank;
+	this.bbuMainCurrent;
+	this.bbuBatteryCurrent;
+	this.bbuBuzzerStatus;
+	this.bbuBuzzerMuteTime;
+	this.bbuBuzzerRemainingTime;
+	this.bbuChargerErrorCode;
+	this.bbuAnnunciatorTag = ["","","",""];
+	this.bbuAlarmResult = [false,false,false,false,false,false,false,false,false,false,false,false,false,false,false,false]; //16 boolean/alarm
+	this.bbuDeepDischargeState;
+	this.bbuDeepDischargeCounter;
+	/* BBU MVO2 status parameters for factory */
+	this.bbuStatusFactoryParams = [
+		[
+			{id: 'MAX_CHARGE_TIMER'     , val: 0, valueStr: '-'},
+			{id: 'CV_TIMER'             , val: 0, valueStr: '-'},
+			{id: 'ABSORB_TIMER'         , val: 0, valueStr: '-'},
+			{id: 'EQUALIZE_TIMER'       , val: 0, valueStr: '-'},
+			{id: 'CHARGER_STATE'        , val: 0, valueStr: '-'},
+			{id: 'CHARGE_STATUS'        , val: 0, valueStr: '-'},
+			{id: 'LIMIT_ALERTS'         , val: 0, valueStr: '-'},
+			{id: 'CHARGER_STATE_ALERTS' , val: 0, valueStr: '-'},
+			{id: 'CHARGE_STATUS_ALERTS' , val: 0, valueStr: '-'},
+			{id: 'SYSTEM_STATUS'        , val: 0, valueStr: '-'},
+			{id: 'VBAT'                 , val: 0, valueStr: '-'},
+			{id: 'VIN'                  , val: 0, valueStr: '-'},
+			{id: 'VSYS'                 , val: 0, valueStr: '-'},
+			{id: 'IBAT'                 , val: 0, valueStr: '-'},
+			{id: 'IIN'                  , val: 0, valueStr: '-'},
+			{id: 'DIE_TEMP'             , val: 0, valueStr: '-'},
+			{id: 'NTC_RATIO'            , val: 0, valueStr: '-'},
+			{id: 'BSR'                  , val: 0, valueStr: '-'},
+			{id: 'JEITA_REGION'         , val: 0, valueStr: '-'},
+			{id: 'CHEM_CELLS'           , val: 0, valueStr: '-'},
+			{id: 'ICHARGE_DAC'          , val: 0, valueStr: '-'},
+			{id: 'VCHARGE_DAC'          , val: 0, valueStr: '-'},
+			{id: 'IIN_LIMIT_DAC'        , val: 0, valueStr: '-'},
+			{id: 'VBAT_FILT'            , val: 0, valueStr: '-'},
+			{id: 'ICHARGE_BSR'          , val: 0, valueStr: '-'},
+			{id: 'RESERVED'             , val: 0, valueStr: '-'},
+			{id: 'MEAS_SYS_VALID'       , val: 0, valueStr: '-'},
+			{id: 'MAX_CHARGE_TIMER'     , val: 0, valueStr: '-'}
+		],
+		[
+			{id: 'VOUT_SET'             , val: 0, valueStr: '-', type: 'float',  nchars: 4,	 showAsHex: false },
+			{id: 'IOUT_SET'             , val: 0, valueStr: '-', type: 'float',  nchars: 4,	 showAsHex: false },
+			{id: 'FAULT_STATUS'         , val: 0, valueStr: '-', type: 'uint16', nchars: 2,	 showAsHex: false },
+			{id: 'READ_VOUT'            , val: 0, valueStr: '-', type: 'float',  nchars: 4,	 showAsHex: false },
+			{id: 'READ_IOUT'            , val: 0, valueStr: '-', type: 'float',  nchars: 4,	 showAsHex: false },
+			{id: 'READ_TEMPERATURE_1'   , val: 0, valueStr: '-', type: 'float',  nchars: 4,	 showAsHex: false },
+			{id: 'MFR_ID_B0B5'          , val: 0, valueStr: '-', type: 'str',    nchars: 12, showAsHex: false },
+			{id: 'MFR_MODEL_B0B5'       , val: 0, valueStr: '-', type: 'str',    nchars: 12, showAsHex: false },
+			{id: 'MFR_REVISION_B0B5'    , val: 0, valueStr: '-', type: 'rev',    nchars: 6,	 showAsHex: false },
+			{id: 'MFR_LOCATION_B0B2'    , val: 0, valueStr: '-', type: 'str',    nchars: 3,	 showAsHex: false },
+			{id: 'MFR_DATE_B0B5'        , val: 0, valueStr: '-', type: 'str',    nchars: 6,	 showAsHex: false },
+			{id: 'MFR_SERIAL_B0B5'      , val: 0, valueStr: '-', type: 'str',    nchars: 12, showAsHex: false },
+			{id: 'CURVE_CC'             , val: 0, valueStr: '-', type: 'float',  nchars: 4,	 showAsHex: false },
+			{id: 'CURVE_CV'             , val: 0, valueStr: '-', type: 'float',  nchars: 4,	 showAsHex: false },
+			{id: 'CURVE_FV'             , val: 0, valueStr: '-', type: 'float',  nchars: 4,	 showAsHex: false },
+			{id: 'CURVE_TC'             , val: 0, valueStr: '-', type: 'float',  nchars: 4,	 showAsHex: false },
+			{id: 'CURVE_CONFIG'         , val: 0, valueStr: '-', type: 'uint16', nchars: 2,	 showAsHex: true  },
+			{id: 'CURVE_CC_TIMEOUT'     , val: 0, valueStr: '-', type: 'uint16', nchars: 2,	 showAsHex: false },
+			{id: 'CURVE_CV_TIMEOUT'     , val: 0, valueStr: '-', type: 'uint16', nchars: 2,	 showAsHex: false },
+			{id: 'CURVE_FV_TIMEOUT'     , val: 0, valueStr: '-', type: 'uint16', nchars: 2,	 showAsHex: false },
+			{id: 'CHG_STATUS'           , val: 0, valueStr: '-', type: 'uint16', nchars: 2,	 showAsHex: true  },
+			{id: 'SCALING_FACTOR'       , val: 0, valueStr: '-', type: 'uint16', nchars: 2,	 showAsHex: false },
+			{id: 'SYSTEM_STATUS'        , val: 0, valueStr: '-', type: 'uint16', nchars: 2,	 showAsHex: true  },
+			{id: 'SYSTEM_CONFIG'        , val: 0, valueStr: '-', type: 'uint16', nchars: 2,	 showAsHex: true  },
+		]
+	];
+	this.future_upgrade = [];
+	for (var i=0; i<this.C_BBUMVO2_UPGRADE_BYTES;i++) this.future_upgrade.push(0);  
+	
+	this.frm 					= "";
+	
+	this.parse = function(s, bbu_type) {
+		if (s.length<824) return -1; 
+		var res,res2;
+		var ind = 0;
+		this.frm = s;
+		for (var k=0;k<2;k++){
+			res = parseInt(s.substr(44+8*k,4), 16); if (res>32767) res-=65536;
+			this.powDirect[k] = res/100;
+			res = parseInt(s.substr(48+8*k,4), 16); if (res>32767) res-=65536;
+			this.powReverse[k] = res/100;
+			res = parseInt(s.substr(84+4*k,4), 16); if (res>32767) res-=65536;
+			this.retLoss[k] = res/100;	
+			res = parseInt(s.substr(158+20*k,6), 16);
+			this.txLowerPowerTimeHigh[k] = (res & 0xff0000)>>16 | (res & 0xff00) | (res & 0xff)<<16;
+			res = parseInt(s.substr(164+20*k,6), 16);
+			this.txLowerPowerTimeLow[k] = (res & 0xff0000)>>16 | (res & 0xff00) | (res & 0xff)<<16;		
+			this.adPowDirect[k] = parseInt(s.substr(8*k,4), 16);
+			this.adDlPaCurr[k] = parseInt(s.substr(24+4*k,4), 16);
+		}
+		ind = 422;
+		this.bbLevel[0] = to_float(parseInt(s.substr(ind,4),16));
+		this.bbLevel[1] = to_float(parseInt(s.substr(ind+4,4),16));
+		ind = 190;	// mms alarms result
+		res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		res2 = parseInt(s.substring(ind,ind+2), 16); ind+=2;		
+		for (var k=0;k<8;k++) {
+			this.bbuAlarmResult[k] = (res & (1<<k))!=0;
+			this.bbuAlarmResult[8+k] = (res2 & (1<<k))!=0;
+		}
+		ind = 194;	// mms status
+		res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		this.bbuChargerTemperature = cSignedByte(res);
+		res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		this.bbuBatteryTemperature = cSignedByte(res);
+		res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+		this.bbuIndividualBatteryVoltage = res;
+		for (var i=0; i<4; i++) {
+			res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+			this.bbuBatteryStatusVoltage[i] = res;
+		}
+		res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+		this.bbuSystemVoltage = res;
+		res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+		this.bbuBatteryVoltageBank = res;
+		res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+		this.bbuMainCurrent = res;
+		res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+		this.bbuBatteryCurrent = cSignedInt(res);
+		res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		this.bbuBuzzerStatus = (res & (1))!=0;
+		res = parseInt(s.substring(ind,ind+8), 16); ind+=8;
+		this.bbuBuzzerMuteTime = res;
+		res = parseInt(s.substring(ind,ind+8), 16); ind+=8;
+		this.bbuBuzzerRemainingTime = res;
+		res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+		this.bbuChargerErrorCode = res;
+		ind = 416;
+		res = parseInt(s.substring(ind,ind+2), 16); ind+=2;
+		this.bbuDeepDischargeState = ((res&0x01)==0x01);
+		res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+		this.bbuDeepDischargeCounter = res;
+		ind = 704;
+		for (var n=0; n < this.bbuAnnunciatorTag.length; n++){
+			this.bbuAnnunciatorTag[n] = s.substring(ind,ind+30); ind+=30;
+		}
+		ind = 430;
+		if (typeof(bbu_type) !== 'undefined') {
+			this.parseFactoryStatusDataMvo2(s.substring(ind,ind+274), bbu_type);
+		}
+	}
+	this.parseFactoryStatusDataMvo2 = function (s, bbu_type) {
+		if ( bbu_type == 1) {
+			this.parseFactoryStatusDataMvo2Std(s);
+		} else if (bbu_type == 2) {
+			this.parseFactoryStatusDataMvo2HP(s);
+			// var test1 = "CDCC5C42000020400000A4705C42D7A3F03E66660A424D45414E57454C4C202020204E50422D3735302D343820200AFFFFFFFFFF43484E32313130303732313039323530303030363000000041CDCC5C42CDCC5C420AD7A33E8000B80BB80BB80B04005506020003000000000000000000000000000000000000000000000000000000000000000000";
+			// this.parseFactoryStatusDataMvo2HP(test1);
+		}
+	}
+	this.parseFactoryStatusDataMvo2Std = function(s) {
+		var n = 0;	/* BBU MVO2 Std */
+		var ind = 0;
+		var res = 0;
+		for (var i=0; i < this.bbuStatusFactoryParams[n].length; i++) {
+			res = this.parseUInt16Pic(s.substring(ind,ind+4)); ind+=4;
+			this.bbuStatusFactoryParams[n][i].val = res;
+			this.bbuStatusFactoryParams[n][i].valueStr = hexformat(res, 4);
+		}
+		for (var i=0; i<this.C_BBUMVO2_UPGRADE_BYTES;i++) {
+			res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+			this.future_upgrade[i] = res;
+		}
+	}
+	this.parseFactoryStatusDataMvo2HP = function(s) {
+		var n = 1;	/* BBU MVO2 HP */
+		var ind = 0;
+		for (var i=0; i < this.bbuStatusFactoryParams[n].length; i++) {
+			if (this.bbuStatusFactoryParams[n][i].type == 'float') {
+				var res = this.parseFloatPic(s.substring(ind,ind+8)); ind+=8;
+				this.bbuStatusFactoryParams[n][i].val = res;
+				this.bbuStatusFactoryParams[n][i].valueStr = res.toFixed(2) ;
+			} else if (this.bbuStatusFactoryParams[n][i].type == 'uint16') {
+				var res = this.parseUInt16Pic(s.substring(ind,ind+4)); ind+=4;
+				this.bbuStatusFactoryParams[n][i].val = res;
+				if (this.bbuStatusFactoryParams[n][i].showAsHex) {
+					this.bbuStatusFactoryParams[n][i].valueStr = hexformat(res, 4);
+				} else {
+					this.bbuStatusFactoryParams[n][i].valueStr = res;
+				}
+			} else if (this.bbuStatusFactoryParams[n][i].type == 'str') {
+				var nchars = this.bbuStatusFactoryParams[n][i].nchars;
+				var res = this.parseStringPic(s.substring(ind,ind+nchars*2)); ind+=nchars*2;
+				this.bbuStatusFactoryParams[n][i].val = res;
+				this.bbuStatusFactoryParams[n][i].valueStr = res;
+			} else if (this.bbuStatusFactoryParams[n][i].type == 'rev') {
+				var nchars = this.bbuStatusFactoryParams[n][i].nchars;
+				var res = this.parseRevision(s.substring(ind,ind+nchars*2)); ind+=nchars*2;
+				this.bbuStatusFactoryParams[n][i].val = res;
+				this.bbuStatusFactoryParams[n][i].valueStr = (Math.floor(res/10)).toString(10) + '.' + (res%10).toString(10);
+			}
+		}
+		for (var i=0; i<this.C_BBUMVO2_UPGRADE_BYTES;i++) {
+			res = parseInt(s.substring(ind,ind+4), 16); ind+=4;
+			this.future_upgrade[i] = res;
+		}
+	}
+	this.parseUInt16Pic = function(s) {
+		var res = 0;
+		var k = 1;
+		var ind = 0;
+		/* 2-byte unsigned integer LSB-first */
+		for (var i=0; i < 2; i++) {
+			res += parseInt(s.substring(ind,ind+2), 16)*k; ind+=2;
+			k *= 256;
+		}
+		return res;
+	}
+	this.parseInt32Pic = function(s) {
+		var res = 0;
+		var k = 1;
+		var ind = 0;
+		/* 4-byte integer LSB-first */
+		for (var i=0; i < 4; i++) {
+			res += parseInt(s.substring(ind,ind+2), 16)*k; ind+=2;
+			k *= 256;
+		}
+		return res;
+	}
+	this.parseFloatPic = function(s) {
+		var res = this.parseInt32Pic(s);
+		return this.pic32IntToFloat(res);
+	}
+	this.pic32IntToFloat = function(vint) {
+		/* IEEE 754 */
+		var s = 1;
+		if (vint & 0x80000000) s = -1;			/* sign bit */
+		var exp =  ((vint & 0x7F800000) >> 23); /* 8-bit exponent */
+		var mant = (vint & 0x007FFFFF);         /* 23-bit mantisa */
+		exp -= 127;
+		if (exp>127) {
+			exp = 127;
+		} else if (exp < -126) {
+			exp = -126
+		}
+		var E = Math.pow(2,exp);
+		var M = mant*Math.pow(2, -23) + 1.0;
+		var res = s*E*M;
+		return res;
+	}
+	this.parseStringPic = function(s) {
+		var res = "";
+		for (var i = 0; i < s.length/2 ; i++) {
+			var c = parseInt(s.substring(i*2,i*2+2), 16);
+			if (c >= 0x20 && c < 0x7F) {
+				res += String.fromCharCode(c);
+			} else {
+				res += ' ';
+			}
+		}
+		return res;
+	}
+	this.parseRevision = function(s) {
+		var res = 0;
+		var k = 1;
+		var ind = 0;
+		/* 6-byte unsigned integer LSB-first, only 1st one is used actually */
+		for (var ind=0; ind < s.length-1; ind+=2) {
+			if (s.substring(ind,ind+2) == 'FF') break;
+			res += parseInt(s.substring(ind,ind+2), 16)*k;
+			k *= 256;
+		}
+		return res;
+	}
+}
+function overallConfigToTextFile(config, nfpacfg, factory, tagstr, ethstr, serial,version){
+	var cfg = "";
+	cfg += "TAG: " + tagstr.trim() + "\n\n";
+	cfg += rfConfigToText(config,nfpacfg,factory) + "\n";
+	cfg += alarmSettingsToText(nfpacfg, config, factory, version) + "\n";
+	if ( !factory.ethernetModuleNotInstalled ) {
+		cfg += ethConfigToText(ethstr);
+	}
+	cfg += getVersionNaviData() + "\n";
+	cfg += "SERIAL: " + serial + "\n";
+	return cfg;
+}
+function getVersionNaviData(){
+	var cfg = "";
+	cfg += "\nVERSION:\n";
+	cfg += "\tFPGA: " + window.parent.navi.document.getElementById('fwBox').innerHTML + "\n";
+	cfg += "\tuC: " + window.parent.navi.document.getElementById('swBox').innerHTML + "\n";
+	if ( !factory.ethernetModuleNotInstalled ) {
+		cfg += "\tETH: " + window.parent.navi.document.getElementById('serverBox').innerHTML + "\n";
+	}
+	return cfg;
+}
+function ethConfigToText(s){
+	var cfg = "";
+	var ethData = [];
+	var ind=0;
+	for (i=0;i<5;i++){
+		ethData.push("");
+		for (j=0;j<4;j++){
+			ethData[i]+= parseInt(s.substr(ind,2),16);
+			if (j<3) ethData[i]+=".";
+			ind+=2;
+		}
+	}
+	cfg+="IP CONFIG:\n";
+	cfg+="\tIP Adress: " + ethData[0] + "\n";
+	cfg+="\tNetwork Mask: " + ethData[1] + "\n";
+	cfg+="\tGateway: " + ethData[2] + "\n";
+	cfg+="\tSNMP Manager Address: " + ethData[3] + ", " + ethData[4] + "\n";
+	
+	ethData = s.substring(ind,s.length).split("\t");
+	
+	cfg+="\tSNMP Manager Enable: " + boolToYN((parseInt(ethData[12],16) & 0x1)!=0) + ", ";
+	cfg+= boolToYN((parseInt(ethData[13],16) & 0x1)!=0) + "\n";
+	cfg+="\tRead-Only Community: " + ethData[1].trim() + "\n";
+	cfg+="\tRead-Write Community: " + ethData[2].trim() + "\n";
+	cfg+="\tTrap Community: " + ethData[3].trim() + ", " + ethData[4].trim() + "\n";
+	cfg+="\tTrap Port: " + (parseInt(ethData[5],16)) + ", ";
+	cfg+= (parseInt(ethData[6],16)) + "\n";
+	cfg+="\tTrap Repetition: " + (parseInt(ethData[10],16)) + ", ";
+	cfg+= (parseInt(ethData[11],16)) + "\n";
+	cfg+="\tKeep Alive Period (minutes): " + (parseInt(ethData[8],16)) + ", ";
+	cfg+= (parseInt(ethData[9],16)) + "\n";
+	cfg+="\tWatchdog Period (minutes): " + (parseInt(ethData[7],16)) + "\n";
+	return cfg;
+}
+function alarmSettingsToText(nfpacfg, config, factory, version){
+	var j,k;
+	var exist_el;
+	var cfg = "";
+	var gralAlarmNames = ["HW Fail","High Temperature","Antenna Isolation","Oscillation Detection","Undefined","Antenna Disconnection"];
+	var bandAlarmNames = ["Overload UL","Overload DL","DL PA Fail","Tx Power Low","VSWR","RxPower Low / Donor Antenna", "DL AGC Fail","UL PA Fail"];
+	var bbuAlarmNames = ["Normal AC Power","Loss Normal AC Power","Battery Capacity Under 30%","Battery Charger Fail","BBU Communication Error","Charger Temperature","Battery Temperature","Individual Battery Voltage",
+						 "Battery Disconnection","System Voltage","Battery Bank Voltage","Battery Deep Discharge","Annunciator 1","Annunciator 2","Annunciator 3","Annunciator 4"];
+	cfg+="ALARM/RELAY SETTINGS:\n";
+	for (k = 0; k < nfpacfg.NUMALARM; k++) {
+		if (k>=8 && k<=15) {
+			continue;
+		}
+		if (nfpacfg.isIndexUndefinedAlarm(k)) {
+			continue;
+		}
+		var alarmName = nfpacfg.alarmNames[k];
+		if (nfpacfg.isIndexBandAlarm(k)) {
+			if (nfpacfg.isIndexBandAlarmB0(k)) {
+				if (!factory.chBandEnabled[0] && !factory.adjBandEnabled[0]){
+					continue;
+				}				
+				alarmName = alarmName.replace("B0", factory.bandNames[0]);
+			} else if (nfpacfg.isIndexBandAlarmB1(k)) {
+				if (!factory.chBandEnabled[1] && !factory.adjBandEnabled[1]){
+					continue;
+				}	
+				alarmName = alarmName.replace("B1", factory.bandNames[1]);
+			}
+		}
+		cfg+="\tAlarm Enable " + alarmName + ": " + boolToYN(nfpacfg.alarmEnabled[k]) + "\n";
+	}
+	var bbuSerialMode = isBbuSerialMode(config, factory, version);
+	var nrOfRelaysSupported = getNrOfRelaysSupported(config,factory,version);
+	if (bbuSerialMode) {
+		for (k=0;k<12;k++) {
+			if (bbuAlarmNames[k].length == 0) continue;
+			cfg+="\tAlarm Enable " + bbuAlarmNames[k] + ": " + boolToYN(nfpacfg.bbuAlarmsEnabled[k]) + "\n";
+		}
+		cfg+="\tAlarm Enable " + "Annunciators" + ": " + boolToYN(nfpacfg.bbuAlarmsEnabled[12]) + "\n";	// annunciators alarm enable from annunciator #1
+		for (k=12; k < 16;k++) {
+			cfg+="\t" + bbuAlarmNames[k] + " Installed" + ": " + boolToYN(nfpacfg.bbuAlarmsInstalled[k]) + "\n";	// annunciator installed
+		}
+	}
+	for (k = 0; k < 8; k++) {
+		if (nfpacfg.isIndexUndefinedAlarm(k)) {
+			continue;
+		}
+		var alarmName = nfpacfg.alarmNames[k];
+		if (nfpacfg.isIndexBandAlarm(k)) {
+			if (nfpacfg.isIndexBandAlarmB1(k)) {
+				continue;
+			}
+			alarmName = alarmName.replace(" B0", "");
+		}
+		cfg+="\tRelay Assigned " + alarmName + ": ";
+		exist_el = false;
+		for (j=0;j<nrOfRelaysSupported;j++){
+			if (nfpacfg.relayAssingAlarmNr(k, j)) {
+				cfg+=(j+1)+", ";
+				exist_el = true;
+			}
+		}
+		if (exist_el) cfg = cfg.substring(0,cfg.length-2);
+		cfg+="\n";
+	}
+	for (k = 0; k < 8; k++) {
+		var alarmName = nfpacfg.alarmNames[k+16];
+		alarmName = alarmName.replace(" B0", "");
+		cfg+="\tRelay Assigned " + alarmName + ": ";
+		exist_el = false;
+		for (j=0;j<nrOfRelaysSupported;j++){
+			if (nfpacfg.relayAssignBandAlarm[k][j]){
+				cfg+=(j+1)+", ";
+				exist_el = true;
+			}
+		}
+		if (exist_el) cfg = cfg.substring(0,cfg.length-2);
+		cfg+="\n";
+	}
+	if (bbuSerialMode) {
+		for (k=0;k<13;k++){
+			exist_el = false;
+			cfg+="\tRelay Assigned " + (k < 12?bbuAlarmNames[k]:"Annunciators") + ": ";
+			for (j=0;j<nrOfRelaysSupported;j++){
+				if (nfpacfg.relayAssignBbuAlarm[k][j]){
+					cfg+=(j+1)+", ";
+					exist_el = true;
+				}
+			}
+			if (exist_el) cfg = cfg.substring(0,cfg.length-2);
+			cfg+="\n";
+		}
+	}
+	// MMS. Relay Status on Alarm EXTENDED TO 8 RELAYS, and forced to CLOSED in microcontroller
+	if (bbuSerialMode) {
+		for (k=0;k<nrOfRelaysSupported;k++){
+			cfg+="\tRelay "+ (k+1) +" Status On Alarm (CLOSED/OPEN): CLOSED" + "\n";
+		}	
+	} else {
+		for (k=0;k<4;k++){
+			if (k==3) continue;
+			cfg+="\tRelay "+ (k+1) +" Status On Alarm (CLOSED/OPEN): " + (nfpacfg.relayLogicConfigNormal[k]?"OPEN":"CLOSED") + "\n";
+		}
+	}
+	cfg+="\tUser Alarm Enable: ";
+	for (k=0;k<4;k++)
+		cfg+=boolToYN(nfpacfg.alarmEnabled[8+k])+", ";		
+	cfg = cfg.substring(0,cfg.length-2)+"\n";	
+	cfg+="\tUser Alarm Name: ";
+	for (k=0;k<4;k++)
+		cfg+=nfpacfg.alarmNames[8+k].trim()+", ";
+	cfg = cfg.substring(0,cfg.length-2)+"\n";		
+	cfg+="\tUser Alarm Polarity: ";
+	for (k=0;k<4;k++)
+		cfg+=(nfpacfg.externalAlarmPolarity[k]?"HIGH":"LOW")+", ";	
+	cfg = cfg.substring(0,cfg.length-2)+"\n";
+	for (k=0;k<4;k++){
+		cfg+="\tRelay Assigned User Alarm " + (k+1) + ": ";
+		exist_el = false;
+		for (j=0;j<nrOfRelaysSupported;j++){
+			if (nfpacfg.relayAssignGlobalAlarm[k+8][j]){
+				cfg+=(j+1)+", ";
+				exist_el = true;
+			}
+		}
+		if (exist_el) cfg = cfg.substring(0,cfg.length-2);
+		cfg+="\n";			
+	}
+	if (bbuSerialMode) {
+		cfg+="\tAnnunciator Tag Name: ";
+		for (k=0;k<4;k++)
+			cfg+=nfpacfg.alarmNamesBbu[12+k].trim()+", ";
+		cfg = cfg.substring(0,cfg.length-2)+"\n";
+		cfg+="\tBuzzer Mute Time (seconds): "+nfpacfg.buzzerMuteTime+ "\n";
+	}
+	return cfg;
+}
+function rfConfigToText(config, nfpacfg, factory){
+	var i;
+	var cfg = "";		
+	for (i=0;i<2;i++){
+		if (factory.chBandEnabled[i] || factory.adjBandEnabled[i]){
+			cfg += "CONFIG "+factory.bandNames[i]+"\n";
+			//General
+			cfg += rfConfigGeneralBandToText(config, i);
+			//Narrow Filters
+			cfg += rfConfigNarrowBandFiltersToText(config, factory, i);
+			//ADJBW Filters
+			cfg += rfConfigAdjBwFiltersToText(config, factory, i);
+			//RF Alarm Settings
+			cfg += rfConfigAlarmToText(nfpacfg, i);
+		}
+	}
+	cfg += rfConfigGeneralAlarmToText(config, nfpacfg);
+	return cfg;
+}
+function rfConfigGeneralAlarmToText(config, nfpacfg){
+	var cfg = "";
+	cfg+="CONFIG GENERAL:\n";
+	cfg+="\tType of BBU Connection: " + (config.bbu_serial_mode?"Serial":"Dry Contacts") + "\n";
+	cfg+="\tOscillation Delay Threshold (seconds): " + config.oscTimeThSeconds[0] + "\n";
+	cfg+="\tAction After Oscillation Alarm: ";
+	if (config.oscActionAfterAlarm[0]==0)
+		cfg+="AUTOMATIC SHUT DOWN\n";
+	else if (config.oscActionAfterAlarm[0]==1)
+		cfg+="RUN ISOLATION MEAS.\n";
+	else
+		cfg+="ONLY ALARM\n";
+	cfg+="\tRetry Timer After Automatic PA OFF (hours): " + config.oscRetryTimeHours[0] + "\n";
+	cfg+="\tAutomatic UL PA OFF Timer (minutes): " + config.autoUlPaOffTimer + "\n";
+	cfg+="\tExtreme Temperature Action: ";
+	if (config.extremeTempAction==0)
+		cfg+="NO ACTION\n";
+	else if (config.extremeTempAction==1)
+		cfg+="REDUCE 6dB DL POWER\n";
+	else
+		cfg+="PA OFF\n";
+	return cfg;
+}
+
+function rfConfigGeneralBandToText(config,band){
+	var j;
+	var uldl = ["UL","DL"];
+	var cfg = "";
+	cfg+="\tGeneral\n";
+	for (j=0;j<2;j++) cfg+="\t\tMain Gain " + uldl[j]+ " (dB): " + config.gain[band][j] +"\n";
+	for (j=0;j<2;j++) cfg+="\t\tMain Power " + uldl[j]+ " (dBm): " + config.power[band][j]+"\n";
+	for (j=0;j<2;j++) cfg+="\t\tPA Enabled " + uldl[j]+ ": " + boolToYN(config.paEnabled[band][j])+"\n";
+	cfg+="\t\tSquelch Mode (NOT LINKED/LINKED): " + (config.muteModeLinked[band]?"LINKED":"NOT LINKED")+"\n";
+	cfg+="\t\tLinked UL/DL Frequencies: " + boolToYN(config.uldlLinkedFreq[band])+"\n";
+	cfg+="\t\tSimplex Mode: " + boolToYN(config.simplexMode[band])+"\n";
+	return cfg;
+}
+
+function rfConfigNarrowBandFiltersToText(config, factory, band){
+	var j,k;
+	var nfilters;
+	var filterson = [];
+	var uldl = ["UL","DL"];	
+	var cfg = "";
+	var maxch = config.CHNR;
+	if (factory.singleBandEnabled[band]) maxch *= 2;
+	
+	if (factory.chBandEnabled[band]){
+		nfilters = 0;
+		for (j=0;j<maxch;j++){
+			if (config.filterEnabled[0][band][0][j]){
+				filterson.push(j);
+				nfilters++;
+			}
+		}					
+		cfg+="\tNarrow Band Filters\n";
+		//Num Independent Filters
+		//cfg+="\t\tNum Independent Filters UL: "+ config.numberOfFilterNonGrouped[band][0] +"\n";
+		//cfg+="\t\tNum Independent Filters UL: "+ config.numberOfFilterNonGrouped[band][1] +"\n";
+		//Enable
+		cfg+="\t\tFilter ON: ";
+		for (j=0;j<nfilters;j++) cfg+=(filterson[j]+1)+", ";
+		if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+		cfg+="\n";	
+		//Frequency
+		for (j=0;j<2;j++){
+			cfg+="\t\tFilter Frequency " + uldl[j] + " (MHz): ";
+			for (k=0;k<nfilters;k++) cfg+=(config.freqHz[band][j][filterson[k]]/1e6)+", ";
+			if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+			cfg+="\n";						
+		}
+		//Overlap 
+		/*for (j=0;j<2;j++){
+			cfg+="\t\tFilter Grouped " + uldl[j] + ": ";
+			for (k=0;k<nfilters;k++) cfg+=boolToYN(config.isFilterGrouped[band][j][filterson[k]])+", ";
+			if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+			cfg+="\n";
+		}*/
+		//BW
+		for (j=0;j<2;j++){
+			cfg+="\t\tFilter Bandwidth " + uldl[j] + " (KHz): ";
+			for (k=0;k<nfilters;k++) cfg+=(config.bwKHz[band][j][filterson[k]])+", ";
+			if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+			cfg+="\n";						
+		}
+		//Fine Gain
+		for (j=0;j<2;j++){
+			cfg+="\t\tFilter Fine Gain " + uldl[j] + " (dB): ";
+			for (k=0;k<nfilters;k++) cfg+=(config.fineGainFilter[0][band][j][filterson[k]])+", ";
+			if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+			cfg+="\n";						
+		}
+		//Squelch Enable
+		for (j=0;j<2;j++){
+			cfg+="\t\tFilter Squelch Enable " + uldl[j] + ": ";
+			if (j==0)
+				cfg+=boolToYN(config.sqChEnabled[0][band][j][0])+"\n";
+			else{
+				for (k=0;k<nfilters;k++) cfg+=boolToYN(config.sqChEnabled[0][band][j][filterson[k]])+", ";
+				if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+				cfg+="\n";
+			}
+		}
+		//Squelch Threshold
+		for (j=0;j<2;j++){
+			cfg+="\t\tFilter Squelch Threshold " + uldl[j] + " (dBm): ";
+			if (j==0)
+				cfg+=(config.sqChThreshold[0][band][j][0])+"\n";
+			else{
+				for (k=0;k<nfilters;k++) cfg+=(config.sqChThreshold[0][band][j][filterson[k]])+", ";
+				if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+				cfg+="\n";
+			}
+		}
+		cfg+="\t\tAll filters with same squelch settings DL: " + boolToYN(config.allSameSquelch[band])+"\n";
+		for (j=0;j<2;j++) cfg+="\t\tAll filters with same Bandwidth " + uldl[j] + ": "+boolToYN(config.allChSameBW[band][j])+"\n";
+	}
+	return cfg;
+}
+function rfConfigAdjBwFiltersToText(config, factory, band){
+	var i,j,k;
+	var nfilters;
+	var filterson = [];
+	var uldl = ["UL","DL"];	
+	var cfg = "";
+	if (factory.adjBandEnabled[band]){
+		nfilters = 0;
+		for (j=0;j<factory.numADJFilters;j++){
+			if (config.filterEnabled[1][band][0][j]){
+				filterson[nfilters]=j;
+				nfilters++;
+			}
+		}					
+		cfg+="\tADJBW Filters\n";
+		// if (band==0) cfg+="\t\tAssign 1st ADJBW Filter to FIRSTNET: " + boolToYN(config.firstADJisFirstNet) + "\n";
+		//Enable
+		cfg+="\t\tADJBW ON:";
+		for (k=0;k<nfilters;k++) cfg+=(filterson[k]+1)+", ";
+		if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+		cfg+="\n";
+		//Frequencies
+		for (j=0;j<2;j++){
+			cfg+="\t\tADJBW Frequency Start-Stop " + uldl[j] + " (MHz): ";
+			for (k=0;k<nfilters;k++) cfg+=(config.fstartHzAdjFilter[band][j][filterson[k]]/1e6)+"-"+(config.fstopHzAdjFilter[band][j][filterson[k]]/1e6)+", ";
+			if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+			cfg+="\n";
+		}
+		//Fine Gain
+		for (j=0;j<2;j++){
+			cfg+="\t\tFilter Fine Gain " + uldl[j] + " (dB): ";
+			for (k=0;k<nfilters;k++) cfg+=(config.fineGainFilter[1][band][j][filterson[k]])+", ";
+			if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+			cfg+="\n";						
+		}
+		//Squelch Enable
+		for (j=0;j<2;j++){
+			cfg+="\t\tFilter Squelch Enable " + uldl[j] + ": ";
+			for (k=0;k<nfilters;k++) cfg+=boolToYN(config.sqChEnabled[1][band][j][filterson[k]])+", ";
+			if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+			cfg+="\n";
+		}
+		//Squelch Threshold
+		for (j=0;j<2;j++){
+			cfg+="\t\tFilter Squelch Threshold " + uldl[j] + " (dBm): ";
+			for (k=0;k<nfilters;k++) cfg+=(config.sqChThreshold[1][band][j][filterson[k]])+", ";
+			if (nfilters>0) cfg = cfg.substring(0,cfg.length-2);
+			cfg+="\n";
+		}
+	}
+	return cfg;
+}
+function rfConfigAlarmToText(nfpacfg, band){
+	var cfg = "";
+	cfg+="\tRF Alarm Settings\n";
+	cfg+="\t\tReturn Loss Threshold (dB): " + (nfpacfg.retLossTh[band]) + "\n";
+	cfg+="\t\tMinimum TX Power for VSWR Detection (dBm): " + (nfpacfg.minPowerVSWR[band]) + "\n";
+	cfg+="\t\tReturn Loss Alarm Sensitivity (seconds): " + (nfpacfg.alarmNumSens[band]) + "\n";
+	cfg+="\t\tDonor Antenna Failure Timer Threshold (seconds): " + (nfpacfg.timeTxLowPowLow[band]) + "\n";
+	cfg+="\t\tAntenna Disconnection Input Threshold (dBm): " + (nfpacfg.antennaDisconnectionThreshold[band]) + "\n";
+	return cfg;
+}
+
+function boolToYN(val){
+	return (val?"YES":"NO");
+}
+
+function agcModeText(val){
+	return (val==0?"STABLE COVERAGE":"MAX. POWER");
+}
+
+function rfConfigBaseStationToText(config, band) {
+	var cfg = "";
+	cfg+="\tBase Station:\n";
+	cfg+="\t\tPower (dBm): " + config.base_station_power[band] + "\n";
+	cfg+="\t\tSensitivity (dBm): " + config.base_station_sensitivity[band] + "\n";
+	return cfg;
+}
+
+function uCSupportsBbuMvo2Mode(version)
+{
+	return true;
+	// var versionCompareTo2_00 = version.compareSw(2,0);
+	// return (versionCompareTo2_00 > 0);
+}
+
+function isBbuSerialMode(config, factory, version)
+{
+	var isSerialMode = false;
+	isSerialMode = (config.bbu_serial_mode!=0);
+	return isSerialMode;
+}
+function getNrOfRelaysSupported(config, factory, version) {
+	if (!isBbuSerialMode(config, factory, version)) return 4;
+	if (config.bbu_type == 0) {
+		return 8;	// NO MMS mode
+	} else if (config.bbu_type == 1) {
+		return 10; 	// BBU MVO.2 standard
+	} else if (config.bbu_type == 2) {
+		return 9; 	// BBU MVO.2 high power
+	} else {
+		return 4;	// default
+	}
+}
+
+function createDeepDischargeBox() {
+	this.version = version;
+	this.unitDiv = document.createElement("div");
+	this.unitDiv.id = "deepDischargeDiv";
+	this.unitDiv.className = "unitbox";
+	this.unitDiv.style.display = "none";
+	var headDiv = document.createElement("div");
+	this.unitDiv.appendChild(headDiv);
+	headDiv.className = "headbox";
+	var tab = document.createElement("table");
+	headDiv.appendChild(tab);
+	tab.className = "headtable";
+	tab.style.width = "100%";
+	var tb = document.createElement("tbody");
+	tab.appendChild(tb);
+	var row = document.createElement("tr");
+	tb.appendChild(row);
+	var cell = document.createElement("td");
+	cell.className = "tdBlank";
+	row.appendChild(cell);
+	var cell = document.createElement("td");
+	row.appendChild(cell);
+	cell.innerHTML = "BATTERY&nbsp;DEEP&nbsp;DISCHARGE";
+	cell.className = "tag";
+	cell.style.textAlign = "center";
+	row.appendChild(cell);	
+
+	var contentDiv = document.createElement("div");
+	contentDiv.className = "msgbox";
+	contentDiv.style.textAlign = "center";
+	this.unitDiv.appendChild(contentDiv);
+	var txt = document.createElement("div");
+	txt.innerHTML = "WARNING: the installed batteries suffered full discharge. Performance and lifetime of the batteries may be affected."
+	txt.style.padding = "20px 20px 20px 40px";
+	txt.style.fontWeight = "bold";
+	txt.style.fontSize = "large";
+	contentDiv.appendChild(txt);
+	var dismissButton = document.createElement("input");
+	dismissButton.type = "button";
+	dismissButton.value = "DISMISS";
+	dismissButton.style.marginLeft = dismissButton.style.marginRight = "auto";
+	dismissButton.style.fontWeight = "bold";
+	dismissButton.style.fontSize = "14px";
+	dismissButton.style.marginBottom = "10px";
+	contentDiv.appendChild(dismissButton);
+	this.config;
+	this.isBbuMvo2 = false;
+	dismissButton.onclick = function(ev) {
+		try {
+			document.getElementById("deepDischargeDiv").style.display = "none";
+			window.parent.navi.deepDischargeButtonClicked = true;
+			if (self.isBbuMvo2) {
+				self.config.bbu_dismiss_deep_discharge = true;
+				var frmcnf = self.config.getFrm();
+				var frms = [];
+				frms.push({type: 'ctl_conf_str=', frame: frmcnf});
+				toolSubmit(frms);
+			}
+		} catch(e){}
+	}
+	this.showDeepDischargeMvo1 = function(NFPAstat, config, factory, version) {
+		this.isBbuMvo2 = false;
+		var el = document.getElementById("deepDischargeDiv");
+		try {
+			if (isBbuSerialMode(config, factory, version)) {
+				var batteryBankVoltage = 0;
+				for (var i = 0; i < 2; i++) batteryBankVoltage += NFPAstat.bbuBatteryStatusVoltage[i];
+				var isDeepDischarge = batteryBankVoltage < factory.deepDischargeVolt_mV;
+				if (isDeepDischarge && !window.parent.navi.deepDischargeButtonClicked) {
+					el.style.display = "block";
+				}
+			} else {
+				el.style.display = "none";
+			}
+		} catch(e){}
+	}
+	this.showDeepDischargeMvo2 = function(isDeepDischarge, config) {
+		this.isBbuMvo2 = true;
+		this.config = config;
+		var el = document.getElementById("deepDischargeDiv");
+		try {
+			if (isBbuSerialMode(config, factory, version)) {
+				if (isDeepDischarge && !window.parent.navi.deepDischargeButtonClicked) {
+					el.style.display = "block";
+				}
+			} else {
+				el.style.display = "none";
+			}
+		} catch(e){}
+	}
+	this.clearDeepDischargeButtonClicked = function() {
+		if (self.isBbuMvo2) {
+			window.parent.navi.deepDischargeButtonClicked = false;
+		}
+	}
+	this.getBox = function() {return this.unitDiv;}
+	var self = this;
+}

@@ -1,0 +1,224 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <UseWindowsForms>true</UseWindowsForms>
+    <ImplicitUsings>enable</ImplicitUsings>
+    
+    <!-- Información de versión del producto -->
+    <Version>3.0.0-alpha</Version>
+    <AssemblyVersion>3.0.0.0</AssemblyVersion>
+    <FileVersion>3.0.0.0</FileVersion>
+    
+    <!-- Metadatos del producto -->
+    <Product>Fiplex Control Software</Product>
+    <Company>Fiplex Communications</Company>
+    <Copyright>Copyright © Fiplex Communications 2025</Copyright>
+    <Description>Software de control para dispositivos Fiplex</Description>
+    <ApplicationIcon>Assets\Icons\Fiplex Control Software.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Remove="pages\htdocs_1a1\**" />
+    <Compile Remove="pages\htdocs_1a2\**" />
+    <Compile Remove="pages\htdocs_1a2_2\**" />
+    <Compile Remove="pages\htdocs_1a\**" />
+    <Compile Remove="pages\htdocs_1c1\**" />
+    <Compile Remove="pages\htdocs_1c1_2\**" />
+    <Compile Remove="pages\htdocs_1c2\**" />
+    <Compile Remove="pages\htdocs_1c2_2\**" />
+    <Compile Remove="pages\htdocs_1c3\**" />
+    <Compile Remove="pages\htdocs_1c4_1\**" />
+    <Compile Remove="pages\htdocs_1c4_2\**" />
+    <Compile Remove="pages\htdocs_1c4_3\**" />
+    <Compile Remove="pages\htdocs_1c5_1\**" />
+    <Compile Remove="pages\htdocs_1c5_2\**" />
+    <Compile Remove="pages\htdocs_1c6\**" />
+    <Compile Remove="pages\htdocs_1c7\**" />
+    <Compile Remove="pages\htdocs_1c8\**" />
+    <Compile Remove="pages\htdocs_1cm\**" />
+    <Compile Remove="pages\htdocs_1cr\**" />
+    <Compile Remove="pages\htdocs_1c\**" />
+    <Compile Remove="pages\htdocs_1de1\**" />
+    <Compile Remove="pages\htdocs_1de\**" />
+    <Compile Remove="pages\htdocs_1dm3\**" />
+    <Compile Remove="pages\htdocs_1dm4\**" />
+    <Compile Remove="pages\htdocs_1dm4_1\**" />
+    <Compile Remove="pages\htdocs_1dm4_2\**" />
+    <Compile Remove="pages\htdocs_1dm6\**" />
+    <Compile Remove="pages\htdocs_1dm6_1\**" />
+    <Compile Remove="pages\htdocs_1dm8\**" />
+    <Compile Remove="pages\htdocs_1dr1\**" />
+    <Compile Remove="pages\htdocs_1dr2\**" />
+    <Compile Remove="pages\htdocs_1dr2_1\**" />
+    <Compile Remove="pages\htdocs_1dr4\**" />
+    <Compile Remove="pages\htdocs_2c1\**" />
+    <Compile Remove="pages\htdocs_2c2\**" />
+    <Compile Remove="pages\htdocs_2c\**" />
+    <Compile Remove="pages\htdocs_2dm\**" />
+    <Compile Remove="pages\htdocs_2dr\**" />
+    <Compile Remove="pages\htdocs_3c1\**" />
+    <Compile Remove="pages\htdocs_3c\**" />
+    <Compile Remove="pages\htdocs_3dr1\**" />
+    <Compile Remove="pages\htdocs_3dr\**" />
+    <Compile Remove="pages\htdocs_4dm3\**" />
+    <Compile Remove="pages\htdocs_4dm\**" />
+    <Compile Remove="pages\htdocs_5dm1\**" />
+    <Compile Remove="pages\htdocs_5dm\**" />
+    <Compile Remove="pages\htdocs_default\**" />
+    <EmbeddedResource Remove="pages\htdocs_1a1\**" />
+    <EmbeddedResource Remove="pages\htdocs_1a2\**" />
+    <EmbeddedResource Remove="pages\htdocs_1a2_2\**" />
+    <EmbeddedResource Remove="pages\htdocs_1a\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c1\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c1_2\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c2\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c2_2\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c3\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c4_1\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c4_2\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c4_3\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c5_1\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c5_2\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c6\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c7\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c8\**" />
+    <EmbeddedResource Remove="pages\htdocs_1cm\**" />
+    <EmbeddedResource Remove="pages\htdocs_1cr\**" />
+    <EmbeddedResource Remove="pages\htdocs_1c\**" />
+    <EmbeddedResource Remove="pages\htdocs_1de1\**" />
+    <EmbeddedResource Remove="pages\htdocs_1de\**" />
+    <EmbeddedResource Remove="pages\htdocs_1dm3\**" />
+    <EmbeddedResource Remove="pages\htdocs_1dm4\**" />
+    <EmbeddedResource Remove="pages\htdocs_1dm4_1\**" />
+    <EmbeddedResource Remove="pages\htdocs_1dm4_2\**" />
+    <EmbeddedResource Remove="pages\htdocs_1dm6\**" />
+    <EmbeddedResource Remove="pages\htdocs_1dm6_1\**" />
+    <EmbeddedResource Remove="pages\htdocs_1dm8\**" />
+    <EmbeddedResource Remove="pages\htdocs_1dr1\**" />
+    <EmbeddedResource Remove="pages\htdocs_1dr2\**" />
+    <EmbeddedResource Remove="pages\htdocs_1dr2_1\**" />
+    <EmbeddedResource Remove="pages\htdocs_1dr4\**" />
+    <EmbeddedResource Remove="pages\htdocs_2c1\**" />
+    <EmbeddedResource Remove="pages\htdocs_2c2\**" />
+    <EmbeddedResource Remove="pages\htdocs_2c\**" />
+    <EmbeddedResource Remove="pages\htdocs_2dm\**" />
+    <EmbeddedResource Remove="pages\htdocs_2dr\**" />
+    <EmbeddedResource Remove="pages\htdocs_3c1\**" />
+    <EmbeddedResource Remove="pages\htdocs_3c\**" />
+    <EmbeddedResource Remove="pages\htdocs_3dr1\**" />
+    <EmbeddedResource Remove="pages\htdocs_3dr\**" />
+    <EmbeddedResource Remove="pages\htdocs_4dm3\**" />
+    <EmbeddedResource Remove="pages\htdocs_4dm\**" />
+    <EmbeddedResource Remove="pages\htdocs_5dm1\**" />
+    <EmbeddedResource Remove="pages\htdocs_5dm\**" />
+    <EmbeddedResource Remove="pages\htdocs_default\**" />
+    <None Remove="pages\htdocs_1a1\**" />
+    <None Remove="pages\htdocs_1a2\**" />
+    <None Remove="pages\htdocs_1a2_2\**" />
+    <None Remove="pages\htdocs_1a\**" />
+    <None Remove="pages\htdocs_1c1\**" />
+    <None Remove="pages\htdocs_1c1_2\**" />
+    <None Remove="pages\htdocs_1c2\**" />
+    <None Remove="pages\htdocs_1c2_2\**" />
+    <None Remove="pages\htdocs_1c3\**" />
+    <None Remove="pages\htdocs_1c4_1\**" />
+    <None Remove="pages\htdocs_1c4_2\**" />
+    <None Remove="pages\htdocs_1c4_3\**" />
+    <None Remove="pages\htdocs_1c5_1\**" />
+    <None Remove="pages\htdocs_1c5_2\**" />
+    <None Remove="pages\htdocs_1c6\**" />
+    <None Remove="pages\htdocs_1c7\**" />
+    <None Remove="pages\htdocs_1c8\**" />
+    <None Remove="pages\htdocs_1cm\**" />
+    <None Remove="pages\htdocs_1cr\**" />
+    <None Remove="pages\htdocs_1c\**" />
+    <None Remove="pages\htdocs_1de1\**" />
+    <None Remove="pages\htdocs_1de\**" />
+    <None Remove="pages\htdocs_1dm3\**" />
+    <None Remove="pages\htdocs_1dm4\**" />
+    <None Remove="pages\htdocs_1dm4_1\**" />
+    <None Remove="pages\htdocs_1dm4_2\**" />
+    <None Remove="pages\htdocs_1dm6\**" />
+    <None Remove="pages\htdocs_1dm6_1\**" />
+    <None Remove="pages\htdocs_1dm8\**" />
+    <None Remove="pages\htdocs_1dr1\**" />
+    <None Remove="pages\htdocs_1dr2\**" />
+    <None Remove="pages\htdocs_1dr2_1\**" />
+    <None Remove="pages\htdocs_1dr4\**" />
+    <None Remove="pages\htdocs_2c1\**" />
+    <None Remove="pages\htdocs_2c2\**" />
+    <None Remove="pages\htdocs_2c\**" />
+    <None Remove="pages\htdocs_2dm\**" />
+    <None Remove="pages\htdocs_2dr\**" />
+    <None Remove="pages\htdocs_3c1\**" />
+    <None Remove="pages\htdocs_3c\**" />
+    <None Remove="pages\htdocs_3dr1\**" />
+    <None Remove="pages\htdocs_3dr\**" />
+    <None Remove="pages\htdocs_4dm3\**" />
+    <None Remove="pages\htdocs_4dm\**" />
+    <None Remove="pages\htdocs_5dm1\**" />
+    <None Remove="pages\htdocs_5dm\**" />
+    <None Remove="pages\htdocs_default\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Assets\Icons\Fiplex Control Software.ico">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Assets\Logos\logo.png" Condition="Exists('Assets\Logos\logo.png')">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2592.51" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.0" />
+    <PackageReference Include="Duende.IdentityModel.OidcClient" Version="6.0.1" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.3.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="Resources\fdevices.tsv" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Update="fiplex.license">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Assets\Logos\" />
+    <Folder Include="docs\form-login\prompts\" />
+    <Folder Include="docs\menustrip-clss\prompts\" />
+    <Folder Include="docs\menustrip-file\prompts\" />
+    <Folder Include="docs\menustrip-ethernet\" />
+    <Folder Include="pages\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Compile Update="Properties\Resources.Designer.cs">
+      <DesignTime>True</DesignTime>
+      <AutoGen>True</AutoGen>
+      <DependentUpon>Resources.resx</DependentUpon>
+    </Compile>
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <Generator>ResXFileCodeGenerator</Generator>
+      <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+    </EmbeddedResource>
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,57 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--<![-->
+	<head>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" >
+		<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" >
+		<meta http-equiv="cache-control" content="no-transform">
+		<link id="cssfile" href="/base.css" rel="stylesheet" type="text/css">
+		<script language="JavaScript" type="text/javascript" src="/brand.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/base.js"></script>
+		<script language="JavaScript" type="text/javascript">
+		function setWidth(){
+			var el = document.getElementById("maintab");
+			var sz = getFrameSizeById("head");
+			if (sz.width > 50)
+				el.style.minWidth = (sz.width -50)+"px";
+		}
+		window.onresize = setWidth;
+		function showClock() {
+			var d = new Date();
+			var h = d.getHours();
+			var m = d.getMinutes();
+			if (m < 10) m = '0'+m;
+			var s = d.getSeconds();
+			if (s < 10) s = '0'+s;
+			document.getElementById("local_time").innerHTML = h+':'+m+':'+s;
+			setTimeout(function() {showClock();}, 500);
+		}
+		function setBrand() {
+			try {
+				var brand = new Brand();
+				var el = document.getElementById("url");
+				el.href = brand.url();
+				window.parent.document.title = brand.title();
+				var el = window.parent.navi.document.getElementById('naviUrl');
+				el.href = brand.url();
+			} catch(err) {}
+		}
+		</script>
+	</head>
+	<body class="h" onload="setBrand(); setWidth(); showClock();">
+		<div>
+			<table style="cellpadding=0; cellspacing=0; border=0; min-width:850px;" id="maintab">
+				<tr>
+					<td><img src="/blank.gif" width=40 height=1></td>
+					<td><a id="url" target="blank" href="http://"><img id="logo" border=0 src="/logo.png"></a></td>
+					<td><img src="/blank.gif" width=40 height=1></td>
+					<td class="head" id="deviceName" name="deviceName">DIGITAL&nbsp;BDA</td>
+					<td><img src="/blank.gif" width=40 height=1></td>
+					<td><img src="/blank.gif" width=40 height=1></td>
+					<td><div id="local_time"></div></td>
+				</tr>
+			</table>
+		</div>
+	</body>
+</html>

@@ -1,0 +1,26 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--<![-->
+	<head>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" >
+		<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" >
+		<meta http-equiv="cache-control" content="no-transform">
+		<link href="/base.css" rel="stylesheet" type="text/css">
+		<script language="JavaScript" type="text/javascript" src="/base.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/ptags.js"></script>
+		<title>Fiplex Control Software</title>
+	</head>
+	<body onload="onloadInit()">
+		<form id="tags_form" name="tags_form" action="/tags.zhtml" METHOD="POST">
+			<input type="hidden" id="ctl_tags_str" name="ctl_tags_str" value="" size="100" >
+			<h1>TAG</h1><br/>
+			<table><tbody id="rootNode">
+			</tbody></table>
+			</br>
+		</form>
+		<form id="tags_req_form" name="tags_req_form" action="/tags.zhtml" METHOD="POST">
+			<input type="hidden" id="tags_req" name="tags_req">
+		</form>
+	</body>
+</html>

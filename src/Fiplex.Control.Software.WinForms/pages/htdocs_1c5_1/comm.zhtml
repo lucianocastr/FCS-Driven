@@ -1,0 +1,76 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--<![-->
+	<head>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" >
+		<meta http-equiv="content-type" content="text/html; charset=ISO-8859-1" >
+		<meta http-equiv="cache-control" content="no-transform">
+		<link href="/base.css" rel="stylesheet" type="text/css">
+		<script language="JavaScript" type="text/javascript" src="/base.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/comm.js"></script>
+		<style type="text/css">
+			table.passtable {
+				border-collapse:collapse;
+				text-align:center;
+			}
+			passtable.th {
+				padding-right:10px;
+			}
+			input.passtable {
+				text-align:left;
+			}
+		</style>
+	</head>
+	<body onload="onloadInit();" onunload="onUnload();">
+		<form id="comm_form" name="comm_form" action="/comm.zhtml" METHOD="POST">
+			<input type="hidden" id="np_commfrm" name="np_commfrm" value="">
+			<h1>SNMP COMMUNITIES</h1><br/>
+			<table class="passtable"><tbody>
+			<tr><th class="thdrht">READ-ONLY COMMUNITY</th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" style="width: 85px;" maxlength="7" id="commro" name="commro" class="passtable" title="Must be different of read-write community"></td>
+			</tr>
+			<tr><th class="thdrht">READ-WRITE COMMUNITY</th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" style="width: 85px;" maxlength="7" id="commrw" name="commrw" class="passtable" title="Must be different of read-only community"></td>
+			</tr>
+			<tr><th class="thdrht">WATCHDOG PERIOD (mins)</th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" style="width: 85px;" maxlength="11" id="watchdogPeriod" name="watchdogPeriod" class="passtable" title="Min. 3min, Max. 65535, Disable 0"></td>
+			</tr>
+			<tr><th class="thdrht">ETHERNET RESET</th><td>&nbsp;&nbsp;</td>
+				<td><input type="checkbox" id="ethReset" name="ethReset" class="passtable"></td>
+			</tr>
+			<tr><th class="thdrht">DELETE ALL TRAPS</th><td>&nbsp;&nbsp;</td>
+				<td><input type="checkbox" id="trapsDelete" name="trapsDelete" class="passtable"></td>
+			</tr>
+			<tr><th class="thdrht" style="display: none;">ENABLE ALL TRAPS</th><td>&nbsp;&nbsp;</td>
+				<td><input type="checkbox" style="display: none;" id="trapsEnable" name="trapsEnable" class="passtable"></td>
+			</tr>
+			<tr><th class="thdrht" style="display: none;">DISABLE ALL TRAPS</th><td>&nbsp;&nbsp;</td>
+				<td><input type="checkbox" style="display: none;" id="trapsDisable" name="trapsDisable" class="passtable"></td>
+			</tr>
+			<tr><th>&nbsp;&nbsp;</th><td>&nbsp;&nbsp;</td><th>MANAGER 1</th><th>MANAGER 2</th>
+			</tr>
+			<tr><th class="thdrht">TRAP COMMUNITY</th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" style="width: 85px;" maxlength="7" id="commtr1" name="commtr1" class="passtable"></td>
+				<td><input type="text" style="width: 85px;" maxlength="7" id="commtr2" name="commtr2" class="passtable"></td>
+			</tr>
+			<tr><th class="thdrht">TRAP PORT</th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" style="width: 85px;" maxlength="11" id="portr1" name="portr1" class="passtable" title="Default: 162"></td>
+				<td><input type="text" style="width: 85px;" maxlength="11" id="portr2" name="portr2" class="passtable" title="Default: 162"></td>
+			</tr>
+			<tr><th class="thdrht">TRAP REPETITION</th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" style="width: 85px;" maxlength="11" id="trapRep1" name="trapRep1" class="passtable" title="Min. 1, Max. 5, Interval 10s."></td>
+				<td><input type="text" style="width: 85px;" maxlength="11" id="trapRep2" name="trapRep2" class="passtable" title="Min. 1, Max. 5, Interval 10s."></td>
+			</tr>
+			<tr><th class="thdrht">MANAGER ENABLE</th><td>&nbsp;&nbsp;</td>
+				<td><input type="checkbox" id="mgrEn1" name="mgrEn1" class="passtable"></td>
+				<td><input type="checkbox" id="mgrEn2" name="mgrEn2" class="passtable"></td>
+			</tr>
+			<tr><th class="thdrht">KEEP-ALIVE PERIOD (mins)</th><td>&nbsp;&nbsp;</td>
+				<td><input type="text" style="width: 85px;" maxlength="11" id="keepAlivePeriod1" name="keepAlivePeriod1" class="passtable" title="Min. 1, Max. 65535, Disable 0"></td>
+				<td><input type="text" style="width: 85px;" maxlength="11" id="keepAlivePeriod2" name="keepAlivePeriod2" class="passtable" title="Min. 1, Max. 65535, Disable 0"></td>
+			</tr>
+			</tbody></table>
+		</form><br/><br/>
+	</body>
+</html>

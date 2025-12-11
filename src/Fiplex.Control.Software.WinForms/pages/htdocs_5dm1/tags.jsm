@@ -1,0 +1,3 @@
+<!--
+function Tags(){this.TAGLEN=30,this.tag="",this.parse=function(t){try{this.tag="";for(var i=0;i<t.length&&i<2*this.TAGLEN;i+=2){var r=t.substr(i,2),a=parseInt(r,16);isNaN(a)?this.tag+="&nbsp;":this.tag+=String.fromCharCode(a)}}catch(t){}},this.parseRawText=function(t){try{this.tag="";for(var i=0;i<t.length&&i<this.TAGLEN;i++){var r=t.charCodeAt(i);this.tag+=32<=r&&r<127?t[i]:" "}}catch(t){}},this.render=function(){try{setTag(this.tag)}catch(t){}},this.getTag=function(){return this.tag},this.format=function(t){t=t.trim();for(var i=0;i<this.TAGLEN;++i)t+=" ";t=t.slice(0,this.TAGLEN);var r="";for(i=0;i<this.TAGLEN;++i){var a=t.charCodeAt(i);r+=(isNaN(a)?"20":"00"+a.toString(16)).slice(-2)}return r}}
+// -->

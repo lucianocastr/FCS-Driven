@@ -1,0 +1,64 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+	"http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<!--<![-->
+	<head>
+		<meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1" >
+		<meta http-equiv="content-type" content="text/html; charset=UTF-8" >
+		<meta http-equiv="cache-control" content="no-transform">
+		<link id="cssfile" href="/base.css" rel="stylesheet" type="text/css">
+		<link href="/meter.css" rel="stylesheet" type="text/css">
+		<script language="JavaScript" type="text/javascript" src="/lang_en.js"></script>
+		<script language="JavaScript" type="text/javascript"></script>
+		<script language="JavaScript" type="text/javascript" src="/base.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/monitor.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/tags.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/objfactory.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/config.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/file.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/fhelp.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/render.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/version.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/navi.js"></script>
+		<script language="JavaScript" type="text/javascript" src="/net.js"></script>
+		
+		<title>Fiplex Control Software</title>
+	</head>
+
+	<body class="small" style="margin-left:5px;" onload="onloadInit();">
+		<form id="config_form" name="config_form" action="/start.zhtml" METHOD="POST" accept-charset="ISO-8859-1">
+			<img hidden src="bullet_green.png">
+			<img hidden src="bullet_grey.png">
+			<img hidden src="bullet_red.png">
+			<img hidden src="bullet_yellow.png">
+			<img hidden src="closed.png">
+			<img hidden src="FccLogo.png">
+			<img hidden src="maximize.png">
+			<img hidden src="minimize.png">
+			<img hidden src="open.png">
+			<div id="page">
+			</div>
+		</form>
+		<form id="config_req" name="config_req" action="/start.zhtml" METHOD="POST" accept-charset="ISO-8859-1">
+			<input type="hidden" id="conf_req" name="conf_req">
+		</form>
+		<form id="conf_form" name="conf_form" action="/start.zhtml" METHOD="POST" accept-charset="ISO-8859-1">
+			<input type="hidden" id="ctl_conf_str" name="ctl_conf_str">
+		</form>
+		<form id="nfpa_form" name="nfpa_form" action="/start.zhtml" METHOD="POST" accept-charset="ISO-8859-1">
+			<input type="hidden" id="nfpa_str" name="nfpa_str" value="">
+		</form>
+		<form id="factory_req" name="factory_req" action="/start.zhtml" METHOD="POST" accept-charset="ISO-8859-1">
+			<input type="hidden" id="fact_req" name="fact_req">
+		</form>
+		<form id="tags_req_form" name="tags_req_form" action="/start.zhtml" METHOD="POST" accept-charset="ISO-8859-1">
+			<input type="hidden" id="tags_req" name="tags_req">
+		</form>
+		<form id="freq_req_form" name="freq_req_form" action="/start.zhtml" METHOD="POST" accept-charset="ISO-8859-1">
+			<input type="hidden" id="freq_req" name="freq_req">
+		</form>
+		<form id="confs_req_form" name="confs_req_form" action="/start.zhtml" METHOD="POST" accept-charset="ISO-8859-1">
+			<input type="hidden" id="confs_req" name="confs_req">
+		</form>
+	</body>
+</html>
