@@ -491,7 +491,7 @@ public partial class frmMain : Form
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error en NavigateToDeviceUIAsync");
+            _logger.LogError(ex, "Error in NavigateToDeviceUIAsync");
         }
     }
 

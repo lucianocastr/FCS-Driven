@@ -50,7 +50,7 @@ public class Device1C_V22_ResponseHandler : IDeviceResponseHandler
         if (command.Equals("C1", StringComparison.OrdinalIgnoreCase))
         {
             var isActivated = IsSCAConfCHTestActivated(rawResponse);
-            _logger.LogDebug("IsSCAConfCHTestActivated={IsActivated} para C1", isActivated);
+            _logger.LogDebug("IsSCAConfCHTestActivated={IsActivated} for C1", isActivated);
             
             // Return processed confSCA if activated
             return isActivated ? _confSCA : rawResponse;
@@ -60,7 +60,7 @@ public class Device1C_V22_ResponseHandler : IDeviceResponseHandler
         if (command.Equals("F1", StringComparison.OrdinalIgnoreCase))
         {
             var isActivated = IsSCAFactCHTestActivated(rawResponse);
-            _logger.LogDebug("IsSCAFactCHTestActivated={IsActivated} para F1", isActivated);
+            _logger.LogDebug("IsSCAFactCHTestActivated={IsActivated} for F1", isActivated);
             // F1 does not modify the response, only updates state
         }
 

@@ -634,7 +634,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             
             if (string.IsNullOrEmpty(response) && attempt >= maxRetries)
             {
-                _logger.LogError("Comando fall� despu�s de {MaxRetries} intentos", maxRetries);
+                _logger.LogError("Command failed after {MaxRetries} attempts", maxRetries);
                 
                 stopwatch.Stop();
                 _metrics?.RecordCommand(normalizedPage, status, stopwatch.Elapsed.TotalSeconds, retries);
@@ -642,14 +642,14 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 return "ERROR: Command timeout after retries";
             }
 
-            // 4. Validar longitud esperada
+            // 4. Validate expected length
             if (getCommand.ExpectedLengths?.Length > 0)
             {
                 var expectedLength = int.TryParse(getCommand.ExpectedLengths[0], out var len) ? len : 0;
                 if (expectedLength > 0 && response.Length != expectedLength)
                 {
                     _logger.LogWarning(
-                        "Longitud de respuesta incorrecta. Esperado: {Expected}, Recibido: {Actual}",
+                        "Incorrect response length. Expected: {Expected}, Received: {Actual}",
                         expectedLength, response.Length);
                 }
             }
@@ -869,7 +869,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 try
                 {
                     attempt++;
-                    _logger.LogDebug("Intento {Attempt}/{MaxRetries} enviando comando POST", attempt, maxRetries);
+                    _logger.LogDebug("Attempt {Attempt}/{MaxRetries} sending POST command", attempt, maxRetries);
                     
                     var command = new SerialCommand
                     {
@@ -920,7 +920,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 {
                     RecordFailure();
                     status = "timeout";
-                    _logger.LogWarning("Timeout en intento POST {Attempt}, reintentando...", attempt);
+                    _logger.LogWarning("Timeout on POST attempt {Attempt}, retrying...", attempt);
                     await Task.Delay(200, ct);
                 }
             }
@@ -939,7 +939,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             
             if (string.IsNullOrEmpty(response) && postCommand.WaitResponse && attempt >= maxRetries)
             {
-                _logger.LogError("Comando POST fall� despu�s de {MaxRetries} intentos", maxRetries);
+                _logger.LogError("POST command failed after {MaxRetries} attempts", maxRetries);
                 
                 stopwatch.Stop();
                 _metrics?.RecordCommand(normalizedPage, status, stopwatch.Elapsed.TotalSeconds, retries);
@@ -949,7 +949,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
             if (!postCommand.WaitResponse)
             {
-                _logger.LogDebug("POST sin espera de respuesta: {Page}", normalizedPage);
+                _logger.LogDebug("POST without response wait: {Page}", normalizedPage);
                 
                 stopwatch.Stop();
                 _metrics?.RecordCommand(normalizedPage, "success", stopwatch.Elapsed.TotalSeconds, retries);
@@ -1049,7 +1049,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
         if (hex.Length % 2 != 0)
         {
-            _logger.LogWarning("Hex string con longitud impar para decodificar: {Hex}", hex);
+            _logger.LogWarning("Hex string with odd length to decode: {Hex}", hex);
             return hex;
         }
 
@@ -1070,7 +1070,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inesperado decodificando hex string: {Hex}", hex);
+            _logger.LogError(ex, "Unexpected error decoding hex string: {Hex}", hex);
             return hex;
         }
     }

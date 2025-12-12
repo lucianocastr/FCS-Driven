@@ -58,7 +58,7 @@ public class PrivilegedUserService : IPrivilegedUserService
         else
         {
             _allowedUsers = DefaultAllowedUsers;
-            _logger.LogDebug("Usando whitelist por defecto ({Count} usuarios)", 
+            _logger.LogDebug("Using default whitelist ({Count} users)", 
                 _allowedUsers.Count);
         }
     }

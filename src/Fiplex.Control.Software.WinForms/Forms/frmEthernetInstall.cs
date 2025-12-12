@@ -87,7 +87,7 @@ public partial class frmEthernetInstall : Form
             
             if (!result.IsSuccess)
             {
-                _logger.LogError("Error leyendo factory string: {Error}", result.ErrorMessage);
+                _logger.LogError("Error reading factory string: {Error}", result.ErrorMessage);
                 MessageBox.Show(
                     "Error retrieving device information",
                     "Error",

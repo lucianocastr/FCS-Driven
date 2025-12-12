@@ -124,10 +124,10 @@ public class ResponseFormatter
                 }
             }
 
-            // Unir frames con triple tab
+            // Join frames with triple tab
             string formatted = string.Join(TripleTab, frames);
             
-            _logger.LogInformation("FormatResponse: {FrameCount} frames formateados ({TotalChars} chars -> {FormattedChars} chars)",
+            _logger.LogInformation("FormatResponse: {FrameCount} frames formatted ({TotalChars} chars -> {FormattedChars} chars)",
                 frames.Count, rawResponse.Length, formatted.Length);
 
             return formatted;
