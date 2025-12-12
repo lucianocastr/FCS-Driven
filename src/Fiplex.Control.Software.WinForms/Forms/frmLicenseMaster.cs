@@ -248,7 +248,7 @@ public partial class frmLicenseMaster : Form
     }
     
     /// <summary>
-    /// Muestra feedback visual de error.
+    /// Shows visual error feedback.
     /// </summary>
     private void ShowErrorFeedback(string message)
     {
@@ -260,7 +260,7 @@ public partial class frmLicenseMaster : Form
     }
 
     /// <summary>
-    /// Muestra opciones en controles UI.
+    /// Displays options in UI controls.
     /// </summary>
     private void DisplayOptions(LicenseOptions options)
     {
@@ -312,7 +312,7 @@ public partial class frmLicenseMaster : Form
     }
 
     /// <summary>
-    /// Aplica cambios al dispositivo.
+    /// Applies changes to the device.
     /// </summary>
     private async void cmdApply_Click(object sender, EventArgs e)
     {
@@ -425,7 +425,7 @@ public partial class frmLicenseMaster : Form
     }
     
     /// <summary>
-    /// Oculta indicadores visuales de feedback.
+    /// Hides visual feedback indicators.
     /// </summary>
     private void HideFeedback()
     {

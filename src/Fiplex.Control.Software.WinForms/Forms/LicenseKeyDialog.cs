@@ -344,7 +344,7 @@ public partial class LicenseKeyDialog : Form
             {
                 Payload = $";0{indexHex}{txtLicenseKey.Text}",
                 ExpectsAck = true,
-                ExpectsData = false,  // Solo espera ACK
+                ExpectsData = false,  // Only expects ACK
                 CancellationToken = ct
             };
             

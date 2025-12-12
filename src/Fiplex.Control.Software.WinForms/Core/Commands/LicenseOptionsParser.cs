@@ -9,10 +9,10 @@ namespace Fiplex.Control.Software.WinForms.Core.Commands;
 /// 
 /// Hex format of 14 characters:
 /// [1-2]   Boot mask       - bit0=1 → VHF/UHF, bit0=0 → 700/800
-/// [3-4]   FW0 mask        - Opciones banda 700/800
+/// [3-4]   FW0 mask        - 700/800 band options
 /// [5-6]   PowerDL 700     - Signed byte (-128..127)
 /// [7-8]   PowerDL 800     - Signed byte (-128..127)
-/// [9-10]  FW1 mask        - Opciones banda VHF/UHF
+/// [9-10]  FW1 mask        - VHF/UHF band options
 /// [11-12] PowerDL VHF     - Signed byte (-128..127)
 /// [13-14] PowerDL UHF     - Signed byte (-128..127)
 /// 
@@ -201,7 +201,7 @@ public class LicenseOptionsParser
     }
 
     /// <summary>
-    /// Convierte signed short a string hex de 2 caracteres (unsigned).
+    /// Converts signed short to a 2-character hex string (unsigned).
     /// </summary>
     private static string ToUnsignedHex(short value)
     {

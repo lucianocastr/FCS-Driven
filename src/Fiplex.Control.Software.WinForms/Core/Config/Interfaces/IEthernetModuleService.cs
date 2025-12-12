@@ -23,7 +23,7 @@ public interface IEthernetModuleService
     /// <param name="factoryString">Modified factory parameters string</param>
     /// <param name="header">Optional header for PSC Master (5dm)</param>
     /// <param name="ct">Cancellation token</param>
-    /// <returns>True si el dispositivo responde ACK</returns>
+    /// <returns>True if the device responds with ACK</returns>
     Task<bool> WriteFactoryStringAsync(
         string factoryString, 
         string? header = null, 

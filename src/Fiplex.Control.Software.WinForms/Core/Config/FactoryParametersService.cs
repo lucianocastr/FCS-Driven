@@ -18,10 +18,10 @@ public class FactoryParametersService
     /// <summary>
     /// Gets factory parameters for a specific device.
     /// </summary>
-    /// <param name="deviceType">Tipo de dispositivo (1cm, 1c, 1dm, 2c, 5dm, etc.)</param>
+    /// <param name="deviceType">Device type (1cm, 1c, 1dm, 2c, 5dm, etc.)</param>
     /// <param name="deviceVersion">Device version</param>
     /// <param name="ct">Cancellation token</param>
-    /// <returns>FactoryParameters o null si no aplica</returns>
+    /// <returns>FactoryParameters or null if not applicable</returns>
     public Task<FactoryParameters?> GetFactoryParametersAsync(
         string deviceType, 
         double deviceVersion, 

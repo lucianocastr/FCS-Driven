@@ -55,7 +55,7 @@ public interface IVersionCheckService
     Task<VersionCheckResult> CheckForUpdatesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Abre la URL de descarga en el navegador predeterminado.
+    /// Opens the download URL in the default browser.
     /// </summary>
     /// <returns>True if the browser could be opened, false on error</returns>
     bool OpenDownloadUrl();
