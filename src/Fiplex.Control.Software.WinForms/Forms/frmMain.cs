@@ -891,7 +891,7 @@ public partial class frmMain : Form
             }
             else
             {
-                // Apertura real del puerto
+                // Actual port opening
                 opened = await _serialPort.OpenAsync(portName);
             }
 
@@ -1774,9 +1774,9 @@ public partial class frmMain : Form
                         Command = c.Command,
                         Encode = c.HexEncoding,
                         WaitResponse = c.WaitResponse,
-                        // DecodeBody se activa cuando HexEncoding es true
+                        // DecodeBody is activated when HexEncoding is true
                         DecodeBody = c.HexEncoding,
-                        // Parsear NoEncodeParams string a int
+                        // Parse NoEncodeParams string to int
                         NoDecodeChars = int.TryParse(c.NoEncodeParams, out var noDecodeChars) ? noDecodeChars : 0
                     })
                     .ToList(),
@@ -1865,7 +1865,7 @@ public partial class frmMain : Form
             return;
         }
 
-        // Suspender layout para evitar artefactos visuales durante redimensionamiento
+        // Suspend layout to avoid visual artifacts during resizing
         SuspendLayout();
         tlpMainLayout.SuspendLayout();
 
@@ -1892,7 +1892,7 @@ public partial class frmMain : Form
         {
             tlpMainLayout.ResumeLayout(true);
             ResumeLayout(true);
-            // Forzar redibujado completo para eliminar artefactos
+            // Force full redraw to remove artifacts
             Refresh();
         }
     }
@@ -1934,14 +1934,14 @@ public partial class frmMain : Form
             return;
         }
 
-        // Suspender layout para evitar artefactos visuales durante redimensionamiento
+        // Suspend layout to avoid visual artifacts during resizing
         SuspendLayout();
         tlpMainLayout.SuspendLayout();
 
         try
         {
             cmdConnect.Text = "Connect";
-            cmdConnect.BackColor = Color.FromArgb(0, 120, 215); // Azul para connect
+            cmdConnect.BackColor = Color.FromArgb(0, 120, 215); // Blue for connect
             cmdIDPort.Enabled = true;
             cmbCOM.Enabled = true;
             cmdRefresh.Enabled = false;
@@ -1957,7 +1957,7 @@ public partial class frmMain : Form
         {
             tlpMainLayout.ResumeLayout(true);
             ResumeLayout(true);
-            // Forzar redibujado completo para eliminar artefactos
+            // Force full redraw to remove artifacts
             Refresh();
         }
     }
@@ -2000,8 +2000,8 @@ public partial class frmMain : Form
         }
 
         var timestamp = DateTime.Now.ToString("HH:mm:ss");
-        // lblStatus muestra mensajes operativos
-        // lbldaysRemaining permanece exclusivo para info CLSS
+        // lblStatus shows operational messages
+        // lbldaysRemaining remains exclusive for CLSS info
         lblStatus.Text = $"[{timestamp}] {message}";
 
         _logger.LogDebug(message);
@@ -2009,7 +2009,7 @@ public partial class frmMain : Form
 
     private async void cmdRefresh_Click(object sender, EventArgs e)
     {
-        // Llama a RefreshDeviceUIAsync sin forzar modo avanzado
+        // Call RefreshDeviceUIAsync without forcing advanced mode
         await RefreshDeviceUIAsync();
     }
 
@@ -2535,7 +2535,7 @@ public partial class frmMain : Form
     private void mnuExit_Click(object sender, EventArgs e)
     {
         _logger.LogInformation("User requested application exit via menu");
-        Close(); // Dispara frmMain2_FormClosing que maneja la limpieza
+        Close(); // Triggers frmMain2_FormClosing which handles cleanup
     }
 
     /// <summary>
@@ -2818,7 +2818,7 @@ public partial class frmMain : Form
             return;
         }
 
-        // Solo soportado para dispositivo 2c
+        // Only supported for 2c device
         if (device.TDev != "2c")
         {
             MessageBox.Show(
@@ -3245,7 +3245,7 @@ public partial class frmMain : Form
         string tdev = device.TDev?.ToLowerInvariant() ?? "";
         double ndev = device.NDev;
 
-        // GRUPO 1: Dispositivos que requieren getFactoryParameters para determinar visibilidad
+        // GROUP 1: Devices that require getFactoryParameters to determine visibility
         bool requiresFactoryParams = tdev switch
         {
             "1cm" => true,
@@ -3287,7 +3287,7 @@ public partial class frmMain : Form
                     mnuTwoCHStop.Enabled = true;
                 }
 
-                // mnuClear visible para 1c v3+, 1c v1.2, 1cm, 1dm v4.1+, 1a v2+, 1dr v2.1+
+                // mnuClear visible for 1c v3+, 1c v1.2, 1cm, 1dm v4.1+, 1a v2+, 1dr v2.1+
                 if ((tdev == "1c" && ndev >= 3.0) ||
                     (tdev == "1c" && Math.Abs(ndev - 1.2) < 0.05) ||
                     tdev == "1cm" ||
@@ -3329,7 +3329,7 @@ public partial class frmMain : Form
             mnuSixCH.Visible = false;
         }
 
-        // mnuFirstNet solo visible para 1c v5
+        // mnuFirstNet only visible for 1c v5
         mnuFirstNet.Visible = tdev == "1c" && (int)ndev == 5;
     }
 
@@ -3462,10 +3462,10 @@ public partial class frmMain : Form
             // 1dr version 2.1 or higher
             "1dr" when ndev >= 2.1 => true,
 
-            // 1cm todas las versiones
+            // 1cm all versions
             "1cm" => true,
 
-            // 1a todas las versiones
+            // 1a all versions
             "1a" => true,
 
             _ => false
@@ -4025,7 +4025,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Command O - 5dm usa O000 para clear log individual
+        // Command O - 5dm uses O000 for individual log clear
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O000",

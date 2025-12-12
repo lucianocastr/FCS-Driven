@@ -59,7 +59,7 @@ public class ResponseFormatter
         try
         {
             // Parse: "splitwith3tabs:3104,2870,2528,4" -> [3104, 2870, 2528, 4]
-            // Donde: masterLen, remoteLen1, remoteLen2, headerLen
+            // Where: masterLen, remoteLen1, remoteLen2, headerLen
             var specParts = lengthSpec.Substring("splitwith3tabs:".Length).Split(',');
             if (specParts.Length < 1)
             {
@@ -73,7 +73,7 @@ public class ResponseFormatter
             const int remoteIdLength = 4;
             int expectedTotalWithRemotes = expectedMasterLength + (nrOfRemotes * remoteIdLength);
 
-            _logger.LogDebug("FormatResponse: Respuesta raw={RawLen} chars, esperado master={Expected}, con remotes={TotalExpected}",
+            _logger.LogDebug("FormatResponse: Raw response={RawLen} chars, expected master={Expected}, with remotes={TotalExpected}",
                 rawResponse.Length, expectedMasterLength, expectedTotalWithRemotes);
 
             var frames = new List<string>();

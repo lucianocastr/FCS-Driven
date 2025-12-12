@@ -137,7 +137,7 @@ public partial class frmEthernetInstall : Form
     }
     
     /// <summary>
-    /// Aplica los cambios al dispositivo.
+    /// Applies changes to the device.
     /// </summary>
     private async void cmdApply_Click(object sender, EventArgs e)
     {
@@ -273,7 +273,7 @@ public partial class frmEthernetInstall : Form
     }
 
     /// <summary>
-    /// Evento FormClosing del formulario.
+    /// Form FormClosing event.
     /// Cancels pending operations before closing.
     /// </summary>
     protected override void OnFormClosing(FormClosingEventArgs e)
@@ -296,12 +296,12 @@ public partial class frmEthernetInstall : Form
         }
         catch (ObjectDisposedException)
         {
-            // CTS ya fue disposed, ignorar
+            // CTS already disposed, ignore
         }
     }
 
     /// <summary>
-    /// Dispose del formulario - libera CancellationTokenSource.
+    /// Form Dispose - releases CancellationTokenSource.
     /// </summary>
     protected override void Dispose(bool disposing)
     {

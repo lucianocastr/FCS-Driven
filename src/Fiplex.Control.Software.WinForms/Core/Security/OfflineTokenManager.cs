@@ -189,7 +189,7 @@ public class OfflineTokenManager : IOfflineTokenManager
     }
 
     /// <summary>
-    /// Asegura que el directorio de tokens exista.
+    /// Ensures that the tokens directory exists.
     /// </summary>
     private void EnsureTokenDirectoryExists()
     {

@@ -68,7 +68,7 @@ public class OidcAuthService : IOidcAuthService
                 ClientId = _settings.ClientId,
                 Scope = _settings.GetScopesString(),
                 RedirectUri = _settings.RedirectUri,
-                // Duende 6.x usa Authorization Code con PKCE por defecto
+                // Duende 6.x uses Authorization Code with PKCE by default
                 LoadProfile = false,
                 Browser = _browser
             };
@@ -86,7 +86,7 @@ public class OidcAuthService : IOidcAuthService
             options.Policy.Discovery.ValidateIssuerName = false;
             options.Policy.Discovery.ValidateEndpoints = false;
 
-            // Clock skew (1441 minutos)
+            // Clock skew (1441 minutes)
             options.ClockSkew = TimeSpan.FromMinutes(_settings.ClockSkewMinutes);
 
             _oidcClient = new OidcClient(options);

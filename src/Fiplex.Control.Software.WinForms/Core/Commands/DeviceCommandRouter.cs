@@ -660,7 +660,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 response = _responseProcessor.ProcessResponse(getCommand.Command, response);
             }
 
-            // 5. Decodificar respuesta si es necesario
+            // 5. Decode response if necessary
             var finalResponse = response;
             if (getCommand.Encode && !string.IsNullOrEmpty(response))
             {
@@ -668,10 +668,10 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 _logger.LogDebug("Serial ? HTTP: {Response} ? {Decoded} (decoded)", response, finalResponse);
             }
 
-            // 6. Aplicar formato splitwith3tabs si es requerido
-            _logger.LogDebug("ExpectedLengths para {Page}: [{Lengths}]", 
+            // 6. Apply splitwith3tabs format if required
+            _logger.LogDebug("ExpectedLengths for {Page}: [{Lengths}]", 
                 normalizedPage, 
-                getCommand.ExpectedLengths?.Length > 0 ? string.Join(", ", getCommand.ExpectedLengths) : "(vacío)");
+                getCommand.ExpectedLengths?.Length > 0 ? string.Join(", ", getCommand.ExpectedLengths) : "(empty)");
             
             string? formatApplied = null;
             int frameCount = 1;
@@ -1076,15 +1076,15 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     }
     
     /// <summary>
-    /// Decodifica el body de un POST preservando los primeros N caracteres sin decodificar.
+    /// Decodes the body of a POST preserving the first N characters without decoding.
     /// 
     /// - Takes a hex string and converts it to ASCII
-    /// - Preserva los primeros 'noDecodeChars' caracteres tal cual
+    /// - Preserves the first 'noDecodeChars' characters as-is
     /// - Example: Decode("C01234ABCD", 2) = "C0" + DecodeHex("1234ABCD")
     /// </summary>
-    /// <param name="body">Body del POST (puede ser hex o mixto)</param>
+    /// <param name="body">POST body (can be hex or mixed)</param>
     /// <param name="noDecodeChars">Number of initial characters to preserve without decoding</param>
-    /// <returns>Body con la parte hex decodificada</returns>
+    /// <returns>Body with the hex portion decoded</returns>
     private string DecodePostBody(string body, int noDecodeChars)
     {
         if (string.IsNullOrEmpty(body))
@@ -1092,7 +1092,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             return string.Empty;
         }
         
-        // Si noDecodeChars es 0 o mayor que la longitud, decodificar todo
+        // If noDecodeChars is 0 or greater than the length, decode everything
         if (noDecodeChars <= 0)
         {
             return DecodeFromHex(body);
@@ -1100,10 +1100,10 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         
         if (noDecodeChars >= body.Length)
         {
-            return body; // No hay nada que decodificar
+            return body; // Nothing to decode
         }
         
-        // Preservar los primeros N caracteres y decodificar el resto
+        // Preserve the first N characters and decode the rest
         var preserved = body.Substring(0, noDecodeChars);
         var toDecode = body.Substring(noDecodeChars);
         

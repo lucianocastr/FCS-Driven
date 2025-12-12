@@ -354,12 +354,12 @@ public partial class frmInitLicense : Form
         }
         catch (ObjectDisposedException)
         {
-            // CTS ya fue disposed, ignorar
+            // CTS already disposed, ignore
         }
     }
 
     /// <summary>
-    /// Dispose del formulario - libera CancellationTokenSource.
+    /// Form Dispose - releases CancellationTokenSource.
     /// </summary>
     protected override void Dispose(bool disposing)
     {

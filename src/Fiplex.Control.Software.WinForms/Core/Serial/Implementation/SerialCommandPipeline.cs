@@ -645,7 +645,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
     /// <summary>
     /// Waits for a token and returns its type along with the data.
-    /// Mejorado para detectar INVALID CREDENTIALS.
+    /// Enhanced to detect INVALID CREDENTIALS.
     /// </summary>
     private async Task<(TokenType, string)> WaitForTokenWithTypeAsync(TimeSpan timeout, CancellationToken ct)
     {

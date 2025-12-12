@@ -14,12 +14,12 @@ public class VersionCheckSettings
 {
     /// <summary>
     /// URL of the versions file.
-    /// Formato esperado: "fcs 1.9.0.0\nfcsng 2.0.0.0\n..."
+    /// Expected format: "fcs 1.9.0.0\nfcsng 2.0.0.0\n..."
     /// </summary>
     public string VersionsUrl { get; set; } = "http://www.fiplex.com/poms/lastversions.txt";
 
     /// <summary>
-    /// URL de descarga del instalador .
+    /// Installer download URL.
     /// </summary>
     public string DownloadUrl { get; set; } = "http://www.fiplex.com/poms/FiplexControlSoftware.zip";
 

@@ -204,7 +204,7 @@ public class AuthService : IAuthService
             var highByteStr = v1Response.Substring(6, 2);
             var lowByteStr = v1Response.Substring(8, 2);
             
-            // AsciiToInt convierte 2 caracteres hex a entero
+            // AsciiToInt converts 2 hex characters to integer
             var highByte = AsciiToInt(highByteStr);
             var lowByte = AsciiToInt(lowByteStr);
             

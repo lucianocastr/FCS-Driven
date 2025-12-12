@@ -165,7 +165,7 @@ public class LicenseOptionsParser
 
                 sb.Append(mask.ToString("X2"));
 
-                // Power DL como unsigned byte
+                // Power DL as unsigned byte
                 //   resi = .powerDL(2 * i)
                 //   If resi < 0 Then resi = resi + 256
                 //   res = res & VB.Right("0" & Hex(resi), 2)
@@ -177,14 +177,14 @@ public class LicenseOptionsParser
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error codificando opciones de licencia");
+            _logger.LogError(ex, "Error encoding license options");
         }
 
         return sb.ToString();
     }
 
     /// <summary>
-    /// Parsea 2 caracteres hex a entero.
+    /// Parses 2 hex characters to integer.
     /// </summary>
     private static int ParseHexByte(string hex, int offset)
     {
@@ -192,7 +192,7 @@ public class LicenseOptionsParser
     }
 
     /// <summary>
-    /// Parsea 2 caracteres hex a signed byte (-128 a 127).
+    /// Parses 2 hex characters to signed byte (-128 to 127).
     /// </summary>
     private static short ParseSignedByte(string hex, int offset)
     {

@@ -210,7 +210,7 @@ internal static class Program
         // Auth (Transient, point-in-time operations)
         services.AddTransient<IAuthService, AuthService>();
         
-        // HttpClient para llamadas HTTP de tokens
+        // HttpClient for HTTP token calls
         services.AddSingleton<HttpClient>();
         
         // OIDC Auth (Singleton, shared session)
@@ -223,7 +223,7 @@ internal static class Program
         // OIDC Auth Service (Singleton)
         services.AddSingleton<IOidcAuthService, OidcAuthService>();
         
-        // Watchdog (Singleton, debe persistir)
+        // Watchdog (Singleton, must persist)
         services.AddSingleton<IWatchdogService, WatchdogService>();
         
         // License (Singleton, shared validation)

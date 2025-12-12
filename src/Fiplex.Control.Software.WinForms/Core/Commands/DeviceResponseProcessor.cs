@@ -90,7 +90,7 @@ public class DeviceResponseProcessor
     }
 
     /// <summary>
-    /// Resetea el estado de todos los handlers.
+    /// Resets the state of all handlers.
     /// Call when disconnecting from the device.
     /// </summary>
     public void Reset()

@@ -45,7 +45,7 @@ public interface IOfflineTokenGenerator
 public class CloudCallTokenResult
 {
     /// <summary>
-    /// Token de acceso para llamadas cloud.
+    /// Access token for cloud calls.
     /// </summary>
     public string CloudCallAccessToken { get; set; } = string.Empty;
 

@@ -30,7 +30,7 @@ public partial class frmLicenseMaster : Form
     private bool _isLoading;
     private bool _isLoaded;
     
-    // CancellationTokenSource para operaciones async
+    // CancellationTokenSource for async operations
     private CancellationTokenSource? _cts;
 
     private LicenseOptions _currentOptions = new();
@@ -276,7 +276,7 @@ public partial class frmLicenseMaster : Form
     }
 
     /// <summary>
-    /// Lee opciones desde controles UI.
+    /// Reads options from UI controls.
     /// </summary>
     private LicenseOptions ReadOptionsFromUI()
     {

@@ -127,7 +127,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             }
             catch (OperationCanceledException)
             {
-                // Esperado
+                // Expected
             }
         }
 
@@ -147,7 +147,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
 
     private async Task ListenAsync(CancellationToken ct)
     {
-        // Bucle con GetContextAsync()
+        // Loop with GetContextAsync()
         while (!ct.IsCancellationRequested && _listener != null)
         {
             try

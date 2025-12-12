@@ -264,7 +264,7 @@ namespace Fiplex.Control.Software.WinForms.Core.Security;
                 return false;
             }
             
-            // Asignar fecha de training para FCS
+            // Assign training date for FCS
             AssignFiplexTrainingExpiryDate(claims);
             
             if (!_trainingExpiryDate.HasValue)

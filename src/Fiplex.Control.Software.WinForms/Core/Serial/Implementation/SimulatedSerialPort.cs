@@ -26,7 +26,7 @@ public sealed class SimulatedSerialPort : ISerialPort
         // N1 - Device ID/Name: Serial number
         ["N1"] = "9012           ",
         
-        // S1 - Status: Trama hex larga con estado del dispositivo
+        // S1 - Status: Long hex frame with device status
         ["S1"] = GenerateStatusResponse(),
         
         // C1 - Configuration: Device configuration
@@ -38,10 +38,10 @@ public sealed class SimulatedSerialPort : ISerialPort
         // E1 - Ethernet Configuration (IP, mask, gateway)
         ["E1"] = "C0A8010AFFFFFF00C0A80101000000000000",
         
-        // U1 - User Configuration (usado en multipart O1+U1)
+        // U1 - User Configuration (used in multipart O1+U1)
         ["U1"] = GenerateUserConfigResponse(),
         
-        // O1 - Operating Status (usado en multipart O1+U1 para 5dm)
+        // O1 - Operating Status (used in multipart O1+U1 for 5dm)
         ["O1"] = GenerateOperatingStatusResponse(),
         
         // T1 - Temperature/Test

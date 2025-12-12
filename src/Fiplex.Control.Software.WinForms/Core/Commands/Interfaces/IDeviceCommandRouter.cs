@@ -43,7 +43,7 @@ public interface IDeviceCommandRouter
     Task ConfigureDeviceAsync(string deviceType, double deviceVersion, CancellationToken ct = default);
 
     /// <summary>
-    /// Establece password para reintentos con INVALID CREDENTIALS.
+    /// Sets password for retries with INVALID CREDENTIALS.
     /// </summary>
     void SetStoredPassword(string? password);
     
