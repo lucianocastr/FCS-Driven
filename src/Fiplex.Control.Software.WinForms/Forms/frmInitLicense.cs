@@ -7,18 +7,18 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Forms;
 
 /// <summary>
-/// Formulario de términos y condiciones de licencia.
+/// License terms and conditions form.
 /// </summary>
 /// <remarks>
-/// Funcionalidad:
-/// - Muestra términos IFC 510.5.3 para ERCES/BDA
-/// - Valida usuarios privilegiados (estaciones de calibración)
-/// - Controla flujo de aceptación/rechazo de términos
-/// - Abre enlace a códigos IFC oficiales
+/// Functionality:
+/// - Displays IFC 510.5.3 terms for ERCES/BDA
+/// - Validates privileged users (calibration stations)
+/// - Controls terms acceptance/rejection flow
+/// - Opens link to official IFC codes
 /// </remarks>
 public partial class frmInitLicense : Form
 {
-    #region Campos privados
+    #region Private fields
     
     private readonly IPrivilegedUserService _privilegedUserService;
     private readonly IOfflineTokenValidator _tokenValidator;
@@ -26,52 +26,52 @@ public partial class frmInitLicense : Form
     private readonly ILogger<frmInitLicense> _logger;
 
     /// <summary>
-    /// CancellationTokenSource para operaciones asíncronas.
+    /// CancellationTokenSource for asynchronous operations.
     /// </summary>
     private CancellationTokenSource? _cts;
 
     /// <summary>
-    /// Indica si el usuario actual es privilegiado.
+    /// Indicates if the current user is privileged.
     /// </summary>
     private bool _isPrivilegedUser;
 
     /// <summary>
-    /// Indica si la validación inicial ya se completó.
-    /// Evita race conditions entre OnLoad y OnActivated.
+    /// Indicates if initial validation has completed.
+    /// Prevents race conditions between OnLoad and OnActivated.
     /// </summary>
     private bool _validationCompleted;
 
     /// <summary>
-    /// Indica si el formulario ya procesó la navegación automática.
-    /// Evita múltiples llamadas desde OnActivated.
+    /// Indicates if the form has already processed automatic navigation.
+    /// Prevents multiple calls from OnActivated.
     /// </summary>
     private bool _autoNavigationProcessed;
 
     #endregion
 
-    #region Propiedades públicas
+    #region Public properties
 
     /// <summary>
-    /// Resultado del formulario para control de flujo.
+    /// Form result for flow control.
     /// </summary>
     public bool AcceptedTerms { get; private set; }
 
     /// <summary>
-    /// Indica si debe navegar directamente a frmMain (usuario privilegiado o token válido).
+    /// Indicates whether to navigate directly to frmMain (privileged user or valid token).
     /// </summary>
     public bool ShouldNavigateToMain { get; private set; }
 
     /// <summary>
-    /// Password del usuario privilegiado (si aplica).
+    /// Password of the privileged user (if applicable).
     /// </summary>
     public string? PrivilegedPassword { get; private set; }
 
     #endregion
 
-    #region Constantes
+    #region Constants
 
     /// <summary>
-    /// URL de los códigos IFC para ERCES/BDA.
+    /// URL of IFC codes for ERCES/BDA.
     /// </summary>
     private const string IFC_CODES_URL = 
         "https://codes.iccsafe.org/content/IFC2021P2/chapter-5-fire-service-features#IFC2021P2_Pt03_Ch05_Sec510.5.3";
@@ -81,9 +81,9 @@ public partial class frmInitLicense : Form
     #region Constructor
 
     /// <summary>
-    /// Constructor con inyección de dependencias.
+    /// Constructor with dependency injection.
     /// </summary>
-    /// <exception cref="ArgumentNullException">Si alguna dependencia es null.</exception>
+    /// <exception cref="ArgumentNullException">If any dependency is null.</exception>
     public frmInitLicense(
         IPrivilegedUserService privilegedUserService,
         IOfflineTokenValidator tokenValidator,
@@ -102,32 +102,32 @@ public partial class frmInitLicense : Form
 
     #endregion
 
-    #region Configuración UI
+    #region UI Configuration
 
     /// <summary>
-    /// Configura comportamientos de UI en runtime (texto dinámico, tooltips).
-    /// Nota: Los estilos visuales Fiplex se aplican en Designer.cs en tiempo de diseño.
+    /// Configures UI behaviors at runtime (dynamic text, tooltips).
+    /// Note: Fiplex visual styles are applied in Designer.cs at design time.
     /// </summary>
     private void ConfigureUIBehavior()
     {
-        // Configurar texto de términos IFC
+        // Configure IFC terms text
         linkTerms.Text = GetTermsText();
         
-        // Configurar área de enlace para "IFC 510.5.3"
+        // Configure link area for "IFC 510.5.3"
         var linkStart = linkTerms.Text.IndexOf("IFC 510.5.3", StringComparison.OrdinalIgnoreCase);
         if (linkStart >= 0)
         {
             linkTerms.LinkArea = new LinkArea(linkStart, 11); // "IFC 510.5.3" = 11 chars
         }
 
-        // Configurar tooltips
+        // Configure tooltips
         toolTip1.SetToolTip(linkTerms, "Click to open IFC codes website");
         toolTip1.SetToolTip(btnAccept, "Accept terms and continue");
         toolTip1.SetToolTip(btnDecline, "Decline terms and exit application");
     }
 
     /// <summary>
-    /// Obtiene el texto de términos y condiciones IFC.
+    /// Gets the IFC terms and conditions text.
     /// </summary>
     private static string GetTermsText()
     {
@@ -147,26 +147,26 @@ public partial class frmInitLicense : Form
 
     #endregion
 
-    #region Eventos del Formulario
+    #region Form Events
 
     /// <summary>
-    /// Evento Load del formulario.
-    /// Valida si el usuario actual es privilegiado (estación de calibración).
+    /// Form Load event.
+    /// Validates if the current user is privileged (calibration station).
     /// </summary>
     protected override async void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
 
-        // Inicializar CancellationTokenSource
+        // Initialize CancellationTokenSource
         _cts = new CancellationTokenSource();
 
         try
         {
-            _logger.LogInformation("frmInitLicense: Iniciando validación de usuario privilegiado");
+            _logger.LogInformation("frmInitLicense: Starting privileged user validation");
 
             var (isValid, password) = await _privilegedUserService.ValidatePrivilegedUserAsync();
             
-            // Verificar cancelación antes de actualizar estado
+            // Verify cancellation before updating state
             if (_cts.Token.IsCancellationRequested || IsDisposed)
                 return;
 
@@ -175,21 +175,21 @@ public partial class frmInitLicense : Form
 
             if (_isPrivilegedUser)
             {
-                _logger.LogInformation("Usuario privilegiado detectado. Password disponible: {HasPassword}", 
+                _logger.LogInformation("Privileged user detected. Password available: {HasPassword}", 
                     !string.IsNullOrEmpty(password));
             }
             else
             {
-                _logger.LogDebug("Usuario estándar - mostrando términos");
+                _logger.LogDebug("Standard user - showing terms");
             }
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("Validación de usuario cancelada");
+            _logger.LogDebug("User validation cancelled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error validando usuario privilegiado");
+            _logger.LogError(ex, "Error validating privileged user");
             _isPrivilegedUser = false;
         }
         finally
@@ -199,14 +199,14 @@ public partial class frmInitLicense : Form
     }
 
     /// <summary>
-    /// Evento Activated del formulario.
-    /// Si el usuario es privilegiado, oculta el form y navega directamente.
+    /// Form Activated event.
+    /// If the user is privileged, hides the form and navigates directly.
     /// </summary>
     protected override void OnActivated(EventArgs e)
     {
         base.OnActivated(e);
 
-        // Evitar procesamiento múltiple o antes de que termine validación
+        // Avoid multiple processing or before validation completes
         if (_autoNavigationProcessed || !_validationCompleted)
             return;
 
@@ -214,7 +214,7 @@ public partial class frmInitLicense : Form
         {
             _autoNavigationProcessed = true;
             
-            _logger.LogInformation("Usuario privilegiado - navegación directa a aplicación principal");
+            _logger.LogInformation("Privileged user - direct navigation to main application");
             
             this.Visible = false;
             ShouldNavigateToMain = true;
@@ -225,8 +225,8 @@ public partial class frmInitLicense : Form
     }
 
     /// <summary>
-    /// Click en botón Accept.
-    /// Valida token offline y determina siguiente formulario.
+    /// Accept button click.
+    /// Validates offline token and determines next form.
     /// </summary>
     private async void btnAccept_Click(object sender, EventArgs e)
     {
@@ -236,7 +236,7 @@ public partial class frmInitLicense : Form
             btnDecline.Enabled = false;
             Cursor = Cursors.WaitCursor;
 
-            _logger.LogInformation("Usuario aceptó términos - validando token offline");
+            _logger.LogInformation("User accepted terms - validating offline token");
 
             var isValidToken = await _tokenValidator.ValidateTokenAsync(
                 OfflineTokenManager.OFFLINE_TOKEN_NAME);
@@ -246,11 +246,11 @@ public partial class frmInitLicense : Form
 
             if (isValidToken)
             {
-                _logger.LogInformation("Token offline válido - navegando a frmMain");
+                _logger.LogInformation("Valid offline token - navigating to frmMain");
             }
             else
             {
-                _logger.LogInformation("Token offline inválido/ausente - navegando a Login");
+                _logger.LogInformation("Invalid/missing offline token - navigating to Login");
             }
 
             DialogResult = DialogResult.OK;
@@ -258,7 +258,7 @@ public partial class frmInitLicense : Form
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error procesando aceptación de términos");
+            _logger.LogError(ex, "Error processing terms acceptance");
             MessageBox.Show(
                 "An error occurred while processing your request. Please try again.",
                 "Error",
@@ -274,12 +274,12 @@ public partial class frmInitLicense : Form
     }
 
     /// <summary>
-    /// Click en botón Decline.
-    /// Cierra la aplicación.
+    /// Decline button click.
+    /// Closes the application.
     /// </summary>
     private void btnDecline_Click(object sender, EventArgs e)
     {
-        _logger.LogInformation("Usuario rechazó términos - cerrando aplicación");
+        _logger.LogInformation("User rejected terms - closing application");
 
         AcceptedTerms = false;
         ShouldNavigateToMain = false;
@@ -288,14 +288,14 @@ public partial class frmInitLicense : Form
     }
 
     /// <summary>
-    /// Click en enlace de términos IFC.
-    /// Abre URL de códigos IFC en navegador.
+    /// Terms link click.
+    /// Opens IFC codes URL in browser.
     /// </summary>
     private void linkTerms_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
     {
         try
         {
-            _logger.LogDebug("Abriendo enlace IFC codes: {Url}", IFC_CODES_URL);
+            _logger.LogDebug("Opening IFC codes link: {Url}", IFC_CODES_URL);
 
             Process.Start(new ProcessStartInfo
             {
@@ -305,11 +305,11 @@ public partial class frmInitLicense : Form
         }
         catch (Exception ex) when (ex is System.ComponentModel.Win32Exception win32Ex && win32Ex.NativeErrorCode == 384)
         {
-            _logger.LogDebug("Error 384 ignorado al abrir URL");
+            _logger.LogDebug("Error 384 ignored when opening URL");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error abriendo URL IFC");
+            _logger.LogError(ex, "Error opening IFC URL");
             MessageBox.Show(
                 $"Could not open the link. Please visit:\n{IFC_CODES_URL}",
                 "Error",
@@ -319,29 +319,29 @@ public partial class frmInitLicense : Form
     }
 
     /// <summary>
-    /// Evento FormClosing del formulario.
-    /// Si el cierre es por razón desconocida (0), termina la app.
+    /// Form FormClosing event.
+    /// If closed for unknown reason (0), terminates the app.
     /// </summary>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        // Cancelar operaciones pendientes antes de cerrar
+        // Cancel pending operations before closing
         CancelPendingOperations();
 
         base.OnFormClosing(e);
 
         if (e.CloseReason == CloseReason.None && !AcceptedTerms)
         {
-            _logger.LogWarning("Formulario cerrado sin aceptación - terminando aplicación");
-            // La aplicación debe cerrarse si el usuario no aceptó
+            _logger.LogWarning("Form closed without acceptance - terminating application");
+            // The application should close if the user did not accept
         }
     }
 
     #endregion
 
-    #region Métodos Auxiliares
+    #region Helper Methods
 
     /// <summary>
-    /// Cancela cualquier operación async pendiente.
+    /// Cancels any pending async operation.
     /// </summary>
     private void CancelPendingOperations()
     {

@@ -6,9 +6,9 @@ using Timer = System.Threading.Timer;
 namespace Fiplex.Control.Software.WinForms.Core.Http;
 
 /// <summary>
-/// Servicio de logging dedicado para comandos HTTP GET del servidor embebido.
+/// Dedicated logging service for HTTP GET commands from the embedded server.
 /// 
-/// Formato de log por comando:
+/// Log format per command:
 /// ================================================================================
 /// [2024-11-27 14:32:15.123] GET /update.shtml
 /// --------------------------------------------------------------------------------
@@ -54,13 +54,13 @@ public class HttpCommandLogger : IDisposable
             "Fiplex.Control.Software",
             "HttpCommandLogs");
         
-        // Timer para flush periódico (cada 5 segundos)
+        // Timer for periodic flush (every 5 seconds)
         _flushTimer = new Timer(FlushPendingEntries, null, Timeout.Infinite, Timeout.Infinite);
     }
 
     /// <summary>
-    /// Habilita el logging de comandos HTTP.
-    /// Crea un nuevo archivo de log con timestamp.
+    /// Enables HTTP command logging.
+    /// Creates a new log file with timestamp.
     /// </summary>
     public void Enable()
     {
@@ -84,7 +84,7 @@ public class HttpCommandLogger : IDisposable
                 
                 _isEnabled = true;
                 
-                // Iniciar timer de flush
+                // Start flush timer
                 _flushTimer.Change(TimeSpan.FromSeconds(5), TimeSpan.FromSeconds(5));
                 
                 _logger.LogInformation("HTTP Command logging enabled: {LogFile}", _currentLogFile);
@@ -97,7 +97,7 @@ public class HttpCommandLogger : IDisposable
     }
 
     /// <summary>
-    /// Deshabilita el logging de comandos HTTP.
+    /// Disables HTTP command logging.
     /// </summary>
     public void Disable()
     {
@@ -128,8 +128,8 @@ public class HttpCommandLogger : IDisposable
     }
 
     /// <summary>
-    /// Registra un comando GET con todos sus detalles.
-    /// Thread-safe y non-blocking (usa cola interna).
+    /// Logs a GET command with all its details.
+    /// Thread-safe and non-blocking (uses internal queue).
     /// </summary>
     public void LogCommand(CommandLogEntry entry)
     {
@@ -139,12 +139,12 @@ public class HttpCommandLogger : IDisposable
     }
 
     /// <summary>
-    /// Obtiene la ruta del archivo de log actual.
+    /// Gets the current log file path.
     /// </summary>
     public string? GetCurrentLogFile() => _currentLogFile;
 
     /// <summary>
-    /// Obtiene la ruta del directorio de logs.
+    /// Gets the log directory path.
     /// </summary>
     public string GetLogDirectory() => _logDirectory;
 
@@ -209,7 +209,7 @@ public class HttpCommandLogger : IDisposable
 
         var sb = new StringBuilder();
         
-        // Separador de entrada
+        // Entry separator
         sb.AppendLine("================================================================================");
         sb.AppendLine($"[{entry.Timestamp:yyyy-MM-dd HH:mm:ss.fff}] GET {entry.Page}");
         sb.AppendLine("--------------------------------------------------------------------------------");
@@ -236,7 +236,7 @@ public class HttpCommandLogger : IDisposable
             sb.AppendLine($"  Error: {entry.ErrorMessage}");
         }
         
-        // Raw Response COMPLETA (sin truncar para análisis)
+        // COMPLETE Raw Response (not truncated for analysis)
         sb.AppendLine("  Raw Response [FULL]:");
         sb.AppendLine("  <<<BEGIN_RAW_RESPONSE>>>");
         sb.AppendLine(entry.RawResponse ?? "(empty)");
@@ -249,7 +249,7 @@ public class HttpCommandLogger : IDisposable
         sb.AppendLine($"  Frame Count: {entry.FrameCount}");
         sb.AppendLine($"  Final Response Length: {entry.FinalResponse?.Length ?? 0}");
         
-        // Final Response COMPLETA (sin truncar para análisis)
+        // COMPLETE Final Response (not truncated for analysis)
         sb.AppendLine("  Final Response [FULL]:");
         sb.AppendLine("  <<<BEGIN_FINAL_RESPONSE>>>");
         sb.AppendLine(entry.FinalResponse ?? "(empty)");
@@ -295,56 +295,56 @@ public class HttpCommandLogger : IDisposable
 }
 
 /// <summary>
-/// Entrada de log para un comando HTTP GET.
-/// Contiene todos los detalles necesarios para análisis comparativo.
+/// Log entry for an HTTP GET command.
+/// Contains all details needed for comparative analysis.
 /// </summary>
 public class CommandLogEntry
 {
-    /// <summary>Timestamp del comando</summary>
+    /// <summary>Command timestamp</summary>
     public DateTime Timestamp { get; init; } = DateTime.Now;
     
-    /// <summary>Página/ruta HTTP solicitada (ej: /update.shtml)</summary>
+    /// <summary>HTTP page/route requested (e.g.: /update.shtml)</summary>
     public string Page { get; init; } = string.Empty;
     
-    /// <summary>Comando serial mapeado (ej: S1, U1, C1)</summary>
+    /// <summary>Mapped serial command (e.g.: S1, U1, C1)</summary>
     public string SerialCommand { get; init; } = string.Empty;
     
-    /// <summary>Parámetros de query string</summary>
+    /// <summary>Query string parameters</summary>
     public IDictionary<string, string?>? QueryParams { get; init; }
     
-    /// <summary>Si el comando requiere encoding hex</summary>
+    /// <summary>Whether the command requires hex encoding</summary>
     public bool RequiresEncoding { get; init; }
     
-    /// <summary>Longitudes esperadas del settings.cfg</summary>
+    /// <summary>Expected lengths from settings.cfg</summary>
     public string[]? ExpectedLengths { get; init; }
     
-    /// <summary>Payload efectivamente enviado al puerto serial</summary>
+    /// <summary>Payload actually sent to serial port</summary>
     public string PayloadSent { get; init; } = string.Empty;
     
-    /// <summary>Respuesta raw del dispositivo</summary>
+    /// <summary>Raw response from device</summary>
     public string? RawResponse { get; init; }
     
-    /// <summary>Tiempo de ejecución en milisegundos</summary>
+    /// <summary>Execution time in milliseconds</summary>
     public double ElapsedMs { get; init; }
     
-    /// <summary>Número de reintentos</summary>
+    /// <summary>Number of retries</summary>
     public int Retries { get; init; }
     
-    /// <summary>Estado del comando (success, timeout, error)</summary>
+    /// <summary>Command status (success, timeout, error)</summary>
     public string Status { get; init; } = "unknown";
     
-    /// <summary>Mensaje de error si aplica</summary>
+    /// <summary>Error message if applicable</summary>
     public string? ErrorMessage { get; init; }
     
-    /// <summary>Formato aplicado (splitwith3tabs, none)</summary>
+    /// <summary>Format applied (splitwith3tabs, none)</summary>
     public string? FormatApplied { get; init; }
     
-    /// <summary>Número de frames generados (para splitwith3tabs)</summary>
+    /// <summary>Number of frames generated (for splitwith3tabs)</summary>
     public int FrameCount { get; init; }
     
-    /// <summary>Respuesta final enviada al cliente HTTP</summary>
+    /// <summary>Final response sent to HTTP client</summary>
     public string? FinalResponse { get; init; }
     
-    /// <summary>Si la respuesta vino del cache (previousans/dpreviousans)</summary>
+    /// <summary>Whether the response came from cache (previousans/dpreviousans)</summary>
     public bool WasCached { get; init; }
 }

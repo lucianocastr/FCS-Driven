@@ -30,15 +30,15 @@ namespace Fiplex.Control.Software.WinForms.Core.Commands.Interfaces;
 public interface IDeviceCommandRouter
 {
     /// <summary>
-    /// Carga configuración de dispositivo desde settings.cfg.
-    /// Inicializa los mapeos de comandos HTTP a serial.
+    /// Loads device configuration from settings.cfg.
+    /// Initializes HTTP to serial command mappings.
     /// </summary>
-    /// <param name="config">Configuración del dispositivo con comandos GET/POST/FILE</param>
+    /// <param name="config">Device configuration with GET/POST/FILE commands</param>
     void LoadConfiguration(DeviceConfiguration config);
 
     /// <summary>
-    /// Configura parámetros del dispositivo actual.
-    /// ETAPA 7: Integración FactoryParameters
+    /// Configures current device parameters.
+    /// STAGE 7: FactoryParameters Integration
     /// </summary>
     Task ConfigureDeviceAsync(string deviceType, double deviceVersion, CancellationToken ct = default);
 
@@ -48,57 +48,57 @@ public interface IDeviceCommandRouter
     void SetStoredPassword(string? password);
     
     /// <summary>
-    /// Limpia el password almacenado.
+    /// Clears the stored password.
     /// </summary>
     void ClearStoredPassword();
     
     /// <summary>
-    /// Resetea el estado del router al desconectar.
-    /// Limpia cache de comandos, password, y resetea procesadores de respuesta.
+    /// Resets the router state on disconnect.
+    /// Clears command cache, password, and resets response processors.
     /// </summary>
     void Reset();
 
     /// <summary>
-    /// Procesa petición HTTP GET y retorna respuesta serial.
-    /// Busca el comando en cache, construye el comando serial con parámetros URL,
-    /// ejecuta en el dispositivo y retorna la respuesta (con encoding hex si aplica).
+    /// Processes HTTP GET request and returns serial response.
+    /// Looks up command in cache, builds serial command with URL parameters,
+    /// executes on device and returns response (with hex encoding if applicable).
     /// </summary>
-    /// <param name="page">Nombre de la página HTTP (ej: "getVersion", "getStatus")</param>
-    /// <param name="queryParams">Parámetros de query string del request HTTP</param>
-    /// <param name="ct">Token de cancelación</param>
-    /// <returns>Respuesta del dispositivo serial (puede estar decodificada de hex)</returns>
+    /// <param name="page">HTTP page name (e.g., "getVersion", "getStatus")</param>
+    /// <param name="queryParams">Query string parameters from HTTP request</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Serial device response (may be hex decoded)</returns>
     Task<string> ProcessGetRequestAsync(string page, IDictionary<string, string?> queryParams, CancellationToken ct = default);
 
     /// <summary>
-    /// Procesa petición HTTP POST y retorna respuesta serial.
-    /// Busca el comando en cache, construye el comando serial con datos del body,
-    /// ejecuta en el dispositivo respetando WaitResponse flag.
+    /// Processes HTTP POST request and returns serial response.
+    /// Looks up command in cache, builds serial command with body data,
+    /// executes on device respecting WaitResponse flag.
     /// </summary>
-    /// <param name="page">Nombre de la página HTTP (ej: "setConfig", "updateFirmware")</param>
-    /// <param name="body">Cuerpo del request HTTP POST</param>
-    /// <param name="ct">Token de cancelación</param>
-    /// <returns>Respuesta del dispositivo serial si WaitResponse=true, string vacío si false</returns>
+    /// <param name="page">HTTP page name (e.g., "setConfig", "updateFirmware")</param>
+    /// <param name="body">HTTP POST request body</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Serial device response if WaitResponse=true, empty string if false</returns>
     Task<string> ProcessPostRequestAsync(string page, string body, CancellationToken ct = default);
     
     /// <summary>
-    /// Habilita el logging detallado de comandos HTTP GET.
-    /// Los logs se guardan en %LocalAppData%/Fiplex.Control.Software/HttpCommandLogs/
+    /// Enables detailed logging of HTTP GET commands.
+    /// Logs are saved to %LocalAppData%/Fiplex.Control.Software/HttpCommandLogs/
     /// </summary>
     void EnableCommandLogging();
     
     /// <summary>
-    /// Deshabilita el logging de comandos HTTP GET.
+    /// Disables HTTP GET command logging.
     /// </summary>
     void DisableCommandLogging();
     
     /// <summary>
-    /// Indica si el logging de comandos está habilitado.
+    /// Indicates if command logging is enabled.
     /// </summary>
     bool IsCommandLoggingEnabled { get; }
     
     /// <summary>
-    /// Obtiene la ruta del archivo de log actual.
+    /// Gets the path of the current log file.
     /// </summary>
-    /// <returns>Ruta completa al archivo de log, o null si no hay logging activo</returns>
+    /// <returns>Full path to log file, or null if no active logging</returns>
     string? GetCommandLogFile();
 }

@@ -6,12 +6,12 @@ namespace Fiplex.Control.Software.WinForms.Core.Devices.Interfaces;
 public interface IDeviceDiscoveryService
 {
     /// <summary>
-    /// Escanea puertos COM en busca de dispositivos Fiplex.
+    /// Scans COM ports for Fiplex devices.
     /// </summary>
-    /// <param name="mode">Modo de escaneo: QuickScan (primer dispositivo) o FullScan (todos).</param>
-    /// <param name="progress">Callback opcional para reportar progreso.</param>
-    /// <param name="ct">Token de cancelación.</param>
-    /// <returns>Lista de dispositivos encontrados.</returns>
+    /// <param name="mode">Scan mode: QuickScan (first device) or FullScan (all).</param>
+    /// <param name="progress">Optional callback to report progress.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>List of found devices.</returns>
     Task<List<DeviceInfo>> ScanPortsAsync(
         DeviceScanMode mode = DeviceScanMode.FullScan,
         IProgress<ScanProgress>? progress = null,

@@ -9,7 +9,7 @@ using System.Security.Claims;
 namespace Fiplex.Control.Software.WinForms.Core.Security;
 
 /// <summary>
-/// Servicio de autenticación OIDC para Azure AD.
+/// OIDC authentication service for Azure AD.
 /// </summary>
 public class OidcAuthService : IOidcAuthService
 {
@@ -50,13 +50,13 @@ public class OidcAuthService : IOidcAuthService
     }
 
     /// <summary>
-    /// Inicializa el cliente OIDC.
+    /// Initializes the OIDC client.
     /// </summary>
     private void InitializeOidcClient()
     {
         if (!_settings.IsValid)
         {
-            _logger.LogWarning("Configuración OIDC inválida. TenantName o ClientId vacíos.");
+            _logger.LogWarning("Invalid OIDC configuration. TenantName or ClientId are empty.");
             return;
         }
 
@@ -73,16 +73,16 @@ public class OidcAuthService : IOidcAuthService
                 Browser = _browser
             };
 
-            // Agregar Resource para OAuth v1.0 (ResourceId)
-            // Esto es necesario para Azure AD cuando se usa el endpoint v1.0
+            // Add Resource for OAuth v1.0 (ResourceId)
+            // This is necessary for Azure AD when using the v1.0 endpoint
             if (!string.IsNullOrEmpty(_settings.ResourceId))
             {
                 options.Resource.Add(_settings.ResourceId);
-                _logger.LogDebug("Usando ResourceId para OAuth v1.0: {ResourceId}", _settings.ResourceId);
+                _logger.LogDebug("Using ResourceId for OAuth v1.0: {ResourceId}", _settings.ResourceId);
             }
 
-            // Políticas de seguridad
-            // Duende 6.x tiene API simplificada para políticas
+            // Security policies
+            // Duende 6.x has simplified API for policies
             options.Policy.Discovery.ValidateIssuerName = false;
             options.Policy.Discovery.ValidateEndpoints = false;
 
@@ -91,12 +91,12 @@ public class OidcAuthService : IOidcAuthService
 
             _oidcClient = new OidcClient(options);
 
-            _logger.LogInformation("Cliente OIDC inicializado. Authority: {Authority}", 
+            _logger.LogInformation("OIDC client initialized. Authority: {Authority}", 
                 _settings.GetFormattedAuthority());
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inicializando cliente OIDC");
+            _logger.LogError(ex, "Error initializing OIDC client");
         }
     }
 
@@ -109,21 +109,21 @@ public class OidcAuthService : IOidcAuthService
                 ? _settings.ValidationError 
                 : "OIDC client not configured. Check OidcSettings in appsettings.json";
             
-            _logger.LogError("Login fallido - configuración inválida: {Error}", errorMsg);
+            _logger.LogError("Login failed - invalid configuration: {Error}", errorMsg);
             
             return OidcLoginResult.Failed(errorMsg, OidcLoginErrorCode.ConfigurationError);
         }
 
         try
         {
-            _logger.LogInformation("Iniciando proceso de login OIDC");
+            _logger.LogInformation("Starting OIDC login process");
             progress?.Report(0);
 
             // Preparar login
             var state = await _oidcClient.PrepareLoginAsync(cancellationToken: ct);
             progress?.Report(5);
 
-            // Configurar opciones del browser
+            // Configure browser options
             var browserOptions = new BrowserOptions(
                 state.StartUrl + "&prompt=login",
                 _oidcClient.Options.RedirectUri)
@@ -131,19 +131,19 @@ public class OidcAuthService : IOidcAuthService
                 Timeout = TimeSpan.FromSeconds(_settings.BrowserTimeoutSeconds)
             };
 
-            // Invocar browser
-            _logger.LogDebug("Abriendo browser para autenticación");
+            // Invoke browser
+            _logger.LogDebug("Opening browser for authentication");
             var browserResult = await _oidcClient.Options.Browser.InvokeAsync(browserOptions, ct);
             progress?.Report(10);
 
-            // Manejar cancelación por usuario
+            // Handle user cancellation
             if (browserResult.ResultType == BrowserResultType.UserCancel)
             {
-                _logger.LogWarning("Usuario canceló el login");
+                _logger.LogWarning("User cancelled login");
                 return OidcLoginResult.Cancelled();
             }
 
-            // Manejar errores del browser
+            // Handle browser errors
             if (browserResult.ResultType != BrowserResultType.Success)
             {
                 var errorCode = browserResult.ResultType switch
@@ -158,8 +158,8 @@ public class OidcAuthService : IOidcAuthService
                     errorCode);
             }
 
-            // Procesar respuesta
-            _logger.LogDebug("Procesando respuesta de autenticación");
+            // Process response
+            _logger.LogDebug("Processing authentication response");
             ct.ThrowIfCancellationRequested();
             var result = await _oidcClient.ProcessResponseAsync(browserResult.Response, state);
             progress?.Report(20);
@@ -169,26 +169,26 @@ public class OidcAuthService : IOidcAuthService
                 return HandleLoginError(result.Error);
             }
 
-            // Login exitoso - procesar tokens
+            // Successful login - process tokens
             return await ProcessSuccessfulLoginAsync(result, progress, ct);
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Login cancelado");
+            _logger.LogWarning("Login cancelled");
             return OidcLoginResult.Cancelled();
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "Error de red durante login");
+            _logger.LogError(ex, "Network error during login");
             return OidcLoginResult.Failed(
                 "Login Error: Please make sure you connect to internet when you are attempting to login.",
                 OidcLoginErrorCode.NoInternet);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inesperado durante login");
+            _logger.LogError(ex, "Unexpected error during login");
             
-            // HResult -2146233079 indica error de conexión
+            // HResult -2146233079 indicates connection error
             if (ex.HResult == -2146233079)
             {
                 return OidcLoginResult.Failed(
@@ -203,14 +203,14 @@ public class OidcAuthService : IOidcAuthService
     }
 
     /// <summary>
-    /// Procesa un login exitoso y almacena tokens.
+    /// Processes a successful login and stores tokens.
     /// </summary>
     private async Task<OidcLoginResult> ProcessSuccessfulLoginAsync(
         LoginResult result, 
         IProgress<int>? progress, 
         CancellationToken ct)
     {
-        // Extraer nombre de usuario
+        // Extract username
         string userName = "Admin";
         try
         {
@@ -221,10 +221,10 @@ public class OidcAuthService : IOidcAuthService
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "No se pudo extraer nombre de usuario");
+            _logger.LogWarning(ex, "Could not extract username");
         }
 
-        // Crear token
+        // Create token
         CurrentToken = new FireAccessToken
         {
             IdentityToken = result.IdentityToken,
@@ -235,7 +235,7 @@ public class OidcAuthService : IOidcAuthService
 
         progress?.Report(30);
 
-        // Almacenar tokens localmente
+        // Store tokens locally
         if (!string.IsNullOrEmpty(result.IdentityToken))
         {
             await _tokenManager.StoreOfflineTokenAsync(
@@ -254,13 +254,13 @@ public class OidcAuthService : IOidcAuthService
         }
         progress?.Report(50);
 
-        // Obtener offline token del backend
-        // IMPORTANTE: Se usa IdentityToken, NO AccessToken
+        // Get offline token from backend
+        // IMPORTANT: Uses IdentityToken, NOT AccessToken
         try
         {
             if (!string.IsNullOrEmpty(result.IdentityToken))
             {
-                _logger.LogDebug("Obteniendo offline token del servidor usando IdentityToken...");
+                _logger.LogDebug("Getting offline token from server using IdentityToken...");
                 var offlineToken = await _tokenGenerator.GetOfflineTokenAsync(result.IdentityToken, null, ct);
                 
                 if (!string.IsNullOrEmpty(offlineToken))
@@ -270,20 +270,20 @@ public class OidcAuthService : IOidcAuthService
                         OfflineTokenManager.OFFLINE_TOKEN_NAME, 
                         ct);
                     CurrentToken.IdentityToken = offlineToken;
-                    _logger.LogDebug("Offline token almacenado correctamente");
+                    _logger.LogDebug("Offline token stored successfully");
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "No se pudo obtener offline token del servidor");
+            _logger.LogWarning(ex, "Could not get offline token from server");
         }
         progress?.Report(60);
 
-        // Obtener public key para validación
+        // Get public key for validation
         try
         {
-            _logger.LogDebug("Obteniendo clave pública del servidor...");
+            _logger.LogDebug("Getting public key from server...");
             var publicKey = await _tokenGenerator.GetPublicKeyStringAsync(null, ct);
             
             if (!string.IsNullOrEmpty(publicKey))
@@ -292,21 +292,21 @@ public class OidcAuthService : IOidcAuthService
                     publicKey, 
                     OfflineTokenManager.PUBLIC_KEY_NAME, 
                     ct);
-                _logger.LogDebug("Clave pública almacenada correctamente");
+                _logger.LogDebug("Public key stored successfully");
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "No se pudo obtener clave pública del servidor");
+            _logger.LogWarning(ex, "Could not get public key from server");
         }
         progress?.Report(70);
 
-        // Obtener cloud call token
+        // Get cloud call token
         try
         {
             if (!string.IsNullOrEmpty(result.AccessToken))
             {
-                _logger.LogDebug("Obteniendo cloud call token del servidor...");
+                _logger.LogDebug("Getting cloud call token from server...");
                 var cloudCallResult = await _tokenGenerator.GetCloudCallTokenAsync(result.AccessToken, null, ct);
                 
                 if (!string.IsNullOrEmpty(cloudCallResult.CloudCallAccessToken))
@@ -316,17 +316,17 @@ public class OidcAuthService : IOidcAuthService
                         OfflineTokenManager.CLOUD_CALL_TOKEN_NAME, 
                         ct);
                     CurrentToken.CloudCallAccessToken = cloudCallResult.CloudCallAccessToken;
-                    _logger.LogDebug("Cloud call token almacenado correctamente");
+                    _logger.LogDebug("Cloud call token stored successfully");
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "No se pudo obtener cloud call token del servidor");
+            _logger.LogWarning(ex, "Could not get cloud call token from server");
         }
         progress?.Report(85);
 
-        // Actualizar permisos
+        // Update permissions
         Permissions.IsLicenseTokenValid = ToolsLicensePermissions.TOKEN_AUTHORIZATION_SUCCESS;
         Permissions.LoginStatus = true;
         Permissions.UserName = userName;
@@ -335,17 +335,17 @@ public class OidcAuthService : IOidcAuthService
 
         progress?.Report(100);
 
-        _logger.LogInformation("Login exitoso para usuario: {UserName}", userName);
+        _logger.LogInformation("Login successful for user: {UserName}", userName);
 
         return OidcLoginResult.Succeeded(CurrentToken, userName);
     }
 
     /// <summary>
-    /// Maneja errores de login.
+    /// Handles login errors.
     /// </summary>
     private OidcLoginResult HandleLoginError(string error)
     {
-        _logger.LogWarning("Error de login: {Error}", error);
+        _logger.LogWarning("Login error: {Error}", error);
 
         if (error.Contains("UserCancel", StringComparison.OrdinalIgnoreCase))
         {
@@ -367,31 +367,31 @@ public class OidcAuthService : IOidcAuthService
     {
         try
         {
-            // Verificar si existe token offline
+            // Check if offline token exists
             if (!_tokenManager.TokenFileExists(OfflineTokenManager.OFFLINE_TOKEN_NAME))
             {
-                _logger.LogDebug("No existe token offline");
+                _logger.LogDebug("No offline token exists");
                 return false;
             }
 
-            // Cargar token
+            // Load token
             var offlineToken = await _tokenManager.LoadOfflineTokenAsync(
                 OfflineTokenManager.OFFLINE_TOKEN_NAME, ct);
 
             if (string.IsNullOrEmpty(offlineToken))
             {
-                _logger.LogDebug("Token offline vacío");
+                _logger.LogDebug("Offline token is empty");
                 return false;
             }
 
-            // Cargar clave pública para validación
+            // Load public key for validation
             var publicKey = await _tokenManager.LoadOfflineTokenAsync(
                 OfflineTokenManager.PUBLIC_KEY_NAME, ct);
 
             if (string.IsNullOrEmpty(publicKey))
             {
-                _logger.LogWarning("No existe clave pública para validación JWT");
-                // Intentar obtener la clave pública del servidor
+                _logger.LogWarning("No public key exists for JWT validation");
+                // Try to get public key from server
                 try
                 {
                     publicKey = await _tokenGenerator.GetPublicKeyStringAsync(null, ct);
@@ -405,44 +405,44 @@ public class OidcAuthService : IOidcAuthService
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "No se pudo obtener clave pública del servidor");
+                    _logger.LogWarning(ex, "Could not get public key from server");
                 }
             }
 
-            // Validar token JWT
-            // Si la firma no puede validarse, se permite continuar si el token no ha expirado
+            // Validate JWT token
+            // If signature cannot be validated, allow to continue if token is not expired
             if (!string.IsNullOrEmpty(publicKey))
             {
                 var validationResult = _tokenValidator.ValidateToken(offlineToken, publicKey);
                 
                 if (!validationResult.IsValid)
                 {
-                    // Verificar si el error es solo de firma (permitir continuar) o de expiración (bloquear)
+                    // Check if error is only signature (allow continue) or expiration (block)
                     if (validationResult.ErrorMessage?.Contains("expirado", StringComparison.OrdinalIgnoreCase) == true ||
                         validationResult.ErrorMessage?.Contains("expired", StringComparison.OrdinalIgnoreCase) == true)
                     {
-                        _logger.LogWarning("Token offline expirado: {Error}", validationResult.ErrorMessage);
+                        _logger.LogWarning("Offline token expired: {Error}", validationResult.ErrorMessage);
                         return false;
                     }
                     
-                    // Para otros errores (firma, formato, etc.), intentar validación básica
-                    _logger.LogWarning("Validación completa fallida ({Error}), intentando validación básica de expiración", 
+                    // For other errors (signature, format, etc.), try basic validation
+                    _logger.LogWarning("Full validation failed ({Error}), trying basic expiration validation", 
                         validationResult.ErrorMessage);
                     
-                    // Validar solo expiración como fallback
+                    // Validate only expiration as fallback
                     if (!_tokenValidator.IsTokenNotExpired(offlineToken))
                     {
-                        _logger.LogWarning("Token offline expirado en validación básica");
+                        _logger.LogWarning("Offline token expired in basic validation");
                         return false;
                     }
                     
-                    _logger.LogInformation("Token offline válido (validación básica - solo expiración)");
+                    _logger.LogInformation("Offline token valid (basic validation - expiration only)");
                 }
                 else
                 {
-                    _logger.LogInformation("Token offline validado correctamente (validación completa)");
+                    _logger.LogInformation("Offline token validated correctly (full validation)");
                     
-                    // Extraer claims si la validación fue exitosa
+                    // Extract claims if validation was successful
                     if (validationResult.Claims != null)
                     {
                         Permissions.UserName = validationResult.Claims.UniqueName ?? Permissions.UserName;
@@ -451,24 +451,24 @@ public class OidcAuthService : IOidcAuthService
             }
             else
             {
-                // Sin clave pública, solo verificar que el token existe y no está expirado
-                _logger.LogWarning("Validación de token sin clave pública - verificación de expiración");
+                // Without public key, only verify that token exists and is not expired
+                _logger.LogWarning("Token validation without public key - expiration verification");
                 
                 if (!_tokenValidator.IsTokenNotExpired(offlineToken))
                 {
-                    _logger.LogWarning("Token offline expirado (sin clave pública)");
+                    _logger.LogWarning("Offline token expired (no public key)");
                     return false;
                 }
             }
             
-            // Cargar tokens en memoria
+            // Load tokens in memory
             await ReadTokenInformationAsync(ct);
             
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error validando token offline");
+            _logger.LogError(ex, "Error validating offline token");
             return false;
         }
     }
@@ -487,16 +487,16 @@ public class OidcAuthService : IOidcAuthService
 
             if (result.IsError)
             {
-                _logger.LogWarning("Error refrescando token: {Error}", result.Error);
+                _logger.LogWarning("Error refreshing token: {Error}", result.Error);
                 return false;
             }
 
-            // Actualizar tokens
+            // Update tokens
             CurrentToken.AccessToken = result.AccessToken;
             CurrentToken.RefreshToken = result.RefreshToken ?? CurrentToken.RefreshToken;
             CurrentToken.ExpiresAt = result.AccessTokenExpiration.UtcDateTime;
 
-            // Almacenar nuevo refresh token
+            // Store new refresh token
             if (!string.IsNullOrEmpty(result.RefreshToken))
             {
                 await _tokenManager.StoreOfflineTokenAsync(
@@ -505,7 +505,7 @@ public class OidcAuthService : IOidcAuthService
                     ct);
             }
 
-            _logger.LogInformation("Token refrescado exitosamente");
+            _logger.LogInformation("Token refreshed successfully");
             return true;
         }
         catch (Exception ex)
@@ -523,7 +523,7 @@ public class OidcAuthService : IOidcAuthService
         Permissions.Reset();
         _tokenManager.ClearAllTokens();
 
-        _logger.LogInformation("Sesión cerrada");
+        _logger.LogInformation("Session closed");
         return Task.CompletedTask;
     }
 
@@ -552,11 +552,11 @@ public class OidcAuthService : IOidcAuthService
                 Permissions.IsLicenseTokenValid = ToolsLicensePermissions.TOKEN_AUTHORIZATION_SUCCESS;
             }
 
-            _logger.LogDebug("Información de tokens cargada");
+            _logger.LogDebug("Token information loaded");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error leyendo información de tokens");
+            _logger.LogError(ex, "Error reading token information");
         }
     }
 }

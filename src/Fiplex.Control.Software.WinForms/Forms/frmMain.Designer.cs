@@ -561,7 +561,7 @@ namespace Fiplex.Control.Software.WinForms.Forms
 
         #endregion
 
-        #region Declaraciones de campos para controles - Modernizadas para .NET 9
+        #region Control field declarations - Modernized for .NET 9
 
         public System.Windows.Forms.ToolTip ToolTip1;
         public System.Windows.Forms.ToolStripMenuItem mnuLoadConfig;

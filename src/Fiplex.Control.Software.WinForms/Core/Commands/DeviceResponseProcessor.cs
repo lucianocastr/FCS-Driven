@@ -4,10 +4,10 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Commands;
 
 /// <summary>
-/// Servicio que coordina múltiples handlers de respuesta específicos por dispositivo.
-/// Implementa el patrón Chain of Responsibility para procesar respuestas.
+/// Service that coordinates multiple device-specific response handlers.
+/// Implements the Chain of Responsibility pattern to process responses.
 ///
-/// tdev/ndev para aplicar procesamiento específico.
+/// tdev/ndev to apply specific processing.
 /// </summary>
 public class DeviceResponseProcessor
 {
@@ -27,40 +27,40 @@ public class DeviceResponseProcessor
     }
 
     /// <summary>
-    /// Configura el procesador para un dispositivo específico.
-    /// Debe llamarse después de identificar el dispositivo conectado.
+    /// Configures the processor for a specific device.
+    /// Should be called after identifying the connected device.
     /// </summary>
-    /// <param name="deviceType">Tipo de dispositivo (1c, 2c, 5dm, etc.)</param>
-    /// <param name="deviceVersion">Versión del dispositivo</param>
+    /// <param name="deviceType">Device type (1c, 2c, 5dm, etc.)</param>
+    /// <param name="deviceVersion">Device version</param>
     public void ConfigureForDevice(string deviceType, double deviceVersion)
     {
         _currentDeviceType = deviceType;
         _currentDeviceVersion = deviceVersion;
         
-        // Buscar handler aplicable
+        // Find applicable handler
         _activeHandler = _handlers.FirstOrDefault(h => 
             h.CanHandle(deviceType, deviceVersion));
         
         if (_activeHandler != null)
         {
             _logger.LogInformation(
-                "Handler de respuesta activado para dispositivo {Type} v{Version}: {Handler}",
+                "Response handler activated for device {Type} v{Version}: {Handler}",
                 deviceType, deviceVersion, _activeHandler.GetType().Name);
         }
         else
         {
             _logger.LogDebug(
-                "No hay handler específico para dispositivo {Type} v{Version}, usando procesamiento estándar",
+                "No specific handler for device {Type} v{Version}, using standard processing",
                 deviceType, deviceVersion);
         }
     }
 
     /// <summary>
-    /// Procesa una respuesta de comando aplicando el handler específico si existe.
+    /// Processes a command response applying the specific handler if exists.
     /// </summary>
-    /// <param name="command">Comando enviado</param>
-    /// <param name="rawResponse">Respuesta raw del dispositivo</param>
-    /// <returns>Respuesta procesada</returns>
+    /// <param name="command">Sent command</param>
+    /// <param name="rawResponse">Raw response from device</param>
+    /// <returns>Processed response</returns>
     public string ProcessResponse(string command, string rawResponse)
     {
         if (_activeHandler == null)
@@ -73,7 +73,7 @@ public class DeviceResponseProcessor
             if (processed != rawResponse)
             {
                 _logger.LogDebug(
-                    "Respuesta procesada por {Handler}: {Command} ({OrigLen} -> {NewLen} chars)",
+                    "Response processed by {Handler}: {Command} ({OrigLen} -> {NewLen} chars)",
                     _activeHandler.GetType().Name, command, 
                     rawResponse.Length, processed.Length);
             }
@@ -83,7 +83,7 @@ public class DeviceResponseProcessor
         catch (Exception ex)
         {
             _logger.LogError(ex, 
-                "Error en handler {Handler} procesando {Command}, retornando respuesta original",
+                "Error in handler {Handler} processing {Command}, returning original response",
                 _activeHandler.GetType().Name, command);
             return rawResponse;
         }
@@ -91,7 +91,7 @@ public class DeviceResponseProcessor
 
     /// <summary>
     /// Resetea el estado de todos los handlers.
-    /// Llamar al desconectar del dispositivo.
+    /// Call when disconnecting from the device.
     /// </summary>
     public void Reset()
     {
@@ -99,7 +99,7 @@ public class DeviceResponseProcessor
         _currentDeviceVersion = 0;
         _activeHandler = null;
         
-        // Resetear handlers que implementen método Reset
+        // Reset handlers that implement Reset method
         foreach (var handler in _handlers)
         {
             if (handler is Device1C_V22_ResponseHandler h22)
@@ -108,21 +108,21 @@ public class DeviceResponseProcessor
                 h52.Reset();
         }
         
-        _logger.LogDebug("DeviceResponseProcessor reseteado");
+        _logger.LogDebug("DeviceResponseProcessor reset");
     }
 
     /// <summary>
-    /// Indica si hay un handler activo para el dispositivo actual.
+    /// Indicates whether there is an active handler for the current device.
     /// </summary>
     public bool HasActiveHandler => _activeHandler != null;
 
     /// <summary>
-    /// Tipo de dispositivo actualmente configurado.
+    /// Currently configured device type.
     /// </summary>
     public string CurrentDeviceType => _currentDeviceType;
 
     /// <summary>
-    /// Versión del dispositivo actualmente configurado.
+    /// Version of the currently configured device.
     /// </summary>
     public double CurrentDeviceVersion => _currentDeviceVersion;
 }

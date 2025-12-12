@@ -4,8 +4,8 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Commands;
 
 /// <summary>
-/// Handler de respuestas para dispositivos 1C versión 2.2.
-/// Implementa lógica SCA (Single Channel Activation) especial.
+/// Response handler for 1C devices version 2.2.
+/// Implements special SCA (Single Channel Activation) logic.
 /// 
 ///   If frmMain.tdev = "1c" And frmMain.ndev = 2.2 Then
 ///       If command_Renamed = "C1" Then
@@ -18,13 +18,13 @@ public class Device1C_V22_ResponseHandler : IDeviceResponseHandler
 {
     private readonly ILogger<Device1C_V22_ResponseHandler> _logger;
     
-    // Variable confSCA - almacena configuración SCA procesada
+    // confSCA variable - stores processed SCA configuration
     private string _confSCA = string.Empty;
     
-    // Estado de activación del test de canal
+    // Channel test activation state
     private short _chTestActivated = -1;
     
-    public int Priority => 100; // Alta prioridad para dispositivo específico
+    public int Priority => 100; // High priority for device-specific handler
 
     public Device1C_V22_ResponseHandler(ILogger<Device1C_V22_ResponseHandler> logger)
     {
@@ -32,75 +32,75 @@ public class Device1C_V22_ResponseHandler : IDeviceResponseHandler
     }
 
     /// <summary>
-    /// Aplica a dispositivos 1c versión 2.2 exactamente.
+    /// Applies to 1c devices version 2.2 exactly.
     /// </summary>
     public bool CanHandle(string deviceType, double version)
         => deviceType.Equals("1c", StringComparison.OrdinalIgnoreCase) 
            && Math.Abs(version - 2.2) < 0.05;
 
     /// <summary>
-    /// Procesa respuestas C1 y F1 con lógica SCA especial.
+    /// Processes C1 and F1 responses with special SCA logic.
     /// </summary>
     public string ProcessResponse(string command, string rawResponse)
     {
         if (string.IsNullOrEmpty(rawResponse))
             return rawResponse;
 
-        // Comando C1: Configuration Read con SCA
+        // C1 Command: Configuration Read with SCA
         if (command.Equals("C1", StringComparison.OrdinalIgnoreCase))
         {
             var isActivated = IsSCAConfCHTestActivated(rawResponse);
             _logger.LogDebug("IsSCAConfCHTestActivated={IsActivated} para C1", isActivated);
             
-            // Retornar confSCA procesada si está activada
+            // Return processed confSCA if activated
             return isActivated ? _confSCA : rawResponse;
         }
 
-        // Comando F1: Factory Read con SCA
+        // F1 Command: Factory Read with SCA
         if (command.Equals("F1", StringComparison.OrdinalIgnoreCase))
         {
             var isActivated = IsSCAFactCHTestActivated(rawResponse);
             _logger.LogDebug("IsSCAFactCHTestActivated={IsActivated} para F1", isActivated);
-            // F1 no modifica la respuesta, solo actualiza estado
+            // F1 does not modify the response, only updates state
         }
 
         return rawResponse;
     }
 
     /// <summary>
-    /// Determina si la configuración SCA de canal de prueba está activada.
+    /// Determines if the SCA test channel configuration is activated.
     /// 
-    /// Analiza respuesta C1 hex para extraer estado de activación del canal de prueba.
+    /// Analyzes C1 hex response to extract test channel activation state.
     /// </summary>
     private bool IsSCAConfCHTestActivated(string response)
     {
         if (string.IsNullOrEmpty(response) || response.Length < 10)
         {
-            _logger.LogWarning("Respuesta C1 demasiado corta para análisis SCA: {Length} chars", 
+            _logger.LogWarning("C1 response too short for SCA analysis: {Length} chars", 
                 response?.Length ?? 0);
             return false;
         }
 
         try
         {
-            // La posición del flag de activación depende del formato de respuesta 1c2.2
+            // The activation flag position depends on the 1c2.2 response format
             
-            // Byte 8-9 contiene flag de canal activo (posición específica para 1c2.2)
-            // Formato: respuesta hex donde cada 2 chars = 1 byte
+            // Byte 8-9 contains active channel flag (specific position for 1c2.2)
+            // Format: hex response where each 2 chars = 1 byte
             if (response.Length >= 18)
             {
-                // Posición 8 (bytes 16-17 del hex string)
+                // Position 8 (bytes 16-17 of hex string)
                 var chFlagHex = response.Substring(16, 2);
                 var chFlag = Convert.ToInt32(chFlagHex, 16);
                 
-                // Si bit 0 está activado, el test de canal está habilitado
+                // If bit 0 is set, the channel test is enabled
                 _chTestActivated = (short)(chFlag & 0x01);
                 
                 if (_chTestActivated == 1)
                 {
-                    // Procesar y almacenar confSCA
+                    // Process and store confSCA
                     _confSCA = ProcessSCAConfiguration(response);
-                    _logger.LogInformation("Canal de prueba SCA activado, confSCA almacenada");
+                    _logger.LogInformation("SCA test channel activated, confSCA stored");
                     return true;
                 }
             }
@@ -111,13 +111,13 @@ public class Device1C_V22_ResponseHandler : IDeviceResponseHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error procesando SCA de respuesta C1");
+            _logger.LogError(ex, "Error processing SCA from C1 response");
             return false;
         }
     }
 
     /// <summary>
-    /// Determina si los parámetros factory SCA están activados.
+    /// Determines if the factory SCA parameters are activated.
     /// </summary>
     private bool IsSCAFactCHTestActivated(string response)
     {
@@ -126,8 +126,8 @@ public class Device1C_V22_ResponseHandler : IDeviceResponseHandler
 
         try
         {
-            // Análisis similar a C1 pero para parámetros factory
-            // Los dispositivos 1c2.2 tienen formato específico en F1
+            // Similar analysis to C1 but for factory parameters
+            // 1c2.2 devices have specific format in F1
             if (response.Length >= 12)
             {
                 var factFlagHex = response.Substring(10, 2);
@@ -140,29 +140,29 @@ public class Device1C_V22_ResponseHandler : IDeviceResponseHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error procesando SCA de respuesta F1");
+            _logger.LogError(ex, "Error processing SCA from F1 response");
             return false;
         }
     }
 
     /// <summary>
-    /// Procesa la configuración SCA completa desde respuesta C1.
+    /// Processes the complete SCA configuration from C1 response.
     /// </summary>
     private string ProcessSCAConfiguration(string response)
     {
-        // para reflejar el estado de activación del canal de prueba
+        // to reflect the test channel activation state
         
         if (response.Length < 20)
             return response;
 
         try
         {
-            // Crear copia modificada con flag SCA procesado
+            // Create modified copy with processed SCA flag
             var builder = new char[response.Length];
             response.CopyTo(0, builder, 0, response.Length);
             
-            // Posición 18-19: Modificar para indicar SCA procesada
-            // Esto depende del protocolo específico 1c2.2
+            // Position 18-19: Modify to indicate processed SCA
+            // This depends on the specific 1c2.2 protocol
             builder[18] = '0';
             builder[19] = '1';
             
@@ -175,7 +175,7 @@ public class Device1C_V22_ResponseHandler : IDeviceResponseHandler
     }
 
     /// <summary>
-    /// Resetea el estado SCA.
+    /// Resets the SCA state.
     /// </summary>
     public void Reset()
     {

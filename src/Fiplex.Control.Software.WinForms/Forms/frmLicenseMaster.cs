@@ -7,14 +7,14 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Forms;
 
 /// <summary>
-/// Formulario para configurar opciones de licencia de hardware multi-banda.
+/// Form to configure multi-band hardware license options.
 /// </summary>
 /// <remarks>
-/// Comandos serial:
-///   M1 - Lectura de opciones actuales
-///   M0 - Escritura de nuevas opciones
+/// Serial commands:
+///   M1 - Read current options
+///   M0 - Write new options
 /// 
-/// Bandas:
+/// Bands:
 ///   0 = FW0 BAND0 (700 MHz)
 ///   1 = FW0 BAND1 (800 MHz)
 ///   2 = FW1 BAND0 (VHF)
@@ -26,7 +26,7 @@ public partial class frmLicenseMaster : Form
     private readonly LicenseOptionsParser _parser;
     private readonly ILogger<frmLicenseMaster> _logger;
     
-    // Flag para evitar carga múltiple
+    // Flag to prevent multiple loads
     private bool _isLoading;
     private bool _isLoaded;
     
@@ -35,15 +35,15 @@ public partial class frmLicenseMaster : Form
 
     private LicenseOptions _currentOptions = new();
 
-    // Arrays de controles para acceso indexado (equivalente VB6 control arrays)
+    // Control arrays for indexed access (VB6 control arrays equivalent)
     private CheckBox[] _chkNarrow = null!;
     private CheckBox[] _chkAdjBw = null!;
     private CheckBox[] _chkSingle = null!;
     private TextBox[] _txtPowerDL = null!;
 
     /// <summary>
-    /// Evento disparado cuando se aplican cambios exitosamente.
-    /// Permite a frmMain ejecutar WebRefresh(True).
+    /// Event fired when changes are applied successfully.
+    /// Allows frmMain to execute WebRefresh(True).
     /// </summary>
     public event EventHandler? ChangesApplied;
 
@@ -60,7 +60,7 @@ public partial class frmLicenseMaster : Form
         InitializeControlArrays();
         SetupInputValidation();
 
-        // Seleccionar primer elemento del combo por defecto
+        // Select first combo item by default
         if (cmbBoot.Items.Count > 0)
         {
             cmbBoot.SelectedIndex = 0;
@@ -68,7 +68,7 @@ public partial class frmLicenseMaster : Form
     }
     
     /// <summary>
-    /// Configura validación de entrada para los TextBox de Power.
+    /// Configures input validation for Power TextBoxes.
     /// </summary>
     private void SetupInputValidation()
     {
@@ -80,16 +80,16 @@ public partial class frmLicenseMaster : Form
     }
     
     /// <summary>
-    /// Valida que solo se ingresen dígitos y signo negativo.
+    /// Validates that only digits and negative sign are entered.
     /// </summary>
     private void TxtPowerDL_KeyPress(object? sender, KeyPressEventArgs e)
     {
-        // Permitir: dígitos, backspace, signo negativo al inicio
+        // Allow: digits, backspace, negative sign at start
         if (!char.IsDigit(e.KeyChar) && e.KeyChar != '\b')
         {
             if (e.KeyChar == '-' && sender is TextBox txt && txt.SelectionStart == 0)
             {
-                // Permitir signo negativo solo al inicio
+                // Allow negative sign only at the beginning
                 return;
             }
             e.Handled = true;
@@ -97,7 +97,7 @@ public partial class frmLicenseMaster : Form
     }
     
     /// <summary>
-    /// Valida rango al perder foco (-128 a 127).
+    /// Validates range on focus lost (-128 to 127).
     /// </summary>
     private void TxtPowerDL_Validating(object? sender, System.ComponentModel.CancelEventArgs e)
     {
@@ -111,7 +111,7 @@ public partial class frmLicenseMaster : Form
         
         if (short.TryParse(txt.Text, out short value))
         {
-            // Clamp al rango válido de signed byte
+            // Clamp to valid signed byte range
             value = Math.Clamp(value, (short)-128, (short)127);
             txt.Text = value.ToString();
         }
@@ -122,11 +122,11 @@ public partial class frmLicenseMaster : Form
     }
 
     /// <summary>
-    /// Inicializa arrays de controles para acceso indexado.
+    /// Initializes control arrays for indexed access.
     /// </summary>
     private void InitializeControlArrays()
     {
-        // Orden: [700, 800, VHF, UHF] = índices [0, 1, 2, 3]
+        // Order: [700, 800, VHF, UHF] = indexes [0, 1, 2, 3]
         _chkNarrow = [chkNbEn0, chkNbEn1, chkNbEn2, chkNbEn3];
         _chkAdjBw = [chkAdjEn0, chkAdjEn1, chkAdjEn2, chkAdjEn3];
         _chkSingle = [chkSingEn0, chkSingEn1, chkSingEn2, chkSingEn3];
@@ -134,13 +134,13 @@ public partial class frmLicenseMaster : Form
     }
 
     /// <summary>
-    /// Carga opciones actuales del dispositivo al activar el formulario.
+    /// Loads current device options when the form is activated.
     /// </summary>
     protected override async void OnActivated(EventArgs e)
     {
         base.OnActivated(e);
 
-        // Evitar carga múltiple (patrón consistente con EthernetModuleDialog)
+        // Prevent multiple loads (pattern consistent with EthernetModuleDialog)
         if (_isLoading || _isLoaded)
             return;
         
@@ -157,7 +157,7 @@ public partial class frmLicenseMaster : Form
     }
     
     /// <summary>
-    /// Limpia recursos al cerrar el formulario.
+    /// Cleans up resources when form closes.
     /// </summary>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
@@ -165,7 +165,7 @@ public partial class frmLicenseMaster : Form
         _cts?.Dispose();
         _cts = null;
         
-        // Desuscribir eventos de validación
+        // Unsubscribe validation events
         foreach (var txt in _txtPowerDL)
         {
             txt.KeyPress -= TxtPowerDL_KeyPress;
@@ -176,7 +176,7 @@ public partial class frmLicenseMaster : Form
     }
 
     /// <summary>
-    /// Carga las opciones de licencia desde el dispositivo.
+    /// Loads the license options from the device.
     /// </summary>
     private async Task LoadLicenseOptionsAsync()
     {
@@ -190,7 +190,7 @@ public partial class frmLicenseMaster : Form
             cmdApply.Enabled = false;
             SetControlsEnabled(false);
 
-            _logger.LogDebug("Cargando opciones de licencia (M1)");
+            _logger.LogDebug("Loading license options (M1)");
 
             var command = new SerialCommand
             {
@@ -205,26 +205,26 @@ public partial class frmLicenseMaster : Form
 
             if (!result.Success || string.IsNullOrEmpty(result.Data))
             {
-                _logger.LogWarning("Respuesta vacía o fallida del comando M1: {Status}", result.Status);
+                _logger.LogWarning("Empty or failed response from M1 command: {Status}", result.Status);
                 ShowErrorFeedback("Could not read license options from device.");
                 return;
             }
 
-            _logger.LogDebug("Respuesta M1: {Response}", result.Data);
+            _logger.LogDebug("M1 response: {Response}", result.Data);
 
             _currentOptions = _parser.Parse(result.Data);
 
             DisplayOptions(_currentOptions);
 
-            _logger.LogInformation("Opciones de licencia cargadas exitosamente");
+            _logger.LogInformation("License options loaded successfully");
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("Operación de carga cancelada");
+            _logger.LogDebug("Load operation cancelled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error cargando opciones de licencia");
+            _logger.LogError(ex, "Error loading license options");
             ShowErrorFeedback($"Error reading license options: {ex.Message}");
         }
         finally
@@ -236,7 +236,7 @@ public partial class frmLicenseMaster : Form
     }
     
     /// <summary>
-    /// Habilita/deshabilita controles de entrada.
+    /// Enables/disables input controls.
     /// </summary>
     private void SetControlsEnabled(bool enabled)
     {
@@ -288,7 +288,7 @@ public partial class frmLicenseMaster : Form
             options.AdjBwFiltersEnabled[i] = _chkAdjBw[i].Checked;
             options.SingleBandEnabled[i] = _chkSingle[i].Checked;
 
-            // Parsear Power DL con validación de rango (ya validado en TxtPowerDL_Validating)
+            // Parse Power DL with range validation (already validated in TxtPowerDL_Validating)
             options.PowerLimitDownlink[i] = ParsePowerValue(_txtPowerDL[i].Text);
         }
 
@@ -298,7 +298,7 @@ public partial class frmLicenseMaster : Form
     }
     
     /// <summary>
-    /// Parsea valor de potencia con validación de rango (-128 a 127).
+    /// Parses power value with range validation (-128 to 127).
     /// </summary>
     private static short ParsePowerValue(string text)
     {
@@ -329,18 +329,18 @@ public partial class frmLicenseMaster : Form
 
             var optionsToSend = ReadOptionsFromUI();
 
-            _logger.LogDebug("Aplicando opciones de licencia (M0)");
+            _logger.LogDebug("Applying license options (M0)");
 
             var hexData = _parser.ToHexString(optionsToSend);
             
             if (string.IsNullOrEmpty(hexData) || hexData.Length != 14)
             {
-                _logger.LogError("Error codificando opciones: longitud inválida ({Length})", hexData?.Length ?? 0);
+                _logger.LogError("Error encoding options: invalid length ({Length})", hexData?.Length ?? 0);
                 ShowErrorFeedback("Error encoding license options.");
                 return;
             }
             
-            _logger.LogDebug("Datos a enviar: M0{Hex}", hexData);
+            _logger.LogDebug("Data to send: M0{Hex}", hexData);
 
             var command = new SerialCommand
             {
@@ -353,20 +353,20 @@ public partial class frmLicenseMaster : Form
             
             ct.ThrowIfCancellationRequested();
 
-            _logger.LogDebug("Respuesta M0: {Status} - {Data}", result.Status, result.Data);
+            _logger.LogDebug("M0 response: {Status} - {Data}", result.Status, result.Data);
 
             if (result.Success)
             {
                 ShowSuccessFeedback();
-                _logger.LogInformation("Opciones de licencia aplicadas exitosamente");
+                _logger.LogInformation("License options applied successfully");
                 
-                // Actualizar opciones actuales
+                // Update current options
                 _currentOptions = optionsToSend;
             }
             else
             {
                 ShowFailureFeedback();
-                _logger.LogWarning("Error aplicando opciones. Status: {Status}", result.Status);
+                _logger.LogWarning("Error applying options. Status: {Status}", result.Status);
             }
 
             await Task.Delay(2000, ct);
@@ -380,12 +380,12 @@ public partial class frmLicenseMaster : Form
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("Operación de aplicación cancelada");
+            _logger.LogDebug("Apply operation cancelled");
             HideFeedback();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error aplicando opciones de licencia");
+            _logger.LogError(ex, "Error applying license options");
             ShowFailureFeedback();
 
             ShowErrorFeedback($"Error applying changes: {ex.Message}");
@@ -407,7 +407,7 @@ public partial class frmLicenseMaster : Form
     }
     
     /// <summary>
-    /// Muestra indicador visual de éxito.
+    /// Shows success visual indicator.
     /// </summary>
     private void ShowSuccessFeedback()
     {
@@ -416,7 +416,7 @@ public partial class frmLicenseMaster : Form
     }
     
     /// <summary>
-    /// Muestra indicador visual de fallo.
+    /// Shows a visual failure indicator.
     /// </summary>
     private void ShowFailureFeedback()
     {

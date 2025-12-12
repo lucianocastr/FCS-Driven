@@ -10,15 +10,15 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Devices;
 
 /// <summary>
-/// Servicio de descubrimiento de dispositivos Fiplex en puertos COM.
+/// Fiplex device discovery service for COM ports.
 /// 
-/// Características implementadas:
-/// - Escaneo COM1-COM255 con validación Win32
-/// - Comando I1 de identificación
-/// - Reintentos hasta 5 veces en caso de NACK
-/// - Timeout de 3 segundos por puerto
-/// - Validación de respuesta "Fiplex" con longitud >= 15
-/// - Resolución de dispositivo desde catálogo
+/// Implemented features:
+/// - COM1-COM255 scan with Win32 validation
+/// - I1 identification command
+/// - Up to 5 retries in case of NACK
+/// - 3 second timeout per port
+/// - "Fiplex" response validation with length >= 15
+/// - Device resolution from catalog
 /// </summary>
 public class DeviceDiscoveryService : IDeviceDiscoveryService
 {
@@ -27,7 +27,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     private readonly IDeviceCatalogService _catalog;
     private readonly ILogger<DeviceDiscoveryService> _logger;
 
-    // Constantes de configuración de escaneo
+    // Scan configuration constants
     private const int MinPort = 1;
     private const int MaxPort = 255;
     private const int MaxRetries = 5;
@@ -60,12 +60,12 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
             "Starting device scan from COM{MinPort} to COM{MaxPort} (Mode: {Mode})",
             MinPort, MaxPort, mode);
 
-        // Escanear todos los puertos COM
+        // Scan all COM ports
         for (int portNumber = MinPort; portNumber <= MaxPort; portNumber++)
         {
             ct.ThrowIfCancellationRequested();
 
-            // Reportar progreso
+            // Report progress
             progress?.Report(new ScanProgress(
                 CurrentPort: $"COM{portNumber}",
                 Completed: portNumber - MinPort + 1,
@@ -73,21 +73,21 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                 DevicesFound: foundDevices.Count
             ));
 
-            // Verificar disponibilidad del puerto
+            // Verify port availability
             if (!CheckComPort(portNumber))
             {
                 _logger.LogTrace("COM{Port} not available at system level", portNumber);
                 continue;
             }
 
-            // Verificar si el puerto puede abrirse
+            // Verify if the port can be opened
             if (!ExistePort(portNumber))
             {
                 _logger.LogTrace("COM{Port} cannot be opened (in use)", portNumber);
                 continue;
             }
 
-            // Intentar identificar dispositivo
+            // Attempt to identify device
             var device = await TryIdentifyDeviceAsync(portNumber, ct);
             if (device != null)
             {
@@ -111,7 +111,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     }
 
     /// <summary>
-    /// Verifica disponibilidad de puerto a nivel Win32 usando CreateFile/CloseHandle.
+    /// Verifies port availability at Win32 level using CreateFile/CloseHandle.
     /// </summary>
     private bool CheckComPort(int portNumber)
     {
@@ -147,7 +147,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     }
 
     /// <summary>
-    /// Verifica si el puerto puede abrirse intentándolo con SerialPort.
+    /// Checks if the port can be opened by attempting to open it with SerialPort.
     /// </summary>
     private bool ExistePort(int portNumber)
     {
@@ -165,19 +165,19 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     }
 
     /// <summary>
-    /// Intenta identificar dispositivo Fiplex en el puerto.
-    /// Envía comando I1 y analiza la respuesta para detectar dispositivos Fiplex.
+    /// Attempts to identify a Fiplex device on the port.
+    /// Sends I1 command and analyzes the response to detect Fiplex devices.
     /// </summary>
     private async Task<DeviceInfo?> TryIdentifyDeviceAsync(int portNumber, CancellationToken ct)
     {
         var portName = $"COM{portNumber}";
 
-        // Reintentos hasta MaxRetries
+        // Retry up to MaxRetries
         for (int retry = 0; retry < MaxRetries; retry++)
         {
             try
             {
-                // Abrir puerto
+                // Open port
                 var opened = await _serialPort.OpenAsync(portName, baudRate: 9600, ct: ct);
                 if (!opened)
                 {
@@ -185,10 +185,10 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     return null;
                 }
 
-                // Espera de 10ms antes de enviar comando
+                // Wait 10ms before sending command
                 await Task.Delay(10, ct);
 
-                // Enviar comando de identificación
+                // Send identification command
                 var command = new SerialCommand
                 {
                     Payload = IdentificationCommand,
@@ -201,7 +201,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
 
                 var result = await _pipeline.EnqueueCommandAsync(command);
 
-                // Cerrar puerto
+                // Close port
                 await _serialPort.CloseAsync();
 
                 var response = result.Data ?? string.Empty;
@@ -210,19 +210,19 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     "{Port} retry {Retry}: response={Response}",
                     portName, retry, response);
 
-                // Reintentar si respuesta es NACK
+                // Retry if response is NACK
                 if (response.Equals("NACK", StringComparison.OrdinalIgnoreCase))
                 {
-                    continue; // Reintentar
+                    continue; // Retry
                 }
 
-                // Verificar longitud mínima de respuesta
+                // Verify minimum response length
                 if (response.Length >= MinResponseLength)
                 {
-                    // Verificar si respuesta inicia con "Fiplex"
+                    // Verify if response starts with "Fiplex"
                     if (response.StartsWith(ExpectedPrefix, StringComparison.OrdinalIgnoreCase))
                     {
-                        // Resolver tipo de dispositivo desde catálogo
+                        // Resolve device type from catalog
                         var deviceInfo = _catalog.ResolveDevice(response);
                         if (deviceInfo != null)
                         {
@@ -237,7 +237,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     }
                 }
 
-                // Respuesta no v�lida, no reintentar m�s
+                // Invalid response, do not retry further
                 break;
             }
             catch (OperationCanceledException)
@@ -248,7 +248,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
             {
                 _logger.LogTrace(ex, "Error identifying device on {Port} retry {Retry}", portName, retry);
 
-                // Asegurar cierre del puerto
+                // Ensure port is closed
                 try
                 {
                     if (_serialPort.IsOpen)
@@ -264,7 +264,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     }
 
     /// <summary>
-    /// M�todos nativos de Win32 para validaci�n de puertos
+    /// Native Win32 methods for port validation
     /// </summary>
     private static class NativeMethods
     {
@@ -283,3 +283,4 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         public static extern bool CloseHandle(IntPtr hObject);
     }
 }
+

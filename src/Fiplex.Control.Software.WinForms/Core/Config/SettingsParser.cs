@@ -5,7 +5,7 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Config;
 
 /// <summary>
-/// Parser dual de archivos settings.cfg del dispositivo.
+/// Dual parser for device settings.cfg files.
 /// Soporta AMBOS formatos:
 /// 
 /// ---GET---
@@ -15,7 +15,7 @@ namespace Fiplex.Control.Software.WinForms.Core.Config;
 /// ---SaveCFG---
 /// COMMAND1,COMMAND2	length	message	mode
 /// 
-/// FORMATO C# NUEVO (separado por |):
+/// NEW C# FORMAT (pipe-separated):
 /// [GET:PageName]
 /// Command|encode|length|message
 /// </summary>
@@ -27,7 +27,7 @@ public class SettingsParser : ISettingsParser
         => _logger = logger;
 
     /// <summary>
-    /// Parsea archivo settings.cfg detectando automáticamente el formato.
+    /// Parses settings.cfg file automatically detecting the format.
     /// </summary>
     public async Task<List<CommandDefinition>> ParseSettingsAsync(string filePath)
     {
@@ -39,7 +39,7 @@ public class SettingsParser : ISettingsParser
 
         var content = await File.ReadAllTextAsync(filePath);
         
-        // Detectar formato por presencia de marcadores
+        // Detect format by presence of markers
         if (content.Contains("---GET---") || content.Contains("---POST---"))
         {
             _logger.LogInformation("Detected legacy format in {Path}", filePath);
@@ -58,17 +58,17 @@ public class SettingsParser : ISettingsParser
     }
 
     /// <summary>
-    /// También soporta formato "--- GET Commands", "--- POST Commands", etc.
-    /// Campos separados por TAB.
+    /// Also supports format "--- GET Commands", "--- POST Commands", etc.
+    /// Fields separated by TAB.
     /// </summary>
     private Task<List<CommandDefinition>> ParseVbNetFormatAsync(string filePath, string content)
     {
         var commands = new List<CommandDefinition>();
         
-        // Normalizar saltos de línea
+        // Normalize line breaks
         content = content.Replace("\r\n", "\n");
         
-        // Dividir por secciones usando ---
+        // Split by sections using ---
         var sections = content.Split(new[] { "---" }, StringSplitOptions.RemoveEmptyEntries);
         
         foreach (var section in sections)
@@ -76,26 +76,26 @@ public class SettingsParser : ISettingsParser
             var lines = section.Split('\n', StringSplitOptions.RemoveEmptyEntries);
             if (lines.Length == 0) continue;
             
-            // Primera línea es el nombre de sección
-            // Puede ser: "GET---", "POST---", "GET Commands", "POST Commands", etc.
+            // First line is the section name
+            // Can be: "GET---", "POST---", "GET Commands", "POST Commands", etc.
             var rawSectionName = lines[0].Trim().TrimEnd('-').ToUpperInvariant();
             
-            // Extraer solo la palabra clave (primera palabra)
+            // Extract only the keyword (first word)
             // "GET COMMANDS" -> "GET", "SAVECFG" -> "SAVECFG"
             var sectionName = rawSectionName.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault() ?? "";
             
-            _logger.LogDebug("Procesando sección: '{RawName}' -> '{SectionName}'", rawSectionName, sectionName);
+            _logger.LogDebug("Processing section: '{RawName}' -> '{SectionName}'", rawSectionName, sectionName);
             
-            // Procesar según tipo de sección
+            // Process according to section type
             for (int i = 1; i < lines.Length; i++)
             {
                 var line = lines[i].Trim();
                 
-                // Saltar comentarios y líneas vacías
+                // Skip comments and empty lines
                 if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#") || line.StartsWith(";"))
                     continue;
                 
-                // Las líneas están separadas por TAB
+                // Lines are separated by TAB
                 var parts = line.Split('\t');
                 
                 if (sectionName == "GET" && parts.Length >= 2)
@@ -134,7 +134,7 @@ public class SettingsParser : ISettingsParser
     }
 
     /// <summary>
-    /// Parsea línea GET:
+    /// Parses GET line:
     /// </summary>
     private CommandDefinition? ParseGetCommand(string[] parts)
     {
@@ -147,14 +147,14 @@ public class SettingsParser : ISettingsParser
         var encodeStr = parts.Length > 2 ? parts[2].Trim().ToLowerInvariant() : "0";
         var hexEncoding = encodeStr == "hex" || encodeStr == "1";
         
-        // length: puede ser número, "splitwith3tabs:N", o lista separada por comas
+        // length: can be number, "splitwith3tabs:N", or comma-separated list
         var lengthStr = parts.Length > 3 ? parts[3].Trim() : "";
         int expectedLength = ParseLength(lengthStr);
         
-        // noEncode: parámetros que no codificar (opcional)
+        // noEncode: parameters not to encode (optional)
         var noEncode = parts.Length > 4 ? parts[4].Trim() : "";
         
-        // urlParams: parámetros URL esperados (opcional)
+        // urlParams: expected URL parameters (optional)
         var urlParams = parts.Length > 5 ? parts[5].Trim() : "";
         
         return new CommandDefinition(
@@ -188,11 +188,11 @@ public class SettingsParser : ISettingsParser
         var encodeStr = parts.Length > 2 ? parts[2].Trim().ToLowerInvariant() : "0";
         var hexEncoding = encodeStr == "hex" || encodeStr == "1";
         
-        // waitResponse: "1" espera respuesta, "0" fire-and-forget
+        // waitResponse: "1" waits for response, "0" fire-and-forget
         var waitResponseStr = parts.Length > 3 ? parts[3].Trim() : "1";
         var waitResponse = waitResponseStr == "1";
         
-        // noEncode: parámetros que no codificar (opcional)
+        // noEncode: parameters not to encode (optional)
         var noEncode = parts.Length > 4 ? parts[4].Trim() : "";
         
         return new CommandDefinition(
@@ -212,10 +212,10 @@ public class SettingsParser : ISettingsParser
     }
 
     /// <summary>
-    /// Parsea línea FILE (SaveCFG, LoadCFG, SaveCAL, LoadCAL):
+    /// Parses FILE line (SaveCFG, LoadCFG, SaveCAL, LoadCAL):
     /// COMMAND1,COMMAND2	length	message	mode
     /// 
-    /// Ejemplo settings.cfg:
+    /// Example settings.cfg:
     /// ---SaveCFG---
     /// C1,F1,S1	splitwith3tabs:40	Saving configuration...	normal
     /// </summary>
@@ -223,19 +223,19 @@ public class SettingsParser : ISettingsParser
     {
         if (parts.Length < 1) return null;
         
-        // Primer campo: comandos separados por coma
+        // First field: commands separated by comma
         var commands = parts[0].Trim();
         
-        // Segundo campo: longitud esperada (opcional)
+        // Second field: expected length (optional)
         var lengthStr = parts.Length > 1 ? parts[1].Trim() : "";
         
-        // Tercer campo: mensaje UI (opcional)
+        // Third field: UI message (optional)
         var message = parts.Length > 2 ? parts[2].Trim() : "";
         
-        // Cuarto campo: modo (opcional)
+        // Fourth field: mode (optional)
         var mode = parts.Length > 3 ? parts[3].Trim() : "";
         
-        // Mapear nombre de sección a FileOperationType string
+        // Map section name to FileOperationType string
         var operationType = sectionName switch
         {
             "SAVECFG" => "SaveCFG",
@@ -246,8 +246,8 @@ public class SettingsParser : ISettingsParser
         };
         
         return new CommandDefinition(
-            Page: operationType, // Usamos el tipo de operación como identificador
-            Command: commands,   // Lista de comandos separados por coma
+            Page: operationType, // We use the operation type as identifier
+            Command: commands,   // List of commands separated by comma
             RequiresEncoding: false,
             LengthValidation: lengthStr,
             Message: message
@@ -262,11 +262,11 @@ public class SettingsParser : ISettingsParser
     }
 
     /// <summary>
-    /// Parsea string de longitud que puede ser:
-    /// - Número: "128"
-    /// - Lista: "128,256,512"
+    /// Parses length string that can be:
+    /// - Number: "128"
+    /// - List: "128,256,512"
     /// - SplitWith3Tabs: "splitwith3tabs:40"
-    /// - Vacío: "" (sin validación)
+    /// - Empty: "" (no validation)
     /// </summary>
     private int ParseLength(string lengthStr)
     {
@@ -277,10 +277,10 @@ public class SettingsParser : ISettingsParser
         {
             var countStr = lengthStr.Substring("splitwith3tabs:".Length);
             if (int.TryParse(countStr, out var count))
-                return count * -1; // Negativo indica formato splitwith3tabs
+                return count * -1; // Negative indicates splitwith3tabs format
         }
         
-        // Lista de longitudes (tomar primera)
+        // List of lengths (take first)
         if (lengthStr.Contains(','))
         {
             var firstLen = lengthStr.Split(',')[0].Trim();
@@ -288,7 +288,7 @@ public class SettingsParser : ISettingsParser
                 return len;
         }
         
-        // Número simple
+        // Simple number
         if (int.TryParse(lengthStr, out var length))
             return length;
         
@@ -296,8 +296,8 @@ public class SettingsParser : ISettingsParser
     }
 
     /// <summary>
-    /// Parsea formato C# nuevo con secciones [GET:PageName].
-    /// Campos separados por |.
+    /// Parses new C# format with [GET:PageName] sections.
+    /// Fields separated by |.
     /// </summary>
     private Task<List<CommandDefinition>> ParseCSharpFormatAsync(string filePath, string content)
     {
@@ -311,16 +311,16 @@ public class SettingsParser : ISettingsParser
         {
             var line = rawLine.Trim();
 
-            // Comentarios
+            // Comments
             if (line.StartsWith("#") || line.StartsWith(";") || string.IsNullOrWhiteSpace(line))
                 continue;
 
-            // Sección [PageName] o [GET:PageName], [POST:PageName]
+            // Section [PageName] or [GET:PageName], [POST:PageName]
             if (line.StartsWith("[") && line.EndsWith("]"))
             {
                 var section = line.Trim('[', ']');
                 
-                // Detectar método HTTP explícito
+                // Detect explicit HTTP method
                 if (section.Contains(':'))
                 {
                     var sectionParts = section.Split(':', 2);
@@ -337,7 +337,7 @@ public class SettingsParser : ISettingsParser
                 continue;
             }
 
-            // Comando: Command|RequiresEncoding|LengthValidation|Message
+            // Command: Command|RequiresEncoding|LengthValidation|Message
             if (currentPage != null && line.Contains('|'))
             {
                 var parts = line.Split('|');

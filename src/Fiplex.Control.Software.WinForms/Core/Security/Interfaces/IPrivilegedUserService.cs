@@ -1,36 +1,36 @@
 namespace Fiplex.Control.Software.WinForms.Core.Security.Interfaces;
 
 /// <summary>
-/// Servicio para validación de usuarios privilegiados.
+/// Service for privileged user validation.
 /// </summary>
 /// <remarks>
-/// Un usuario privilegiado cumple:
-/// 1. Username está en whitelist hardcodeada
-/// 2. Existe archivo Desktop\pass.bin con password
+/// A privileged user meets:
+/// 1. Username is in hardcoded whitelist
+/// 2. Desktop\pass.bin file exists with password
 /// </remarks>
 public interface IPrivilegedUserService
 {
     /// <summary>
-    /// Indica si el usuario actual está en la whitelist de usuarios privilegiados.
-    /// NO verifica existencia de pass.bin.
+    /// Indicates if the current user is in the privileged users whitelist.
+    /// Does NOT verify pass.bin existence.
     /// </summary>
     bool IsCurrentUserInWhitelist { get; }
     
     /// <summary>
-    /// Valida completamente si el usuario es privilegiado:
-    /// 1. Verifica whitelist
-    /// 2. Verifica existencia de pass.bin en Desktop
-    /// 3. Lee password del archivo
+    /// Fully validates if user is privileged:
+    /// 1. Verifies whitelist
+    /// 2. Verifies pass.bin existence on Desktop
+    /// 3. Reads password from file
     /// </summary>
     /// <returns>
-    /// Tupla con:
-    /// - IsValid: true si usuario privilegiado Y pass.bin existe
-    /// - Password: contenido de pass.bin si válido, null si no
+    /// Tuple with:
+    /// - IsValid: true if privileged user AND pass.bin exists
+    /// - Password: content of pass.bin if valid, null if not
     /// </returns>
     Task<(bool IsValid, string? Password)> ValidatePrivilegedUserAsync();
     
     /// <summary>
-    /// Obtiene la ruta esperada del archivo pass.bin
+    /// Gets the expected path of pass.bin file
     /// </summary>
     string PasswordFilePath { get; }
 }

@@ -6,13 +6,13 @@ public interface IWatchdogService : IDisposable
     Task StopAsync();
     
     /// <summary>
-    /// Resetea el timer del watchdog.
-    /// Debe llamarse en cada comando serial enviado para mantener sesión activa.
+    /// Resets the watchdog timer.
+    /// Must be called on each serial command sent to keep the session active.
     /// </summary>
     void Reset();
     
     /// <summary>
-    /// Indica si el watchdog está activo.
+    /// Indicates whether the watchdog is active.
     /// </summary>
     bool IsEnabled { get; }
     

@@ -5,9 +5,9 @@ using System.Text;
 namespace Fiplex.Control.Software.WinForms.Core.Commands;
 
 /// <summary>
-/// Parser para opciones de licencia de hardware (comandos M0/M1).
+/// Parser for hardware license options (M0/M1 commands).
 /// 
-/// Formato hex de 14 caracteres:
+/// Hex format of 14 characters:
 /// [1-2]   Boot mask       - bit0=1 → VHF/UHF, bit0=0 → 700/800
 /// [3-4]   FW0 mask        - Opciones banda 700/800
 /// [5-6]   PowerDL 700     - Signed byte (-128..127)
@@ -16,7 +16,7 @@ namespace Fiplex.Control.Software.WinForms.Core.Commands;
 /// [11-12] PowerDL VHF     - Signed byte (-128..127)
 /// [13-14] PowerDL UHF     - Signed byte (-128..127)
 /// 
-/// Bits de máscara FW:
+/// FW mask bits:
 ///   bit0: chEnabled[band0] (Narrow Filters)
 ///   bit1: adjEnabled[band0] (AdjBW Filters)
 ///   bit2: chEnabled[band1] (Narrow Filters)
@@ -40,7 +40,7 @@ public class LicenseOptionsParser
     }
     
     /// <summary>
-    /// Valida si una cadena es hex válido para M1.
+    /// Validates if a string is valid hex for M1.
     /// </summary>
     public bool IsValidHex(string? hexResponse)
     {
@@ -54,17 +54,17 @@ public class LicenseOptionsParser
     }
 
     /// <summary>
-    /// Decodifica respuesta hex del comando M1.
+    /// Decodes hex response from M1 command.
     /// </summary>
-    /// <param name="hexResponse">String hex de 14 caracteres desde comando M1</param>
-    /// <returns>Opciones de licencia decodificadas</returns>
+    /// <param name="hexResponse">14-character hex string from M1 command</param>
+    /// <returns>Decoded license options</returns>
     public LicenseOptions Parse(string hexResponse)
     {
         var result = new LicenseOptions();
 
         if (!IsValidHex(hexResponse))
         {
-            _logger.LogWarning("Parse: respuesta hex inválida: '{Response}' (esperado {Expected} caracteres hex)", 
+            _logger.LogWarning("Parse: invalid hex response: '{Response}' (expected {Expected} hex characters)", 
                 hexResponse ?? "null", ExpectedHexLength);
             return result;
         }
@@ -77,17 +77,17 @@ public class LicenseOptionsParser
             int bootMask = ParseHexByte(hexResponse, BootMaskOffset);
             result.BootFirmware = (short)((bootMask & 0x01) != 0 ? 1 : 0);
 
-            // Procesar FW0 (700/800) y FW1 (VHF/UHF)
+            // Process FW0 (700/800) and FW1 (VHF/UHF)
             for (int fw = 0; fw <= 1; fw++)
             {
-                // Offset: FW0 comienza en posición 2, FW1 en posición 8
+                // Offset: FW0 starts at position 2, FW1 at position 8
                 int offset = FW0Offset + (fw * FWBlockSize);
                 int mask = ParseHexByte(hexResponse, offset);
 
-                int band0 = fw * 2;      // 0 o 2
-                int band1 = band0 + 1;   // 1 o 3
+                int band0 = fw * 2;      // 0 or 2
+                int band1 = band0 + 1;   // 1 or 3
 
-                // Decodificar bits de máscara
+                // Decode mask bits
                 //   .chEnabled(2 * i) = mask And &H1
                 //   .adjEnabled(2 * i) = mask And &H2
                 //   .chEnabled(2 * i + 1) = mask And &H4
@@ -108,7 +108,7 @@ public class LicenseOptionsParser
                 result.PowerLimitDownlink[band1] = ParseSignedByte(hexResponse, offset + 4);
             }
 
-            _logger.LogDebug("Parse exitoso: Boot={Boot}, Narrow=[{N0},{N1},{N2},{N3}], Power=[{P0},{P1},{P2},{P3}]",
+            _logger.LogDebug("Parse successful: Boot={Boot}, Narrow=[{N0},{N1},{N2},{N3}], Power=[{P0},{P1},{P2},{P3}]",
                 result.BootFirmware,
                 result.NarrowFiltersEnabled[0], result.NarrowFiltersEnabled[1],
                 result.NarrowFiltersEnabled[2], result.NarrowFiltersEnabled[3],
@@ -117,17 +117,17 @@ public class LicenseOptionsParser
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error parseando opciones de licencia: {Hex}", hexResponse);
+            _logger.LogError(ex, "Error parsing license options: {Hex}", hexResponse);
         }
 
         return result;
     }
 
     /// <summary>
-    /// Codifica opciones a string hex para comando M0.
+    /// Encodes options to hex string for M0 command.
     /// </summary>
-    /// <param name="options">Opciones a codificar</param>
-    /// <returns>String hex de 14 caracteres para enviar con M0</returns>
+    /// <param name="options">Options to encode</param>
+    /// <returns>Hex string of 14 characters to send with M0</returns>
     public string ToHexString(LicenseOptions options)
     {
         var sb = new StringBuilder(14);
@@ -141,13 +141,13 @@ public class LicenseOptionsParser
             int bootMask = options.BootFirmware == 1 ? 0x01 : 0x00;
             sb.Append(bootMask.ToString("X2"));
 
-            // FW0 y FW1
+            // FW0 and FW1
             for (int fw = 0; fw <= 1; fw++)
             {
                 int band0 = fw * 2;
                 int band1 = band0 + 1;
 
-                // Construir máscara de opciones
+                // Build options mask
                 //   mask = 0
                 //   If .chEnabled(2 * i) Then mask = mask Or &H1
                 //   If .adjEnabled(2 * i) Then mask = mask Or &H2

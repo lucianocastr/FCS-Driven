@@ -1,25 +1,25 @@
 namespace Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 
 /// <summary>
-/// Servicio para validación de respuestas serial.
+/// Service for serial response validation.
 /// </summary>
 public interface IResponseValidator
 {
     /// <summary>
-    /// Valida si la respuesta cumple con la especificación de longitud.
+    /// Validates whether the response meets the length specification.
     /// </summary>
-    /// <param name="response">Respuesta del dispositivo</param>
-    /// <param name="lengthSpec">Especificación de longitud (ej: "128", "128,256", "splitwith3tabs:40")</param>
-    /// <returns>True si la respuesta es válida</returns>
+    /// <param name="response">Device response</param>
+    /// <param name="lengthSpec">Length specification (e.g.: "128", "128,256", "splitwith3tabs:40")</param>
+    /// <returns>True if the response is valid</returns>
     bool ValidateLength(string response, string lengthSpec);
     
     /// <summary>
-    /// Valida si la respuesta contiene credenciales inválidas.
+    /// Validates whether the response contains invalid credentials.
     /// </summary>
     bool ContainsInvalidCredentials(string response);
     
     /// <summary>
-    /// Extrae mensaje de error si la respuesta indica un error.
+    /// Extracts error message if the response indicates an error.
     /// </summary>
     string? ExtractErrorMessage(string response);
 }

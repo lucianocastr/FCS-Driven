@@ -8,8 +8,8 @@ using Microsoft.Extensions.Options;
 namespace Fiplex.Control.Software.WinForms.Core.Security;
 
 /// <summary>
-/// Generador de tokens offline desde backend.
-/// Realiza llamadas HTTP para obtener tokens de servicios externos.
+/// Offline token generator from backend.
+/// Makes HTTP calls to obtain tokens from external services.
 /// </summary>
 public class OfflineTokenGenerator : IOfflineTokenGenerator
 {
@@ -38,7 +38,7 @@ public class OfflineTokenGenerator : IOfflineTokenGenerator
     {
         if (string.IsNullOrEmpty(_endpoints.OfflineApi))
         {
-            _logger.LogWarning("OfflineApi endpoint no configurado");
+            _logger.LogWarning("OfflineApi endpoint not configured");
             return string.Empty;
         }
 
@@ -49,14 +49,14 @@ public class OfflineTokenGenerator : IOfflineTokenGenerator
             using var request = new HttpRequestMessage(HttpMethod.Get, _endpoints.OfflineApi);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", idToken);
 
-            _logger.LogDebug("Solicitando offline token desde: {Url}", _endpoints.OfflineApi);
+            _logger.LogDebug("Requesting offline token from: {Url}", _endpoints.OfflineApi);
             
             var response = await _httpClient.SendAsync(request, ct);
             
             if (!response.IsSuccessStatusCode)
             {
                 var errorContent = await response.Content.ReadAsStringAsync(ct);
-                _logger.LogError("Error obteniendo offline token. Status: {Status}, Error: {Error}", 
+                _logger.LogError("Error getting offline token. Status: {Status}, Error: {Error}", 
                     response.StatusCode, errorContent);
                 
                 if (response.StatusCode == System.Net.HttpStatusCode.InternalServerError)
@@ -64,29 +64,29 @@ public class OfflineTokenGenerator : IOfflineTokenGenerator
                     throw new HttpRequestException("Unable to connect to server. Please try again later.");
                 }
                 
-                throw new HttpRequestException($"Error del servidor: {response.StatusCode}");
+                throw new HttpRequestException($"Server error: {response.StatusCode}");
             }
 
             var offlineToken = await response.Content.ReadAsStringAsync(ct);
             
             progress?.Report(40);
             
-            _logger.LogInformation("Offline token obtenido exitosamente");
+            _logger.LogInformation("Offline token obtained successfully");
             return offlineToken;
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "Error de red obteniendo offline token");
+            _logger.LogError(ex, "Network error getting offline token");
             throw;
         }
         catch (TaskCanceledException ex) when (ex.CancellationToken == ct)
         {
-            _logger.LogWarning("Solicitud de offline token cancelada");
+            _logger.LogWarning("Offline token request cancelled");
             throw;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inesperado obteniendo offline token");
+            _logger.LogError(ex, "Unexpected error getting offline token");
             throw new HttpRequestException("Internal server error. Please try again later.", ex);
         }
     }
@@ -98,7 +98,7 @@ public class OfflineTokenGenerator : IOfflineTokenGenerator
     {
         if (string.IsNullOrEmpty(_endpoints.PublicKeyUrl))
         {
-            _logger.LogWarning("PublicKeyUrl endpoint no configurado");
+            _logger.LogWarning("PublicKeyUrl endpoint not configured");
             return string.Empty;
         }
 
@@ -106,23 +106,23 @@ public class OfflineTokenGenerator : IOfflineTokenGenerator
 
         try
         {
-            _logger.LogDebug("Solicitando clave pública desde: {Url}", _endpoints.PublicKeyUrl);
+            _logger.LogDebug("Requesting public key from: {Url}", _endpoints.PublicKeyUrl);
             
             var publicKeyString = await _httpClient.GetStringAsync(_endpoints.PublicKeyUrl, ct);
             
             progress?.Report(70);
             
-            _logger.LogInformation("Clave pública obtenida exitosamente");
+            _logger.LogInformation("Public key obtained successfully");
             return publicKeyString;
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "Error obteniendo clave pública");
+            _logger.LogError(ex, "Error getting public key");
             throw new HttpRequestException($"Public Key Api Call failed: {ex.Message}", ex);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inesperado obteniendo clave pública");
+            _logger.LogError(ex, "Unexpected error getting public key");
             throw;
         }
     }
@@ -135,7 +135,7 @@ public class OfflineTokenGenerator : IOfflineTokenGenerator
     {
         if (string.IsNullOrEmpty(_endpoints.ClssCloudTokenUrl))
         {
-            _logger.LogWarning("ClssCloudTokenUrl endpoint no configurado");
+            _logger.LogWarning("ClssCloudTokenUrl endpoint not configured");
             return new CloudCallTokenResult();
         }
 
@@ -146,7 +146,7 @@ public class OfflineTokenGenerator : IOfflineTokenGenerator
             using var request = new HttpRequestMessage(HttpMethod.Post, _endpoints.ClssCloudTokenUrl);
             request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", refreshToken);
 
-            _logger.LogDebug("Solicitando cloud call token desde: {Url}", _endpoints.ClssCloudTokenUrl);
+            _logger.LogDebug("Requesting cloud call token from: {Url}", _endpoints.ClssCloudTokenUrl);
             
             var response = await _httpClient.SendAsync(request, ct);
             response.EnsureSuccessStatusCode();
@@ -156,7 +156,7 @@ public class OfflineTokenGenerator : IOfflineTokenGenerator
 
             if (jsonResult == null)
             {
-                _logger.LogWarning("Respuesta de cloud call token vacía o inválida");
+                _logger.LogWarning("Empty or invalid cloud call token response");
                 return new CloudCallTokenResult();
             }
 
@@ -168,22 +168,22 @@ public class OfflineTokenGenerator : IOfflineTokenGenerator
 
             progress?.Report(85);
             
-            _logger.LogInformation("Cloud call token obtenido exitosamente");
+            _logger.LogInformation("Cloud call token obtained successfully");
             return result;
         }
         catch (HttpRequestException ex)
         {
-            _logger.LogError(ex, "Error obteniendo cloud call token");
+            _logger.LogError(ex, "Error getting cloud call token");
             return new CloudCallTokenResult();
         }
         catch (JsonException ex)
         {
-            _logger.LogError(ex, "Error deserializando respuesta de cloud call token");
+            _logger.LogError(ex, "Error deserializing cloud call token response");
             return new CloudCallTokenResult();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inesperado obteniendo cloud call token");
+            _logger.LogError(ex, "Unexpected error getting cloud call token");
             return new CloudCallTokenResult();
         }
     }
@@ -193,26 +193,26 @@ public class OfflineTokenGenerator : IOfflineTokenGenerator
     {
         try
         {
-            // Cargar refresh token almacenado
+            // Load stored refresh token
             var refreshToken = await _tokenManager.LoadOfflineTokenAsync(
                 OfflineTokenManager.REFRESH_TOKEN_NAME, ct);
 
             if (string.IsNullOrEmpty(refreshToken))
             {
-                _logger.LogWarning("No hay refresh token almacenado para renovar");
+                _logger.LogWarning("No stored refresh token to renew");
                 return string.Empty;
             }
 
-            // Obtener nuevo token
+            // Get new token
             var tokenResult = await GetCloudCallTokenAsync(refreshToken, null, ct);
 
             if (string.IsNullOrEmpty(tokenResult.CloudCallAccessToken))
             {
-                _logger.LogWarning("No se pudo obtener un token válido");
+                _logger.LogWarning("Could not obtain a valid token");
                 return string.Empty;
             }
 
-            // Almacenar tokens actualizados
+            // Store updated tokens
             if (!string.IsNullOrEmpty(tokenResult.RefreshToken))
             {
                 await _tokenManager.StoreOfflineTokenAsync(
@@ -226,12 +226,12 @@ public class OfflineTokenGenerator : IOfflineTokenGenerator
                 OfflineTokenManager.CLOUD_CALL_TOKEN_NAME, 
                 ct);
 
-            _logger.LogInformation("Token renovado y almacenado exitosamente");
+            _logger.LogInformation("Token renewed and stored successfully");
             return tokenResult.CloudCallAccessToken;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error renovando token");
+            _logger.LogError(ex, "Error renewing token");
             return string.Empty;
         }
     }

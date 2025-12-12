@@ -29,7 +29,7 @@
         /// <remarks>
         /// Layout:
         /// - Form: ~270x85 px (compacto)
-        /// - GroupBox sin texto, borde sutil
+        /// - GroupBox without text, subtle border
         /// - Key + TextBox en fila superior
         /// - Dos botones centrados + indicador OK/KO
         /// </remarks>

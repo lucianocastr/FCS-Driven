@@ -8,8 +8,8 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Commands;
 
 /// <summary>
-/// Construye tramas de configuración dinámicas para dispositivos que no tienen
-/// configuraciones hardcodeadas (1c v4/v5, 1dm, 1dr, 1cm).
+/// Builds dynamic configuration frames for devices that don't have
+/// hardcoded configurations (1c v4/v5, 1dm, 1dr, 1cm).
 /// </summary>
 public class DynamicConfigBuilder
 {
@@ -25,15 +25,15 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Construye las tramas de configuración dinámicas para el dispositivo.
+    /// Builds the dynamic configuration frames for the device.
     /// </summary>
-    /// <param name="tdev">Tipo de dispositivo</param>
-    /// <param name="ndev">Versión del dispositivo</param>
-    /// <param name="factoryParams">Parámetros de fábrica</param>
-    /// <param name="nchannels">Número de canales (1, 2, 6)</param>
-    /// <param name="mode">Modo para 2 canales (0=start, 1=center, 2=stop)</param>
-    /// <param name="clearROM">Si se debe limpiar EEPROM</param>
-    /// <returns>Lista de comandos a enviar</returns>
+    /// <param name="tdev">Device type</param>
+    /// <param name="ndev">Device version</param>
+    /// <param name="factoryParams">Factory parameters</param>
+    /// <param name="nchannels">Number of channels (1, 2, 6)</param>
+    /// <param name="mode">Mode for 2 channels (0=start, 1=center, 2=stop)</param>
+    /// <param name="clearROM">Whether to clear EEPROM</param>
+    /// <returns>List of commands to send</returns>
     public async Task<List<ProductionCommand>> BuildConfigFramesAsync(
         string tdev,
         double ndev,
@@ -46,7 +46,7 @@ public class DynamicConfigBuilder
 
         try
         {
-            // Verificar si es dispositivo ADJBW y no es clearROM
+            // Verify if it's an ADJBW device and not clearROM
             if (factoryParams.IsAdjBW && !clearROM)
             {
                 _logger.LogWarning("This option is not available for ADJBW BDA");
@@ -55,7 +55,7 @@ public class DynamicConfigBuilder
 
             string[] configFrames;
 
-            // Obtener configuración actual del dispositivo y formatear
+            // Get current device configuration and format
             switch (tdev)
             {
                 case "1dr" when ndev >= 2.1:
@@ -88,16 +88,16 @@ public class DynamicConfigBuilder
                 return commands;
             }
 
-            // Aplicar valores por defecto si clearROM
+            // Apply default values if clearROM
             if (clearROM)
             {
                 SetDefaultValues(configFrames, tdev, ndev, factoryParams);
             }
 
-            // Aplicar prefijos según tipo de dispositivo
+            // Apply prefixes according to device type
             ApplyCommandPrefixes(configFrames, tdev, ndev);
 
-            // Convertir a comandos de producción
+            // Convert to production commands
             for (int i = 0; i < configFrames.Length; i++)
             {
                 if (!string.IsNullOrEmpty(configFrames[i]))
@@ -112,7 +112,7 @@ public class DynamicConfigBuilder
                 }
             }
 
-            // Agregar comandos adicionales para clearROM
+            // Add additional commands for clearROM
             if (clearROM)
             {
                 AddClearROMCommands(commands, tdev, ndev);
@@ -129,7 +129,7 @@ public class DynamicConfigBuilder
     #region Frame Builders
 
     /// <summary>
-    /// Construye tramas para dispositivo 1dr (Remote).
+    /// Builds frames for 1dr (Remote) device.
     /// </summary>
     private async Task<string[]> BuildDRFramesAsync(FactoryParameters factoryParams, short nchannels, short mode)
     {
@@ -145,7 +145,7 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Construye tramas para dispositivo 1dm (Master).
+    /// Builds frames for 1dm (Master) device.
     /// </summary>
     private async Task<string[]> BuildDMFramesAsync(FactoryParameters factoryParams, short nchannels, short mode)
     {
@@ -169,7 +169,7 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Construye tramas para dispositivo 1cm.
+    /// Builds frames for 1cm device.
     /// </summary>
     private async Task<string[]> BuildCMFramesAsync(FactoryParameters factoryParams, short nchannels, short mode)
     {
@@ -188,11 +188,11 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Construye tramas para dispositivo 1c v4/v5.
+    /// Builds frames for 1c v4/v5 device.
     /// </summary>
     private async Task<string[]> BuildC4C5FramesAsync(FactoryParameters factoryParams, short nchannels, short mode, int version)
     {
-        // Obtener tramas D (frecuencias) y B (RF config)
+        // Get D frames (frequencies) and B frames (RF config)
         var d1Response = await SendCommandAsync("D1");
         var b1Response = await SendCommandAsync("B1");
 
@@ -218,7 +218,7 @@ public class DynamicConfigBuilder
         frames[2] = bParts[0];
         frames[3] = bParts[1];
 
-        // Para v4.2+, agregar trama C1 para ADJ
+        // For v4.2+, add C1 frame for ADJ
         if (version == 4 && factoryParams.NDev >= 4.2)
         {
             frames[4] = await SendCommandAsync("C1");
@@ -237,7 +237,7 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Construye tramas para dispositivo 1c v2/v3 (no ADJBW).
+    /// Builds frames for 1c v2/v3 device (non-ADJBW).
     /// </summary>
     private async Task<string[]> BuildCFramesAsync(FactoryParameters factoryParams, short nchannels, short mode, double ndev)
     {
@@ -247,7 +247,7 @@ public class DynamicConfigBuilder
             return Array.Empty<string>();
         }
 
-        // Si es ADJBW, no usar este builder
+        // If it's ADJBW, don't use this builder
         if (factoryParams.IsAdjBW)
         {
             return Array.Empty<string>();
@@ -263,7 +263,7 @@ public class DynamicConfigBuilder
     #region Frame Formatters
 
     /// <summary>
-    /// Formatea trama para 1dr.
+    /// Formats frame for 1dr.
     /// </summary>
     private string FormatDRFrame(string cfg, FactoryParameters factoryParams, short nchannels, short mode)
     {
@@ -287,7 +287,7 @@ public class DynamicConfigBuilder
             }
         }
 
-        // Máscara STANDBY
+        // STANDBY mask
         int maskStby = 0xFFFFFF;
         for (int i = 0; i < nchannels; i++)
         {
@@ -295,7 +295,7 @@ public class DynamicConfigBuilder
         }
         sb.Append(maskStby.ToString("X6"));
 
-        // Resto de la trama
+        // Rest of the frame
         int processedLength = sb.Length;
         if (processedLength < cfg.Length)
         {
@@ -306,7 +306,7 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Formatea tramas para 1dm.
+    /// Formats frames for 1dm.
     /// </summary>
     private void FormatDMFrames(string[] frames, FactoryParameters factoryParams, short nchannels, short mode)
     {
@@ -332,7 +332,7 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Formatea tramas para 1cm.
+    /// Formats frames for 1cm.
     /// </summary>
     private void FormatCMFrames(string[] frames, FactoryParameters factoryParams, short nchannels, short mode)
     {
@@ -352,13 +352,13 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Formatea tramas para 1c v4.
+    /// Formats frames for 1c v4.
     /// </summary>
     private void FormatC4Frames(string[] frames, FactoryParameters factoryParams, short nchannels, short mode)
     {
         var aux = new string[frames.Length];
 
-        // Tramas D (frecuencias)
+        // D frames (frequencies)
         var freqsDL = ComputeFreqs(nchannels, mode, 0, factoryParams);
         aux[0] = frames[0].Substring(0, 2);
         for (int i = 0; i < factoryParams.MaxChannels; i++)
@@ -391,11 +391,11 @@ public class DynamicConfigBuilder
             }
         }
 
-        // Tramas B (RF config)
+        // B frames (RF config)
         aux[2] = FormatRFConfigFrame(frames[2], factoryParams.MaxChannels, nchannels);
         aux[3] = FormatRFConfigFrame(frames[3], factoryParams.MaxChannels, nchannels);
 
-        // Frame 4 (ADJ) se mantiene intacto si existe
+        // Frame 4 (ADJ) is kept intact if it exists
         if (frames.Length > 4 && !string.IsNullOrEmpty(frames[4]))
         {
             aux[4] = frames[4];
@@ -405,13 +405,13 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Formatea tramas para 1c v5.
+    /// Formats frames for 1c v5.
     /// </summary>
     private void FormatC5Frames(string[] frames, FactoryParameters factoryParams, short nchannels, short mode)
     {
         var aux = new string[frames.Length];
 
-        // Tramas D (frecuencias) con soporte FirstNet (CH31)
+        // D frames (frequencies) with FirstNet support (CH31)
         var freqsDL = ComputeFreqs(nchannels, mode, 0, factoryParams);
         aux[0] = frames[0].Substring(0, 2);
         for (int i = 0; i < factoryParams.MaxChannels; i++)
@@ -450,7 +450,7 @@ public class DynamicConfigBuilder
         if (frames[1].Length >= 130)
             aux[1] += frames[1].Substring(126, 4); // Keep Sq Enable and threshold
 
-        // Tramas B (RF config)
+        // B frames (RF config)
         aux[2] = FormatRFConfigFrame(frames[2], factoryParams.MaxChannels, nchannels);
         aux[3] = FormatRFConfigFrame(frames[3], factoryParams.MaxChannels, nchannels);
 
@@ -458,18 +458,18 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Formatea trama C para 1c v2/v3.
+    /// Formats C frame for 1c v2/v3.
     /// </summary>
     private string FormatCFrame(string cfg, FactoryParameters factoryParams, short nchannels, short mode)
     {
-        // Implementación simplificada - la trama C para v2/v3 es más compleja
-        // y depende de múltiples factores. Por ahora retornamos la trama original.
+        // Simplified implementation - the C frame for v2/v3 is more complex
+        // and depends on multiple factors. For now we return the original frame.
         _logger.LogDebug("FormatCFrame: Using original frame for 1c v2/v3");
         return cfg;
     }
 
     /// <summary>
-    /// Formatea trama de configuración RF (B frames).
+    /// Formats RF configuration frame (B frames).
     /// </summary>
     private string FormatRFConfigFrame(string frame, short maxChannels, short nchannels)
     {
@@ -519,7 +519,7 @@ public class DynamicConfigBuilder
     #region Helper Methods
 
     /// <summary>
-    /// Calcula frecuencias para programar.
+    /// Computes frequencies to program.
     /// </summary>
     private int[] ComputeFreqs(short nchannels, short mode, int band, FactoryParameters factoryParams)
     {
@@ -574,7 +574,7 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Agrega frecuencias y máscara standby a la trama.
+    /// Appends frequencies and standby mask to the frame.
     /// </summary>
     private string AppendFreqsAndMask(string aux, string original, int startOffset, int[] freqs, short maxChannels, short nchannels)
     {
@@ -595,7 +595,7 @@ public class DynamicConfigBuilder
             }
         }
 
-        // Máscara STANDBY
+        // STANDBY mask
         int maskStby = 0xFFFFFF;
         for (int i = 0; i < nchannels; i++)
         {
@@ -603,7 +603,7 @@ public class DynamicConfigBuilder
         }
         sb.Append(maskStby.ToString("X6"));
 
-        // Resto de la trama
+        // Rest of the frame
         int expectedLength = startOffset + (maxChannels * 6) + 6;
         if (expectedLength < original.Length)
         {
@@ -614,25 +614,25 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Aplica valores por defecto cuando clearROM = true.
+    /// Applies default values when clearROM = true.
     /// </summary>
     private void SetDefaultValues(string[] frames, string tdev, double ndev, FactoryParameters factoryParams)
     {
-        // La implementación de SetDefaultValues es muy específica por dispositivo
-        // y modifica las tramas para resetear a valores de fábrica.
-        // Por ahora, dejamos las tramas como están ya que el formateo
-        // ya aplicó la lógica de canales.
+        // The SetDefaultValues implementation is very device-specific
+        // and modifies frames to reset to factory values.
+        // For now, we leave the frames as they are since formatting
+        // already applied the channel logic.
         _logger.LogDebug("SetDefaultValues called for {TDev} v{NDev}", tdev, ndev);
     }
 
     /// <summary>
-    /// Aplica prefijos de comando según tipo de dispositivo.
+    /// Applies command prefixes according to device type.
     /// </summary>
     private void ApplyCommandPrefixes(string[] frames, string tdev, double ndev)
     {
         if ((int)ndev == 4 || (int)ndev == 5 && tdev == "1c")
         {
-            // 1c v4/v5 usa prefijos especiales
+            // 1c v4/v5 uses special prefixes
             if (frames.Length >= 2)
             {
                 frames[0] = "D0" + frames[0];
@@ -650,7 +650,7 @@ public class DynamicConfigBuilder
         }
         else
         {
-            // Otros dispositivos usan prefijo C0
+            // Other devices use C0 prefix
             for (int i = 0; i < frames.Length; i++)
             {
                 if (!string.IsNullOrEmpty(frames[i]))
@@ -662,11 +662,11 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Agrega comandos adicionales para clearROM.
+    /// Adds additional commands for clearROM.
     /// </summary>
     private void AddClearROMCommands(List<ProductionCommand> commands, string tdev, double ndev)
     {
-        // Tag según tipo de dispositivo
+        // Tag according to device type
         string tagPayload = tdev switch
         {
             "1dm" when (int)ndev == 8 => "T00000MASTER FIPLEX  0.0 0.0        ",
@@ -686,7 +686,7 @@ public class DynamicConfigBuilder
             TimeoutSeconds = 5
         });
 
-        // Comandos adicionales para 1dm v8
+        // Additional commands for 1dm v8
         if (tdev == "1dm")
         {
             commands.Add(new ProductionCommand
@@ -705,7 +705,7 @@ public class DynamicConfigBuilder
             });
         }
 
-        // Umbrales para 1dr v4
+        // Thresholds for 1dr v4
         if (tdev == "1dr" && (int)ndev == 4)
         {
             commands.Add(new ProductionCommand
@@ -717,7 +717,7 @@ public class DynamicConfigBuilder
             });
         }
 
-        // Umbrales para 1dm v8
+        // Thresholds for 1dm v8
         if (tdev == "1dm" && (int)ndev == 8)
         {
             commands.Add(new ProductionCommand
@@ -731,7 +731,7 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Convierte string hexadecimal a entero.
+    /// Converts hexadecimal string to integer.
     /// </summary>
     private int AsciiToInt(string hex)
     {
@@ -749,7 +749,7 @@ public class DynamicConfigBuilder
     }
 
     /// <summary>
-    /// Envía comando y obtiene respuesta.
+    /// Sends command and gets response.
     /// </summary>
     private async Task<string> SendCommandAsync(string command)
     {

@@ -1,46 +1,46 @@
 namespace Fiplex.Control.Software.WinForms.Core.Security.Interfaces;
 
 /// <summary>
-/// Generador de tokens offline desde backend.
+/// Offline token generator from backend.
 /// </summary>
 public interface IOfflineTokenGenerator
 {
     /// <summary>
-    /// Obtiene un token offline desde el backend.
+    /// Gets an offline token from the backend.
     /// </summary>
-    /// <param name="idToken">Token de identidad para autorización Bearer.</param>
-    /// <param name="progress">Reporte de progreso (0-100).</param>
-    /// <param name="ct">Token de cancelación.</param>
-    /// <returns>Token offline como string.</returns>
+    /// <param name="idToken">Identity token for Bearer authorization.</param>
+    /// <param name="progress">Progress report (0-100).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Offline token as string.</returns>
     Task<string> GetOfflineTokenAsync(string idToken, IProgress<int>? progress = null, CancellationToken ct = default);
 
     /// <summary>
-    /// Obtiene la clave pública desde el backend.
+    /// Gets the public key from the backend.
     /// </summary>
-    /// <param name="progress">Reporte de progreso (0-100).</param>
-    /// <param name="ct">Token de cancelación.</param>
-    /// <returns>Clave pública como string Base64.</returns>
+    /// <param name="progress">Progress report (0-100).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Public key as Base64 string.</returns>
     Task<string> GetPublicKeyStringAsync(IProgress<int>? progress = null, CancellationToken ct = default);
 
     /// <summary>
-    /// Obtiene tokens para llamadas cloud desde el backend.
+    /// Gets tokens for cloud calls from the backend.
     /// </summary>
-    /// <param name="refreshToken">Token de refresco para autorización Bearer.</param>
-    /// <param name="progress">Reporte de progreso (0-100).</param>
-    /// <param name="ct">Token de cancelación.</param>
-    /// <returns>Par de tokens: cloudCallAccessToken y refreshToken actualizado.</returns>
+    /// <param name="refreshToken">Refresh token for Bearer authorization.</param>
+    /// <param name="progress">Progress report (0-100).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Token pair: cloudCallAccessToken and updated refreshToken.</returns>
     Task<CloudCallTokenResult> GetCloudCallTokenAsync(string refreshToken, IProgress<int>? progress = null, CancellationToken ct = default);
 
     /// <summary>
-    /// Obtiene un token válido renovando el actual.
+    /// Gets a valid token by renewing the current one.
     /// </summary>
-    /// <param name="ct">Token de cancelación.</param>
-    /// <returns>Access token renovado.</returns>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Renewed access token.</returns>
     Task<string> GetValidTokenAsync(CancellationToken ct = default);
 }
 
 /// <summary>
-/// Resultado de obtención de token para llamadas cloud.
+/// Result of token retrieval for cloud calls.
 /// </summary>
 public class CloudCallTokenResult
 {
@@ -50,7 +50,7 @@ public class CloudCallTokenResult
     public string CloudCallAccessToken { get; set; } = string.Empty;
 
     /// <summary>
-    /// Token de refresco actualizado.
+    /// Updated refresh token.
     /// </summary>
     public string RefreshToken { get; set; } = string.Empty;
 }

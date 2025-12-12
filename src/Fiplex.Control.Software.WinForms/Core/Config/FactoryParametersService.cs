@@ -4,7 +4,7 @@ using Fiplex.Control.Software.WinForms.Models;
 namespace Fiplex.Control.Software.WinForms.Core.Config;
 
 /// <summary>
-/// Servicio que obtiene par�metros de f�brica espec�ficos por tipo/versi�n de dispositivo.
+/// Service that obtains device-specific factory parameters by type/version.
 /// </summary>
 public class FactoryParametersService
 {
@@ -16,11 +16,11 @@ public class FactoryParametersService
     }
     
     /// <summary>
-    /// Obtiene par�metros de f�brica para un dispositivo espec�fico.
+    /// Gets factory parameters for a specific device.
     /// </summary>
     /// <param name="deviceType">Tipo de dispositivo (1cm, 1c, 1dm, 2c, 5dm, etc.)</param>
-    /// <param name="deviceVersion">Versi�n del dispositivo</param>
-    /// <param name="ct">Token de cancelaci�n</param>
+    /// <param name="deviceVersion">Device version</param>
+    /// <param name="ct">Cancellation token</param>
     /// <returns>FactoryParameters o null si no aplica</returns>
     public Task<FactoryParameters?> GetFactoryParametersAsync(
         string deviceType, 
@@ -29,12 +29,12 @@ public class FactoryParametersService
     {
         if (string.IsNullOrEmpty(deviceType))
         {
-            _logger.LogWarning("GetFactoryParametersAsync llamado con deviceType vac�o");
+            _logger.LogWarning("GetFactoryParametersAsync called with empty deviceType");
             return Task.FromResult<FactoryParameters?>(null);
         }
 
         _logger.LogInformation(
-            "Obteniendo par�metros de f�brica para {Type} v{Version}", 
+            "Getting factory parameters for {Type} v{Version}", 
             deviceType, deviceVersion);
             
         var parameters = deviceType.ToLowerInvariant() switch
@@ -55,7 +55,7 @@ public class FactoryParametersService
         }
         else
         {
-            _logger.LogDebug("No factory parameters para {Type} v{Version}", deviceType, deviceVersion);
+            _logger.LogDebug("No factory parameters for {Type} v{Version}", deviceType, deviceVersion);
         }
 
         return Task.FromResult(parameters);
@@ -113,7 +113,8 @@ public class FactoryParametersService
             IsAdjBW = false,
             BandWidth = 12500000.0,
             SupportsMultiChannel = false,
-            RequiresMultipartCommand = true // Flag para Etapa 2
+            RequiresMultipartCommand = true // Flag for Stage 2
         };
     }
 }
+

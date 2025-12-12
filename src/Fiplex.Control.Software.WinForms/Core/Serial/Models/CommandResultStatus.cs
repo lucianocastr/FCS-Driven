@@ -10,30 +10,30 @@ namespace Fiplex.Control.Software.WinForms.Core.Serial.Models;
 /// <seealso cref="ISerialCommandPipeline"/>
 public enum CommandResultStatus
 {
-    /// <summary>Comando ejecutado exitosamente</summary>
+    /// <summary>Command executed successfully</summary>
     Success,
     
-    /// <summary>Timeout esperando ACK</summary>
+    /// <summary>Timeout waiting for ACK</summary>
     AckTimeout,
     
-    /// <summary>Timeout esperando datos</summary>
+    /// <summary>Timeout waiting for data</summary>
     DataTimeout,
     
-    /// <summary>Máximo de reintentos excedido</summary>
+    /// <summary>Maximum retries exceeded</summary>
     MaxRetriesExceeded,
     
-    /// <summary>Comando cancelado</summary>
+    /// <summary>Command cancelled</summary>
     Cancelled,
     
-    /// <summary>Error genérico</summary>
+    /// <summary>Generic error</summary>
     Error,
     
-    /// <summary>Error de autenticación (INVALID CREDENTIALS)</summary>
+    /// <summary>Authentication error (INVALID CREDENTIALS)</summary>
     AuthenticationFailed,
     
-    /// <summary>Validación de respuesta fallida</summary>
+    /// <summary>Response validation failed</summary>
     ValidationFailed,
     
-    /// <summary>Error de protocolo</summary>
+    /// <summary>Protocol error</summary>
     ProtocolError
 }

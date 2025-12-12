@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Serial.Implementation;
 
 /// <summary>
-/// Pipeline de comandos serial con procesamiento completo de respuestas.
+/// Serial command pipeline with complete response processing.
 /// </summary>
 public sealed class SerialCommandPipeline : ISerialCommandPipeline
 {
@@ -26,26 +26,26 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     private volatile bool _waitingAnswer = false;
     private volatile bool _pendingAnswer = false;
     
-    // Contraseña para reintento automático (INVALID CREDENTIALS)
+    // Password for automatic retry (INVALID CREDENTIALS)
     private string? _storedPassword;
     
     /// <summary>
-    /// Indica si el parser está esperando LF (fin de trama).
+    /// Indicates if the parser is waiting for LF (end of frame).
     /// </summary>
     public bool IsWaitingLF => _parser.IsWaitingLF;
     
     /// <summary>
-    /// Indica si el pipeline está esperando respuesta del dispositivo.
+    /// Indicates if the pipeline is waiting for a device response.
     /// </summary>
     public bool IsWaitingAnswer => _waitingAnswer;
     
     /// <summary>
-    /// Indica si hay una respuesta pendiente de procesar.
+    /// Indicates if there is a pending response to process.
     /// </summary>
     public bool IsPendingAnswer => _pendingAnswer;
     
     /// <summary>
-    /// Longitud actual del buffer de recepción.
+    /// Current receive buffer length.
     /// </summary>
     public int BufferLength => _parser.BufferLength;
 
@@ -54,8 +54,8 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     public event Action<ProtocolToken>? TokenReceived;
     
     /// <summary>
-    /// Evento cuando se detecta INVALID CREDENTIALS.
-    /// Permite al llamador proporcionar contraseña para reintento.
+    /// Event when INVALID CREDENTIALS is detected.
+    /// Allows the caller to provide password for retry.
     /// </summary>
     public event Func<Task<string?>>? CredentialsRequired;
 
@@ -94,7 +94,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     }
     
     /// <summary>
-    /// Establece la contraseña para reintentos automáticos con INVALID CREDENTIALS.
+    /// Sets the password for automatic retries with INVALID CREDENTIALS.
     /// </summary>
     public void SetStoredPassword(string password)
     {
@@ -102,7 +102,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     }
     
     /// <summary>
-    /// Limpia la contraseña almacenada.
+    /// Clears the stored password.
     /// </summary>
     public void ClearStoredPassword()
     {
@@ -110,14 +110,14 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     }
     
     /// <summary>
-    /// Cancela todos los comandos pendientes en la cola.
-    /// Se usa al cargar base.js y durante desconexión.
+    /// Cancels all pending commands in the queue.
+    /// Used when loading base.js and during disconnection.
     /// </summary>
     public void CancelPendingCommands()
     {
-        _logger.LogInformation("Cancelando todos los comandos pendientes");
+        _logger.LogInformation("Cancelling all pending commands");
         
-        // Vaciar la cola y cancelar cada comando
+        // Empty queue and cancel each command
         var cancelledCount = 0;
         while (_commandQueue.TryDequeue(out var request))
         {
@@ -125,18 +125,18 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
             cancelledCount++;
         }
         
-        // Cancelar comando en proceso si existe
+        // Cancel in-progress command if exists
         if (_currentCommandContext != null)
         {
             _currentCommandContext.Cts.Cancel();
             cancelledCount++;
         }
         
-        // Reset estados
+        // Reset states
         _waitingAnswer = false;
         _pendingAnswer = false;
         
-        _logger.LogInformation("Comandos pendientes cancelados: {Count}", cancelledCount);
+        _logger.LogInformation("Pending commands cancelled: {Count}", cancelledCount);
     }
 
     public Task<SerialResult> EnqueueCommandAsync(SerialCommand command)
@@ -263,7 +263,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
                     if (ackResult == TokenType.InvalidCredentials)
                     {
-                        // INVALID CREDENTIALS - Intentar con contraseña
+                        // INVALID CREDENTIALS - Try with password
                         var retriedResult = await HandleInvalidCredentialsAsync(ctx, cmd, bytesSent);
                         if (retriedResult != null)
                         {
@@ -273,14 +273,14 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         continue;
                     }
 
-                    // NUEVO: Si recibimos DataFrame cuando esperábamos ACK, 
-                    // el dispositivo respondió directamente sin ACK (comportamiento válido para algunos dispositivos)
+                    // NEW: If we receive DataFrame when expecting ACK, 
+                    // the device responded directly without ACK (valid behavior for some devices)
                     if (ackResult == TokenType.DataFrame)
                     {
-                        _logger.LogDebug("DataFrame recibido directamente sin ACK previo para {CmdId}", cmd.Id);
+                        _logger.LogDebug("DataFrame received directly without previous ACK for {CmdId}", cmd.Id);
                         _pendingAnswer = false;
                         
-                        // Validar longitud si es necesario
+                        // Validate length if necessary
                         if (cmd.ExpectedLengths.Length > 0)
                         {
                             var lengthSpec = string.Join(",", cmd.ExpectedLengths);
@@ -333,7 +333,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
                     ctx.LastResponse = data;
 
-                    // VALIDACIÓN DE LONGITUD usando ResponseValidator
+                    // LENGTH VALIDATION using ResponseValidator
                     if (cmd.ExpectedLengths.Length > 0)
                     {
                         var lengthSpec = string.Join(",", cmd.ExpectedLengths);
@@ -373,7 +373,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     }
 
     /// <summary>
-    /// Maneja respuesta INVALID CREDENTIALS reintentando con contraseña.
+    /// Handles INVALID CREDENTIALS response by retrying with password.
     /// </summary>
     private async Task<SerialResult?> HandleInvalidCredentialsAsync(CommandContext ctx, SerialCommand cmd, int bytesSent)
     {
@@ -386,7 +386,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
         ctx.CredentialRetryCount++;
 
-        // Intentar obtener contraseña
+        // Try to get password
         var password = _storedPassword;
         
         if (string.IsNullOrEmpty(password) && CredentialsRequired != null)
@@ -402,7 +402,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 "INVALID CREDENTIALS - No password provided", null, null);
         }
 
-        // Construir comando con contraseña: "*0" + password + comando sin prefijo
+        // Build command with password: "*0" + password + command without prefix
         var cmdPayload = cmd.Payload;
         var authPayload = cmdPayload.Length >= 2 
             ? $"*0{password}{cmdPayload[2..]}"
@@ -411,25 +411,25 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
         _logger.LogInformation("Retrying command with authentication: {Original} -> {Auth}", 
             cmdPayload, authPayload.Length > 10 ? authPayload[..10] + "***" : "***");
 
-        // Enviar comando autenticado
+        // Send authenticated command
         var payload = Encoding.ASCII.GetBytes(authPayload + "\n");
         await _serialPort.WriteAsync(payload, ctx.Cts.Token);
 
-        // Esperar respuesta
+        // Wait for response
         if (cmd.ExpectsData)
         {
             var (dataResult, data) = await WaitForDataWithValidationAsync(cmd.DataTimeout, ctx.Cts.Token);
 
             if (dataResult == TokenType.DataFrame)
             {
-                // Validar respuesta si hay especificación
+                // Validate response if there is specification
                 if (cmd.ExpectedLengths.Length > 0)
                 {
                     var lengthSpec = string.Join(",", cmd.ExpectedLengths);
                     if (!_validator.ValidateLength(data, lengthSpec))
                     {
                         _logger.LogWarning("Auth retry response validation failed");
-                        return null; // Continuar con retry normal
+                        return null; // Continue with normal retry
                     }
                 }
 
@@ -444,9 +444,9 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                     data, null, null);
             }
 
-            // Caso especial: el dispositivo responde solo con ACK y no envía DataFrame.
-            // Para comandos de autenticación (como V1 retransmitido con *0{password})
-            // esto debe considerarse éxito si no se recibe un error explícito.
+            // Special case: the device responds only with ACK and doesn't send DataFrame.
+            // For authentication commands (like V1 retransmitted with *0{password})
+            // this should be considered success if no explicit error is received.
             if (dataResult == TokenType.Timeout)
             {
                 _logger.LogInformation("Auth retry got ACK without data, treating as success");
@@ -454,24 +454,24 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
             }
         }
 
-        return null; // Continuar con retry normal
+        return null; // Continue with normal retry
     }
 
     /// <summary>
-    /// Valida si la longitud de respuesta coincide con alguna longitud esperada.
-    /// Soporta:
-    /// - Longitud exacta: "128" → response.Length == 128
-    /// - Lista de longitudes: "128,256" → response.Length IN (128, 256)
-    /// - SplitWith3Tabs: "-40" (negativo) → Split(response, TAB).Length == 40
+    /// Validates if the response length matches any expected length.
+    /// Supports:
+    /// - Exact length: "128" → response.Length == 128
+    /// - Length list: "128,256" → response.Length IN (128, 256)
+    /// - SplitWith3Tabs: "-40" (negative) → Split(response, TAB).Length == 40
     /// </summary>
-    /// <param name="response">Respuesta del dispositivo</param>
-    /// <param name="expectedLengths">Array de longitudes esperadas como strings</param>
-    /// <returns>true si la longitud es válida o no hay validación configurada</returns>
+    /// <param name="response">Device response</param>
+    /// <param name="expectedLengths">Array of expected lengths as strings</param>
+    /// <returns>true if length is valid or no validation configured</returns>
     private bool IsValidResponse(string response, string[] expectedLengths)
     {
         if (string.IsNullOrEmpty(response) || expectedLengths.Length == 0)
         {
-            return true; // Sin validación si no hay longitudes esperadas
+            return true; // No validation if no expected lengths
         }
 
         var responseLength = response.Length;
@@ -480,7 +480,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
         {
             if (int.TryParse(expectedLengthStr, out var expectedLength))
             {
-                // Valores negativos = splitwith3tabs
+                // Negative values = splitwith3tabs
                 if (expectedLength < 0)
                 {
                     var tabCount = Math.Abs(expectedLength);
@@ -507,18 +507,18 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     }
 
     /// <summary>
-    /// Procesa comando multipart concatenando O1 y U1 con separador.
-    /// Usado para dispositivos 5dm que retornan respuestas en dos partes.
+    /// Processes multipart command concatenating O1 and U1 with separator.
+    /// Used for 5dm devices that return responses in two parts.
     /// </summary>
-    /// <param name="ct">Token de cancelaci�n</param>
-    /// <returns>Resultado con respuesta concatenada O1 + TAB + U1</returns>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>Result with concatenated response O1 + TAB + U1</returns>
     private async Task<SerialResult> ProcessMultipartCommandAsync(CancellationToken ct)
     {
-        _logger.LogInformation("Procesando comando multipart O1+U1");
+        _logger.LogInformation("Processing multipart command O1+U1");
 
         try
         {
-            // Ejecutar O1
+            // Execute O1
             var o1Command = new SerialCommand
             {
                 Payload = "O1",
@@ -530,16 +530,16 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 CancellationToken = ct
             };
 
-            _logger.LogDebug("Ejecutando O1 (parte 1/2)");
+            _logger.LogDebug("Executing O1 (part 1/2)");
             var o1Result = await EnqueueCommandAsync(o1Command);
 
             if (!o1Result.Success)
             {
-                _logger.LogError("Comando O1 fall� en multipart: {Status}", o1Result.Status);
+                _logger.LogError("O1 command failed in multipart: {Status}", o1Result.Status);
                 return o1Result;
             }
 
-            // Ejecutar U1
+            // Execute U1
             var u1Command = new SerialCommand
             {
                 Payload = "U1",
@@ -551,23 +551,23 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 CancellationToken = ct
             };
 
-            _logger.LogDebug("Ejecutando U1 (parte 2/2)");
+            _logger.LogDebug("Executing U1 (part 2/2)");
             var u1Result = await EnqueueCommandAsync(u1Command);
 
             if (!u1Result.Success)
             {
-                _logger.LogError("Comando U1 fall� en multipart: {Status}", u1Result.Status);
+                _logger.LogError("U1 command failed in multipart: {Status}", u1Result.Status);
                 return u1Result;
             }
 
-            // Concatenar respuestas con separador \t\t\t 
+            // Concatenate responses with \t\t\t separator 
             var combinedResponse = $"{o1Result.Data}\t\t\t{u1Result.Data}";
             
             _logger.LogInformation(
-                "Multipart completado exitosamente. O1: {O1Len} chars, U1: {U1Len} chars, Total: {TotalLen} chars",
+                "Multipart completed successfully. O1: {O1Len} chars, U1: {U1Len} chars, Total: {TotalLen} chars",
                 o1Result.Data.Length, u1Result.Data.Length, combinedResponse.Length);
 
-            // Retornar resultado combinado
+            // Return combined result
             return new SerialResult(
                 Guid.NewGuid(),
                 true,
@@ -579,7 +579,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error procesando comando multipart");
+            _logger.LogError(ex, "Error processing multipart command");
             return new SerialResult(
                 Guid.NewGuid(),
                 false,
@@ -644,7 +644,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     }
 
     /// <summary>
-    /// Espera un token y retorna su tipo junto con los datos.
+    /// Waits for a token and returns its type along with the data.
     /// Mejorado para detectar INVALID CREDENTIALS.
     /// </summary>
     private async Task<(TokenType, string)> WaitForTokenWithTypeAsync(TimeSpan timeout, CancellationToken ct)
@@ -672,7 +672,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     }
 
     /// <summary>
-    /// Espera datos con detección de INVALID CREDENTIALS.
+    /// Waits for data with INVALID CREDENTIALS detection.
     /// </summary>
     private async Task<(TokenType, string)> WaitForDataWithValidationAsync(TimeSpan timeout, CancellationToken ct)
     {
@@ -685,7 +685,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
             switch (token.Type)
             {
                 case TokenType.DataFrame:
-                    // Verificar si contiene INVALID CREDENTIALS
+                    // Verify if contains INVALID CREDENTIALS
                     if (_validator.ContainsInvalidCredentials(token.Data))
                     {
                         tcs.TrySetResult((TokenType.InvalidCredentials, token.Data));
@@ -701,7 +701,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                     break;
                     
                 case TokenType.Ack:
-                    // ACK puede venir antes de datos, no completar aún
+                    // ACK may come before data, don't complete yet
                     break;
                     
                 case TokenType.Nack:
@@ -760,3 +760,4 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
     public void Dispose() => StopAsync().GetAwaiter().GetResult();
 }
+

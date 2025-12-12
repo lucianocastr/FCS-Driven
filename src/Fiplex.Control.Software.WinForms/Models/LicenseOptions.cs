@@ -1,12 +1,12 @@
 namespace Fiplex.Control.Software.WinForms.Models;
 
 /// <summary>
-/// Opciones de licencia de hardware para dispositivos multi-banda.
+/// Hardware license options for multi-band devices.
 /// </summary>
 /// <remarks>
-/// Configuración de licencias por banda de frecuencia:
+/// License configuration per frequency band:
 /// <list type="table">
-///   <listheader><term>Índice</term><description>Banda</description></listheader>
+///   <listheader><term>Index</term><description>Band</description></listheader>
 ///   <item><term>0</term><description>FW0 BAND0 (700 MHz)</description></item>
 ///   <item><term>1</term><description>FW0 BAND1 (800 MHz)</description></item>
 ///   <item><term>2</term><description>FW1 BAND0 (VHF)</description></item>
@@ -15,39 +15,39 @@ namespace Fiplex.Control.Software.WinForms.Models;
 /// </remarks>
 public class LicenseOptions
 {
-    /// <summary>Número de bandas soportadas por el sistema.</summary>
+    /// <summary>Number of bands supported by the system.</summary>
     public const int NumBands = 4;
 
     /// <summary>
-    /// Indica si los filtros estrechos (Narrow Filters) están habilitados por banda.
+    /// Indicates if Narrow Filters are enabled per band.
     /// </summary>
-    /// <remarks>Índices: [700 MHz, 800 MHz, VHF, UHF]</remarks>
+    /// <remarks>Indices: [700 MHz, 800 MHz, VHF, UHF]</remarks>
     public bool[] NarrowFiltersEnabled { get; } = new bool[NumBands];
 
     /// <summary>
-    /// Indica si los filtros de ancho de banda ajustable están habilitados por banda.
+    /// Indicates if adjustable bandwidth filters are enabled per band.
     /// </summary>
     public bool[] AdjBwFiltersEnabled { get; } = new bool[NumBands];
 
     /// <summary>
-    /// Indica si el modo de banda única está habilitado por banda.
+    /// Indicates if single band mode is enabled per band.
     /// </summary>
     public bool[] SingleBandEnabled { get; } = new bool[NumBands];
 
     /// <summary>
-    /// Límite de potencia en downlink por banda.
+    /// Downlink power limit per band.
     /// </summary>
-    /// <remarks>Rango válido: -128 a 127 dBm.</remarks>
+    /// <remarks>Valid range: -128 to 127 dBm.</remarks>
     public short[] PowerLimitDownlink { get; } = new short[NumBands];
 
     /// <summary>
-    /// Firmware de arranque seleccionado.
+    /// Selected boot firmware.
     /// </summary>
     /// <remarks>0 = 700/800 MHz, 1 = VHF/UHF.</remarks>
     public short BootFirmware { get; set; }
 
     /// <summary>
-    /// Crea una copia profunda de las opciones.
+    /// Creates a deep copy of the options.
     /// </summary>
     public LicenseOptions Clone()
     {
@@ -65,7 +65,7 @@ public class LicenseOptions
     }
     
     /// <summary>
-    /// Compara igualdad de valores con otra instancia.
+    /// Compares value equality with another instance.
     /// </summary>
     public bool ValueEquals(LicenseOptions? other)
     {
@@ -86,7 +86,7 @@ public class LicenseOptions
     }
     
     /// <summary>
-    /// Representación de cadena para debugging.
+    /// String representation for debugging.
     /// </summary>
     public override string ToString()
     {

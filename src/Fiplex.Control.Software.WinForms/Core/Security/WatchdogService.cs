@@ -22,7 +22,7 @@ public class WatchdogService : IWatchdogService
     public event EventHandler<WatchdogEventArgs>? WatchdogFailed;
     
     /// <summary>
-    /// Indica si el watchdog está activo.
+    /// Indicates whether the watchdog is active.
     /// </summary>
     public bool IsEnabled => _isEnabled;
 
@@ -35,7 +35,7 @@ public class WatchdogService : IWatchdogService
     }
     
     /// <summary>
-    /// Resetea el timer del watchdog.
+    /// Resets the watchdog timer.
     /// </summary>
     public void Reset()
     {
@@ -108,14 +108,14 @@ public class WatchdogService : IWatchdogService
             {
                 await _timer.WaitForNextTickAsync(ct);
                 
-                // Si watchdog está deshabilitado, detener
+                // If watchdog is disabled, stop
                 if (!_isEnabled)
                 {
                     _logger.LogDebug("Watchdog disabled, stopping loop");
                     break;
                 }
                 
-                // Si hubo un reset reciente, no enviar comando todavía
+                // If there was a recent reset, don't send command yet
                 var timeSinceReset = DateTime.UtcNow - _lastResetTime;
                 if (timeSinceReset < _interval * 0.9)
                 {
@@ -157,7 +157,7 @@ public class WatchdogService : IWatchdogService
                         LastSuccessTime = _lastSuccessTime
                     });
 
-                    // Detener si demasiados fallos
+                    // Stop if too many failures
                     if (_consecutiveFailures >= 3)
                     {
                         _logger.LogError("Watchdog stopped after {Count} consecutive failures", _consecutiveFailures);

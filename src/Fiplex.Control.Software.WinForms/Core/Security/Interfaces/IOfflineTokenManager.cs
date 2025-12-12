@@ -1,41 +1,41 @@
 namespace Fiplex.Control.Software.WinForms.Core.Security.Interfaces;
 
 /// <summary>
-/// Gestor de tokens offline para persistencia local.
+/// Offline token manager for local persistence.
 /// </summary>
 public interface IOfflineTokenManager
 {
     /// <summary>
-    /// Almacena un token en archivo local.
+    /// Stores a token in a local file.
     /// </summary>
-    /// <param name="tokenValue">Valor del token a almacenar.</param>
-    /// <param name="fileName">Nombre del archivo (ej: "offline.token").</param>
-    /// <returns>True si se almacenó correctamente.</returns>
+    /// <param name="tokenValue">Token value to store.</param>
+    /// <param name="fileName">File name (e.g.: "offline.token").</param>
+    /// <returns>True if stored successfully.</returns>
     Task<bool> StoreOfflineTokenAsync(string tokenValue, string fileName, CancellationToken ct = default);
 
     /// <summary>
-    /// Carga un token desde archivo local.
+    /// Loads a token from a local file.
     /// </summary>
-    /// <param name="fileName">Nombre del archivo a leer.</param>
-    /// <returns>Contenido del token o null si no existe.</returns>
+    /// <param name="fileName">File name to read.</param>
+    /// <returns>Token content or null if it doesn't exist.</returns>
     Task<string?> LoadOfflineTokenAsync(string fileName, CancellationToken ct = default);
 
     /// <summary>
-    /// Verifica si existe un archivo de token.
+    /// Checks if a token file exists.
     /// </summary>
-    /// <param name="fileName">Nombre del archivo a verificar.</param>
-    /// <returns>True si el archivo existe.</returns>
+    /// <param name="fileName">File name to verify.</param>
+    /// <returns>True if the file exists.</returns>
     bool TokenFileExists(string fileName);
 
     /// <summary>
-    /// Elimina un archivo de token.
+    /// Deletes a token file.
     /// </summary>
-    /// <param name="fileName">Nombre del archivo a eliminar.</param>
-    /// <returns>True si se eliminó correctamente.</returns>
+    /// <param name="fileName">File name to delete.</param>
+    /// <returns>True if deleted successfully.</returns>
     bool DeleteTokenFile(string fileName);
 
     /// <summary>
-    /// Elimina todos los archivos de tokens.
+    /// Deletes all token files.
     /// </summary>
     void ClearAllTokens();
 }

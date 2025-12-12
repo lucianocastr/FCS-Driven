@@ -6,14 +6,14 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Forms;
 
 /// <summary>
-/// Formulario para escribir claves de licencia al dispositivo.
+/// Form for writing license keys to the device.
 /// </summary>
 /// <remarks>
-/// Funcionalidad:
-///   - Entrada de clave de licencia (64 caracteres hexadecimales)
-///   - Dos botones: "Enable Feature" (Index=1) y "Disable Feature" (Index=0)
-///   - Envía comando ;0{Index:X2}{Key64} al dispositivo
-///   - Feedback visual OK/KO con delay 2000ms
+/// Functionality:
+///   - License key input (64 hexadecimal characters)
+///   - Two buttons: "Enable Feature" (Index=1) and "Disable Feature" (Index=0)
+///   - Sends command ;0{Index:X2}{Key64} to the device
+///   - Visual feedback OK/KO with 2000ms delay
 /// </remarks>
 public partial class frmLicenseKey : Form
 {
@@ -25,14 +25,14 @@ public partial class frmLicenseKey : Form
     private CancellationTokenSource? _cts;
 
     /// <summary>
-    /// Evento disparado cuando se aplica la licencia exitosamente.
+    /// Event fired when the license is applied successfully.
     /// </summary>
     public event EventHandler? LicenseApplied;
 
     /// <summary>
-    /// Constructor con inyección de dependencias.
+    /// Constructor with dependency injection.
     /// </summary>
-    /// <param name="pipeline">Pipeline de comandos serial</param>
+    /// <param name="pipeline">Serial command pipeline</param>
     /// <param name="logger">Logger</param>
     public frmLicenseKey(
         ISerialCommandPipeline pipeline,
@@ -43,13 +43,13 @@ public partial class frmLicenseKey : Form
         
         InitializeComponent();
         
-        // Suscribir eventos de botones
+        // Subscribe to button events
         btnEnableFeature.Click += (s, e) => CmdLicense_Click(1);
         btnDisableFeature.Click += (s, e) => CmdLicense_Click(0);
     }
 
     /// <summary>
-    /// Inicializa el formulario con controles deshabilitados.
+    /// Initializes the form with disabled controls.
     /// </summary>
     protected override void OnLoad(EventArgs e)
     {
@@ -62,11 +62,11 @@ public partial class frmLicenseKey : Form
         tmrKey.Interval = 200;
         tmrKey.Enabled = true;
         
-        _logger.LogDebug("frmLicenseKey cargado");
+        _logger.LogDebug("frmLicenseKey loaded");
     }
 
     /// <summary>
-    /// Valida la longitud de la clave cada 200ms y habilita/deshabilita botones.
+    /// Validates the key length every 200ms and enables/disables buttons.
     /// </summary>
     private void TmrKey_Tick(object? sender, EventArgs e)
     {
@@ -79,7 +79,7 @@ public partial class frmLicenseKey : Form
     }
 
     /// <summary>
-    /// Envía el comando de licencia al dispositivo.
+    /// Sends the license command to the device.
     /// </summary>
     /// <param name="index">0 = Disable Feature, 1 = Enable Feature</param>
     private async void CmdLicense_Click(int index)
@@ -98,9 +98,9 @@ public partial class frmLicenseKey : Form
             Cursor = Cursors.WaitCursor;
             _configuring = true;
             
-            _logger.LogDebug("Enviando licencia con Index={Index}", index);
+            _logger.LogDebug("Sending license with Index={Index}", index);
             
-            // Formato: ;0{xx}{64_chars_hex_key}
+            // Format: ;0{xx}{64_chars_hex_key}
             var indexHex = index.ToString("X2");
             var command = new SerialCommand
             {
@@ -119,12 +119,12 @@ public partial class frmLicenseKey : Form
             if (ucOk)
             {
                 pctOK.Visible = true;
-                _logger.LogInformation("Licencia aplicada exitosamente (Index={Index})", index);
+                _logger.LogInformation("License applied successfully (Index={Index})", index);
             }
             else
             {
                 pctKO.Visible = true;
-                _logger.LogWarning("Error aplicando licencia (Index={Index}). Status: {Status}", 
+                _logger.LogWarning("Error applying license (Index={Index}). Status: {Status}", 
                     index, result.Status);
             }
             
@@ -146,13 +146,13 @@ public partial class frmLicenseKey : Form
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("Operación de licencia cancelada");
+            _logger.LogDebug("License operation cancelled");
             pctOK.Visible = false;
             pctKO.Visible = false;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error enviando comando de licencia");
+            _logger.LogError(ex, "Error sending license command");
             pctKO.Visible = true;
             
             try
@@ -168,7 +168,7 @@ public partial class frmLicenseKey : Form
             _configuring = false;
             Cursor = Cursors.Default;
             
-            // Re-evaluar estado de botones según longitud de clave
+            // Re-evaluate button state based on key length
             bool keyOk = txtKey.Text.Length == 64;
             btnEnableFeature.Enabled = keyOk;
             btnDisableFeature.Enabled = keyOk;
@@ -176,7 +176,7 @@ public partial class frmLicenseKey : Form
     }
 
     /// <summary>
-    /// Limpia recursos al cerrar.
+    /// Cleans up resources on close.
     /// </summary>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {

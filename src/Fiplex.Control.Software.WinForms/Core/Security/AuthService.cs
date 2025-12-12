@@ -12,12 +12,12 @@ public class AuthService : IAuthService
     private readonly ILogger<AuthService> _logger;
     
     /// <summary>
-    /// Versión del microcontrolador extraída de respuesta V1.
+    /// Microcontroller version extracted from V1 response.
     /// </summary>
     public int UcVersion { get; private set; }
     
     /// <summary>
-    /// Respuesta raw del comando V1 para diagnóstico.
+    /// Raw response from V1 command for diagnostics.
     /// </summary>
     public string LastV1Response { get; private set; } = string.Empty;
 
@@ -113,10 +113,10 @@ public class AuthService : IAuthService
     {
         try
         {
-            _logger.LogInformation("Verificando requerimiento de autenticación (comando V1)");
+            _logger.LogInformation("Verifying authentication requirement (V1 command)");
 
-            // Crear comando V1 con timeout de 2-3 segundos
-            // CRÍTICO: Timeout corto solo para este comando 
+            // Create V1 command with 2-3 second timeout
+            // CRITICAL: Short timeout only for this command 
             var command = new SerialCommand
             {
                 Payload = "V1",
@@ -130,77 +130,77 @@ public class AuthService : IAuthService
 
             var result = await _pipeline.EnqueueCommandAsync(command);
 
-            // PASO 1: Verificar si hubo resultado exitoso del comando
+            // STEP 1: Verify if there was a successful command result
             if (!result.Success)
             {
-                _logger.LogWarning("Dispositivo no responde a comando V1 (Status: {Status})", result.Status);
+                _logger.LogWarning("Device not responding to V1 command (Status: {Status})", result.Status);
                 return AuthResult.DeviceNotResponding;
             }
 
-            // Si hay datos, analizarlos (caso equipos que devuelven texto V1)
+            // If there is data, analyze it (case for devices that return V1 text)
             if (!string.IsNullOrWhiteSpace(result.Data))
             {
-                // Guardar respuesta y extraer ucVersion
+                // Save response and extract ucVersion
                 LastV1Response = result.Data;
                 ExtractUcVersion(result.Data);
 
-                // PASO 2: Analizar respuesta para detectar "INVALID" (case-insensitive)
-                // Si contiene "INVALID" → requiere contraseña
+                // STEP 2: Analyze response to detect "INVALID" (case-insensitive)
+                // If contains "INVALID" → requires password
                 if (result.Data.Contains("INVALID", StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger.LogInformation("Dispositivo requiere contraseña (respuesta contiene INVALID)");
+                    _logger.LogInformation("Device requires password (response contains INVALID)");
                     return AuthResult.PasswordRequired;
                 }
 
-                // PASO 3: Respuesta válida sin "INVALID" → no requiere autenticación
+                // STEP 3: Valid response without "INVALID" → no authentication required
                 _logger.LogInformation(
-                    "Dispositivo no requiere contraseña (V1 válido: {Response}, ucVersion: 0x{UcVersion:X})",
+                    "Device does not require password (valid V1: {Response}, ucVersion: 0x{UcVersion:X})",
                     result.Data.Length > 50 ? result.Data.Substring(0, 50) + "..." : result.Data,
                     UcVersion);
 
                 return AuthResult.NoAuthRequired;
             }
 
-            // Caso especial: Success == true pero Data vacío.
-            // Esto ocurre cuando V1 sin password devolvió INVALID CREDENTIALS y el reintento
-            // autenticado (*0{password}1) solo respondió ACK sin datos.
-            // En este punto ya estamos autenticados correctamente.
+            // Special case: Success == true but empty Data.
+            // This occurs when V1 without password returned INVALID CREDENTIALS and the retry
+            // authenticated (*0{password}1) only responded ACK without data.
+            // At this point we are already authenticated correctly.
             _logger.LogInformation(
-                "Autenticación completada con ACK sin datos en V1. Asumiendo requerimiento de password resuelto.");
+                "Authentication completed with ACK without data in V1. Assuming password requirement resolved.");
             return AuthResult.NoAuthRequired;
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Verificación de autenticación cancelada");
+            _logger.LogWarning("Authentication verification cancelled");
             return AuthResult.DeviceNotResponding;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error crítico verificando requerimiento de autenticación");
+            _logger.LogError(ex, "Critical error verifying authentication requirement");
             return AuthResult.DeviceNotResponding;
         }
     }
     
     /// <summary>
-    /// Extrae ucVersion de respuesta V1.
+    /// Extracts ucVersion from V1 response.
     /// ucVersion = AsciiToInt(Mid(verstr, 7, 2)) * 256 + AsciiToInt(Mid(verstr, 9, 2))
     /// </summary>
-    /// <param name="v1Response">Respuesta del comando V1</param>
+    /// <param name="v1Response">V1 command response</param>
     private void ExtractUcVersion(string v1Response)
     {
         UcVersion = 0;
         
         if (string.IsNullOrEmpty(v1Response) || v1Response.Length < 10)
         {
-            _logger.LogWarning("Respuesta V1 demasiado corta para extraer ucVersion: {Length} chars", 
+            _logger.LogWarning("V1 response too short to extract ucVersion: {Length} chars", 
                 v1Response?.Length ?? 0);
             return;
         }
         
         try
         {
-            // Mid(verstr, 7, 2) = substring índice 6-7 (0-based)
-            // Mid(verstr, 9, 2) = substring índice 8-9 (0-based)
+            // Mid(verstr, 7, 2) = substring index 6-7 (0-based)
+            // Mid(verstr, 9, 2) = substring index 8-9 (0-based)
             var highByteStr = v1Response.Substring(6, 2);
             var lowByteStr = v1Response.Substring(8, 2);
             
@@ -210,19 +210,19 @@ public class AuthService : IAuthService
             
             UcVersion = (highByte * 256) + lowByte;
             
-            _logger.LogDebug("ucVersion extraído: 0x{UcVersion:X} (high=0x{High:X2}, low=0x{Low:X2})", 
+            _logger.LogDebug("ucVersion extracted: 0x{UcVersion:X} (high=0x{High:X2}, low=0x{Low:X2})", 
                 UcVersion, highByte, lowByte);
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error extrayendo ucVersion de respuesta V1: {Response}", 
+            _logger.LogWarning(ex, "Error extracting ucVersion from V1 response: {Response}", 
                 v1Response.Length > 20 ? v1Response.Substring(0, 20) + "..." : v1Response);
         }
     }
     
     /// <summary>
-    /// Convierte 2 caracteres hex ASCII a entero.
-    /// Equivalente a AsciiToInt() en mdlStringFunctions.vb
+    /// Converts 2 hex ASCII characters to integer.
+    /// Equivalent to AsciiToInt() in mdlStringFunctions.vb
     /// </summary>
     private static int AsciiToInt(string hexStr)
     {

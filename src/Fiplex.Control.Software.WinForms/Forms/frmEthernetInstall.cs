@@ -5,11 +5,11 @@ using Fiplex.Control.Software.WinForms.Models;
 namespace Fiplex.Control.Software.WinForms.Forms;
 
 /// <summary>
-/// Diálogo para configurar el módulo Ethernet Rabbit.
+/// Dialog to configure the Ethernet Rabbit module.
 /// </summary>
 /// <remarks>
-/// Permite activar/desactivar el módulo Ethernet modificando el bit 7
-/// de la posición 93-94 del factory string del dispositivo.
+/// Allows enabling/disabling the Ethernet module by modifying bit 7
+/// of position 93-94 in the device's factory string.
 /// </remarks>
 public partial class frmEthernetInstall : Form
 {
@@ -22,7 +22,7 @@ public partial class frmEthernetInstall : Form
     private bool _isLoading;
     private bool _isApplying;
     
-    // CancellationTokenSource para operaciones async
+    // CancellationTokenSource for async operations
     private CancellationTokenSource? _cts;
     
     public frmEthernetInstall(
@@ -36,29 +36,29 @@ public partial class frmEthernetInstall : Form
     }
     
     /// <summary>
-    /// Configura el dispositivo actual.
-    /// Debe llamarse antes de ShowDialog().
+    /// Configures the current device.
+    /// Must be called before ShowDialog().
     /// </summary>
     public void SetDevice(DeviceInfo device)
     {
         _device = device;
-        _logger.LogDebug("Dispositivo configurado: {Device}", device.NameTypeDevice);
+        _logger.LogDebug("Device configured: {Device}", device.NameTypeDevice);
     }
     
     /// <summary>
-    /// Carga los parámetros de fábrica al activar el formulario.
+    /// Loads factory parameters when the form is activated.
     /// </summary>
     protected override async void OnActivated(EventArgs e)
     {
         base.OnActivated(e);
         
-        // Evitar recarga múltiple
+        // Avoid multiple reloads
         if (_isLoading || !string.IsNullOrEmpty(_factoryString))
             return;
         
         _isLoading = true;
         
-        // Inicializar CancellationTokenSource
+        // Initialize CancellationTokenSource
         _cts?.Dispose();
         _cts = new CancellationTokenSource();
         
@@ -67,11 +67,11 @@ public partial class frmEthernetInstall : Form
     }
     
     /// <summary>
-    /// Lee los parámetros de fábrica del dispositivo.
+    /// Reads factory parameters from the device.
     /// </summary>
     private async Task LoadFactoryParametersAsync()
     {
-        _logger.LogInformation("Cargando parámetros de fábrica para Ethernet Module");
+        _logger.LogInformation("Loading factory parameters for Ethernet Module");
         
         chkEth.Enabled = false;
         cmdApply.Enabled = false;
@@ -81,7 +81,7 @@ public partial class frmEthernetInstall : Form
         {
             var result = await _ethernetService.ReadFactoryStringAsync();
             
-            // Verificar cancelación antes de actualizar UI
+            // Verify cancellation before updating UI
             if (_cts?.Token.IsCancellationRequested == true || IsDisposed)
                 return;
             
@@ -100,22 +100,22 @@ public partial class frmEthernetInstall : Form
             _factoryString = result.FactoryString;
             _isCommonUl = result.CommonUl;
             
-            // Actualizar checkbox según estado actual
+            // Update checkbox according to current state
             chkEth.Checked = result.EthernetInstalled;
             chkEth.Enabled = true;
             cmdApply.Enabled = true;
             
             _logger.LogInformation(
-                "Parámetros cargados: Ethernet={Eth}, CommonUl={Cul}",
+                "Parameters loaded: Ethernet={Eth}, CommonUl={Cul}",
                 result.EthernetInstalled, result.CommonUl);
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("Carga de parámetros cancelada");
+            _logger.LogDebug("Parameters loading cancelled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error cargando parámetros de fábrica");
+            _logger.LogError(ex, "Error loading factory parameters");
             
             if (!IsDisposed)
             {
@@ -143,18 +143,18 @@ public partial class frmEthernetInstall : Form
     {
         if (string.IsNullOrEmpty(_factoryString))
         {
-            _logger.LogWarning("Intento de aplicar sin factory string cargado");
+            _logger.LogWarning("Attempt to apply without factory string loaded");
             return;
         }
         
-        // Evitar operaciones múltiples
+        // Avoid multiple operations
         if (_isApplying)
             return;
             
         _isApplying = true;
         
         _logger.LogInformation(
-            "Aplicando cambios: Ethernet={Installed}", 
+            "Applying changes: Ethernet={Installed}", 
             chkEth.Checked);
         
         cmdApply.Enabled = false;
@@ -163,20 +163,20 @@ public partial class frmEthernetInstall : Form
         
         try
         {
-            // Modificar bit Ethernet en factory string
+            // Modify Ethernet bit in factory string
             var newFactoryString = _ethernetService.SetEthernetInstalled(
                 _factoryString, 
                 chkEth.Checked);
             
-            // Determinar header para dispositivos 5dm (PSC Master)
+            // Determine header for 5dm devices (PSC Master)
             string? header = null;
             if (_device?.TDev == "5dm")
             {
                 header = _isCommonUl ? "00" : "01";
-                _logger.LogDebug("Dispositivo 5dm detectado, header={Header}", header);
+                _logger.LogDebug("5dm device detected, header={Header}", header);
             }
             
-            // Enviar primer factory string
+            // Send first factory string
             var success = await _ethernetService.WriteFactoryStringAsync(
                 newFactoryString, 
                 header);
@@ -187,11 +187,11 @@ public partial class frmEthernetInstall : Form
                 return;
             }
             
-            // Para dispositivos 5dm: segunda escritura con header alterno
+            // For 5dm devices: second write with alternate header
             if (_device?.TDev == "5dm")
             {
                 var secondHeader = _isCommonUl ? "01" : "00";
-                _logger.LogDebug("Leyendo segundo factory string, header={Header}", secondHeader);
+                _logger.LogDebug("Reading second factory string, header={Header}", secondHeader);
                 
                 var result2 = await _ethernetService.ReadFactoryStringAsync(secondHeader);
                 
@@ -211,11 +211,11 @@ public partial class frmEthernetInstall : Form
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("Operación de aplicar cambios cancelada");
+            _logger.LogDebug("Apply changes operation cancelled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error aplicando cambios Ethernet");
+            _logger.LogError(ex, "Error applying Ethernet changes");
             ShowResultIndicator(false);
         }
         finally
@@ -230,11 +230,11 @@ public partial class frmEthernetInstall : Form
     }
     
     /// <summary>
-    /// Muestra indicador visual de resultado y cierra el diálogo.
+    /// Shows visual result indicator and closes the dialog.
     /// </summary>
     private async void ShowResultIndicator(bool success)
     {
-        // Verificar que el form no esté disposed
+        // Verify that the form is not disposed
         if (IsDisposed)
             return;
         
@@ -242,8 +242,8 @@ public partial class frmEthernetInstall : Form
         pctKO.Visible = !success;
         
         _logger.LogInformation(
-            "Resultado de operación Ethernet: {Result}",
-            success ? "Éxito" : "Error");
+            "Ethernet operation result: {Result}",
+            success ? "Success" : "Error");
         
         try
         {
@@ -251,7 +251,7 @@ public partial class frmEthernetInstall : Form
         }
         catch (OperationCanceledException)
         {
-            // Cancelado, no hacer nada
+            // Cancelled, do nothing
             return;
         }
         
@@ -266,7 +266,7 @@ public partial class frmEthernetInstall : Form
         
         if (success)
         {
-            // Señalar que se debe refrescar WebView
+            // Signal that WebView should be refreshed
             DialogResult = DialogResult.OK;
             Close();
         }
@@ -274,7 +274,7 @@ public partial class frmEthernetInstall : Form
 
     /// <summary>
     /// Evento FormClosing del formulario.
-    /// Cancela operaciones pendientes antes de cerrar.
+    /// Cancels pending operations before closing.
     /// </summary>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
@@ -283,7 +283,7 @@ public partial class frmEthernetInstall : Form
     }
 
     /// <summary>
-    /// Cancela cualquier operación async pendiente.
+    /// Cancels any pending async operation.
     /// </summary>
     private void CancelPendingOperations()
     {

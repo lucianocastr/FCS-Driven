@@ -4,8 +4,8 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Serial.Implementation;
 
 /// <summary>
-/// Puerto serial simulado para modo NoUSB.
-/// Permite testing completo de la aplicación sin hardware físico.
+/// Simulated serial port for NoUSB mode.
+/// Allows complete testing of the application without physical hardware.
 /// </summary>
 public sealed class SimulatedSerialPort : ISerialPort
 {
@@ -16,26 +16,26 @@ public sealed class SimulatedSerialPort : ISerialPort
     private int _readPosition = 0;
     
     /// <summary>
-    /// Respuestas simuladas por comando (primeros 2 caracteres).
+    /// Simulated responses by command (first 2 characters).
     /// </summary>
     private static readonly Dictionary<string, string> SimulatedResponses = new(StringComparer.OrdinalIgnoreCase)
     {
-        // V1 - Version: Respuesta típica de dispositivo 2c
+        // V1 - Version: Typical 2c device response
         ["V1"] = "01061D0200020100",
         
-        // N1 - Device ID/Name: Número de serie
+        // N1 - Device ID/Name: Serial number
         ["N1"] = "9012           ",
         
         // S1 - Status: Trama hex larga con estado del dispositivo
         ["S1"] = GenerateStatusResponse(),
         
-        // C1 - Configuration: Configuración del dispositivo
+        // C1 - Configuration: Device configuration
         ["C1"] = GenerateConfigResponse(),
         
         // F1 - Factory Parameters
         ["F1"] = GenerateFactoryResponse(),
         
-        // E1 - Ethernet Configuration (IP, máscara, gateway)
+        // E1 - Ethernet Configuration (IP, mask, gateway)
         ["E1"] = "C0A8010AFFFFFF00C0A80101000000000000",
         
         // U1 - User Configuration (usado en multipart O1+U1)
@@ -47,17 +47,17 @@ public sealed class SimulatedSerialPort : ISerialPort
         // T1 - Temperature/Test
         ["T1"] = "2500", // 25.00 grados
         
-        // L1 - License Info (para dispositivos con licencia)
+        // L1 - License Info (for devices with license)
         ["L1"] = "FIPLEX\tTRAINING\t20261231\tUSER",
         
-        // M1 - License Options (lectura de opciones de licencia hardware)
-        // Formato 2 bandas: [mask:2][powerDL0:2][powerDL1:2] = 6 hex chars
-        // Formato 4 bandas: [mask:2][powerDL0-3:2x4][options:2x2] = 14 hex chars
-        // Valores simulados: mask=00, powerDL0=0A(10dB), powerDL1=0F(15dB)
+        // M1 - License Options (hardware license options read)
+        // 2 bands format: [mask:2][powerDL0:2][powerDL1:2] = 6 hex chars
+        // 4 bands format: [mask:2][powerDL0-3:2x4][options:2x2] = 14 hex chars
+        // Simulated values: mask=00, powerDL0=0A(10dB), powerDL1=0F(15dB)
         ["M1"] = "000A0F",  // 2-band license options response
         
-        // Comandos de escritura retornan ACK
-        ["*0"] = "ACK", // Autenticación
+        // Write commands return ACK
+        ["*0"] = "ACK", // Authentication
         ["M0"] = "ACK", // Write License Options (frmLicenseOptions, frmLicenseMaster)
         ["C0"] = "ACK", // Write Config
         ["F0"] = "ACK", // Write Factory
@@ -84,7 +84,7 @@ public sealed class SimulatedSerialPort : ISerialPort
     {
         _portName = portName;
         _isOpen = true;
-        _logger.LogInformation("🔧 SimulatedSerialPort abierto: {Port} (simulado)", portName);
+        _logger.LogInformation("🔧 SimulatedSerialPort opened: {Port} (simulated)", portName);
         return Task.FromResult(true);
     }
 
@@ -94,16 +94,16 @@ public sealed class SimulatedSerialPort : ISerialPort
             throw new InvalidOperationException("Simulated port not open");
 
         var command = System.Text.Encoding.ASCII.GetString(data.Span).TrimEnd('\n', '\r');
-        _logger.LogDebug("🔧 TX (simulado): {Command}", command);
+        _logger.LogDebug("🔧 TX (simulated): {Command}", command);
 
-        // Buscar respuesta simulada
+        // Look for simulated response
         var response = GetSimulatedResponse(command);
         
-        // Agregar LF al final (protocolo Fiplex)
+        // Add LF at the end (Fiplex protocol)
         _pendingResponse = System.Text.Encoding.ASCII.GetBytes(response + "\n");
         _readPosition = 0;
         
-        _logger.LogDebug("🔧 Respuesta preparada: {Length} bytes", _pendingResponse.Length);
+        _logger.LogDebug("🔧 Response prepared: {Length} bytes", _pendingResponse.Length);
         
         return Task.FromResult(data.Length);
     }
@@ -115,18 +115,18 @@ public sealed class SimulatedSerialPort : ISerialPort
 
         if (_readPosition >= _pendingResponse.Length)
         {
-            // No hay datos pendientes
+            // No pending data
             return Task.FromResult(0);
         }
 
-        // Simular pequeño delay de comunicación
+        // Simulate small communication delay
         Thread.Sleep(5);
 
         var bytesToCopy = Math.Min(buffer.Length, _pendingResponse.Length - _readPosition);
         _pendingResponse.AsSpan(_readPosition, bytesToCopy).CopyTo(buffer.Span);
         _readPosition += bytesToCopy;
 
-        _logger.LogDebug("🔧 RX (simulado): {Bytes} bytes leídos", bytesToCopy);
+        _logger.LogDebug("🔧 RX (simulated): {Bytes} bytes read", bytesToCopy);
         
         return Task.FromResult(bytesToCopy);
     }
@@ -136,7 +136,7 @@ public sealed class SimulatedSerialPort : ISerialPort
         _isOpen = false;
         _pendingResponse = Array.Empty<byte>();
         _readPosition = 0;
-        _logger.LogInformation("🔧 SimulatedSerialPort cerrado");
+        _logger.LogInformation("🔧 SimulatedSerialPort closed");
     }
 
     public Task CloseAsync()
@@ -148,51 +148,51 @@ public sealed class SimulatedSerialPort : ISerialPort
     public void Dispose() => Close();
 
     /// <summary>
-    /// Obtiene respuesta simulada para un comando.
+    /// Gets simulated response for a command.
     /// </summary>
     private string GetSimulatedResponse(string command)
     {
         if (string.IsNullOrEmpty(command))
             return "NACK";
 
-        // Extraer prefijo del comando (primeros 2 caracteres)
+        // Extract command prefix (first 2 characters)
         var prefix = command.Length >= 2 ? command.Substring(0, 2).ToUpperInvariant() : command.ToUpperInvariant();
         
-        // Caso especial: autenticación *0password
+        // Special case: authentication *0password
         if (command.StartsWith("*0"))
         {
-            _logger.LogInformation("🔧 Autenticación simulada aceptada");
+            _logger.LogInformation("🔧 Simulated authentication accepted");
             return "ACK";
         }
 
-        // Buscar en diccionario de respuestas
+        // Look up in responses dictionary
         if (SimulatedResponses.TryGetValue(prefix, out var response))
         {
-            _logger.LogDebug("🔧 Respuesta simulada para {Prefix}: {Length} chars", 
+            _logger.LogDebug("\ud83d\udd27 Simulated response for {Prefix}: {Length} chars", 
                 prefix, response.Length);
             return response;
         }
 
-        // Comandos de escritura no reconocidos retornan ACK
+        // Unrecognized write commands return ACK
         if (prefix.EndsWith("0"))
         {
-            _logger.LogWarning("🔧 Comando de escritura no reconocido: {Command}, retornando ACK", command);
+            _logger.LogWarning("🔧 Unrecognized write command: {Command}, returning ACK", command);
             return "ACK";
         }
 
-        // Comandos de lectura no reconocidos
-        _logger.LogWarning("🔧 Comando no reconocido: {Command}, retornando vacío", command);
+        // Unrecognized read commands
+        _logger.LogWarning("🔧 Unrecognized command: {Command}, returning empty", command);
         return "";
     }
 
-    #region Generadores de Respuestas Simuladas
+    #region Simulated Response Generators
 
     /// <summary>
-    /// Genera respuesta S1 (Status) con 40 campos separados por TAB.
+    /// Generates S1 (Status) response with 40 TAB-separated fields.
     /// </summary>
     private static string GenerateStatusResponse()
     {
-        // 40 campos simulados para pasar validación splitwith3tabs:40
+        // 40 simulated fields to pass splitwith3tabs:40 validation
         var fields = new string[40];
         for (int i = 0; i < 40; i++)
         {
@@ -208,18 +208,18 @@ public sealed class SimulatedSerialPort : ISerialPort
                 7 => "FF",       // Signal level
                 8 => "00",       // Alarm
                 9 => "02",       // Version
-                _ => $"{i:D2}"   // Resto con valores genéricos
+                _ => $"{i:D2}"   // Rest with generic values
             };
         }
         return string.Join("\t", fields);
     }
 
     /// <summary>
-    /// Genera respuesta C1 (Configuration) con 9 campos.
+    /// Generates C1 (Configuration) response with 9 fields.
     /// </summary>
     private static string GenerateConfigResponse()
     {
-        // 9 campos de configuración
+        // 9 configuration fields
         var fields = new[]
         {
             "F82A3C",   // Frequency
@@ -236,11 +236,11 @@ public sealed class SimulatedSerialPort : ISerialPort
     }
 
     /// <summary>
-    /// Genera respuesta F1 (Factory Parameters) con 6 campos.
+    /// Generates F1 (Factory Parameters) response with 6 fields.
     /// </summary>
     private static string GenerateFactoryResponse()
     {
-        // 6 campos de factory
+        // 6 factory fields
         var fields = new[]
         {
             "3F7000",   // Cal value 1
@@ -254,20 +254,20 @@ public sealed class SimulatedSerialPort : ISerialPort
     }
 
     /// <summary>
-    /// Genera respuesta U1 (User Config) para multipart.
+    /// Generates U1 (User Config) response for multipart.
     /// </summary>
     private static string GenerateUserConfigResponse()
     {
-        // Respuesta hex de configuración de usuario
+        // Hex user configuration response
         return "0000091A0B0C0D0E0F1011121314151617181920212223242526272829303132333435363738394041424344454647484950";
     }
 
     /// <summary>
-    /// Genera respuesta O1 (Operating Status) para multipart 5dm.
+    /// Generates O1 (Operating Status) response for 5dm multipart.
     /// </summary>
     private static string GenerateOperatingStatusResponse()
     {
-        // Respuesta hex de estado operativo
+        // Hex operating status response
         return "AA55AA550102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F202122232425262728292A2B2C2D";
     }
 

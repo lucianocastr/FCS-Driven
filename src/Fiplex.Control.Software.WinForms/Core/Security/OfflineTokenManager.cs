@@ -7,8 +7,8 @@ using Microsoft.Win32;
 namespace Fiplex.Control.Software.WinForms.Core.Security;
 
 /// <summary>
-/// Gestor de tokens offline para persistencia local con encriptación DPAPI.
-/// Almacena tokens encriptados en %LocalAppData%/Fiplex.Control.Software/Tokens/
+/// Offline token manager for local persistence with DPAPI encryption.
+/// Stores encrypted tokens in %LocalAppData%/Fiplex.Control.Software/Tokens/
 /// </summary>
 public class OfflineTokenManager : IOfflineTokenManager
 {
@@ -16,7 +16,7 @@ public class OfflineTokenManager : IOfflineTokenManager
     private readonly string _tokenDirectory;
     private readonly bool _useEncryption;
 
-    // Nombres de archivo estándar
+    // Standard file names
     public const string OFFLINE_TOKEN_NAME = "offline.token";
     public const string PUBLIC_KEY_NAME = "publicKey.key";
     public const string REFRESH_TOKEN_NAME = "refresh.token";
@@ -27,7 +27,7 @@ public class OfflineTokenManager : IOfflineTokenManager
         _logger = logger;
         _useEncryption = useEncryption;
         
-        // Directorio seguro para tokens
+        // Secure directory for tokens
         var localAppData = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
         _tokenDirectory = Path.Combine(localAppData, "Fiplex.Control.Software", "Tokens");
         
@@ -35,13 +35,13 @@ public class OfflineTokenManager : IOfflineTokenManager
     }
 
     /// <summary>
-    /// Almacena un token en archivo local con encriptación DPAPI.
+    /// Stores a token in a local file with DPAPI encryption.
     /// </summary>
     public async Task<bool> StoreOfflineTokenAsync(string tokenValue, string fileName, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(tokenValue))
         {
-            _logger.LogWarning("Intento de almacenar token vacío: {FileName}", fileName);
+            _logger.LogWarning("Attempt to store empty token: {FileName}", fileName);
             return false;
         }
 
@@ -49,24 +49,24 @@ public class OfflineTokenManager : IOfflineTokenManager
         {
             var filePath = GetTokenFilePath(fileName);
             
-            // Encriptar token antes de almacenar
+            // Encrypt token before storing
             var dataToStore = _useEncryption ? EncryptToken(tokenValue) : tokenValue;
             
             await File.WriteAllTextAsync(filePath, dataToStore, ct);
             
-            _logger.LogDebug("Token almacenado{Encrypted}: {FileName}", 
-                _useEncryption ? " (encriptado)" : "", fileName);
+            _logger.LogDebug("Token stored{Encrypted}: {FileName}", 
+                _useEncryption ? " (encrypted)" : "", fileName);
             return true;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error almacenando token: {FileName}", fileName);
+            _logger.LogError(ex, "Error storing token: {FileName}", fileName);
             return false;
         }
     }
 
     /// <summary>
-    /// Carga un token desde archivo local y lo desencripta.
+    /// Loads a token from a local file and decrypts it.
     /// </summary>
     public async Task<string?> LoadOfflineTokenAsync(string fileName, CancellationToken ct = default)
     {
@@ -76,23 +76,23 @@ public class OfflineTokenManager : IOfflineTokenManager
             
             if (!File.Exists(filePath))
             {
-                _logger.LogDebug("Token no encontrado: {FileName}", fileName);
+                _logger.LogDebug("Token not found: {FileName}", fileName);
                 return null;
             }
 
             var encryptedContent = await File.ReadAllTextAsync(filePath, ct);
             
-            // Desencriptar token
+            // Decrypt token
             var content = _useEncryption ? DecryptToken(encryptedContent) : encryptedContent;
             
-            _logger.LogDebug("Token cargado{Decrypted}: {FileName}", 
-                _useEncryption ? " (desencriptado)" : "", fileName);
+            _logger.LogDebug("Token loaded{Decrypted}: {FileName}", 
+                _useEncryption ? " (decrypted)" : "", fileName);
             return content;
         }
         catch (CryptographicException ex)
         {
-            _logger.LogWarning(ex, "Error desencriptando token (posible cambio de usuario/máquina): {FileName}", fileName);
-            // Intentar leer sin desencriptar por compatibilidad
+            _logger.LogWarning(ex, "Error decrypting token (possible user/machine change): {FileName}", fileName);
+            // Try to read without decrypting for compatibility
             try
             {
                 var filePath = GetTokenFilePath(fileName);
@@ -105,13 +105,13 @@ public class OfflineTokenManager : IOfflineTokenManager
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error cargando token: {FileName}", fileName);
+            _logger.LogError(ex, "Error loading token: {FileName}", fileName);
             return null;
         }
     }
 
     /// <summary>
-    /// Verifica si existe un archivo de token.
+    /// Checks if a token file exists.
     /// </summary>
     public bool TokenFileExists(string fileName)
     {
@@ -120,7 +120,7 @@ public class OfflineTokenManager : IOfflineTokenManager
     }
 
     /// <summary>
-    /// Elimina un archivo de token.
+    /// Deletes a token file.
     /// </summary>
     public bool DeleteTokenFile(string fileName)
     {
@@ -131,7 +131,7 @@ public class OfflineTokenManager : IOfflineTokenManager
             if (File.Exists(filePath))
             {
                 File.Delete(filePath);
-                _logger.LogDebug("Token eliminado: {FileName}", fileName);
+                _logger.LogDebug("Token deleted: {FileName}", fileName);
                 return true;
             }
             
@@ -139,13 +139,13 @@ public class OfflineTokenManager : IOfflineTokenManager
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error eliminando token: {FileName}", fileName);
+            _logger.LogError(ex, "Error deleting token: {FileName}", fileName);
             return false;
         }
     }
 
     /// <summary>
-    /// Elimina todos los archivos de tokens.
+    /// Deletes all token files.
     /// </summary>
     public void ClearAllTokens()
     {
@@ -161,29 +161,29 @@ public class OfflineTokenManager : IOfflineTokenManager
                     try
                     {
                         File.Delete(file);
-                        _logger.LogDebug("Token eliminado: {File}", Path.GetFileName(file));
+                        _logger.LogDebug("Token deleted: {File}", Path.GetFileName(file));
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogWarning(ex, "No se pudo eliminar: {File}", file);
+                        _logger.LogWarning(ex, "Could not delete: {File}", file);
                     }
                 }
             }
             
-            _logger.LogInformation("Todos los tokens han sido eliminados");
+            _logger.LogInformation("All tokens have been deleted");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error limpiando tokens");
+            _logger.LogError(ex, "Error clearing tokens");
         }
     }
 
     /// <summary>
-    /// Obtiene la ruta completa del archivo de token.
+    /// Gets the full path of the token file.
     /// </summary>
     private string GetTokenFilePath(string fileName)
     {
-        // Sanitizar nombre de archivo
+        // Sanitize file name
         var sanitized = Path.GetFileName(fileName);
         return Path.Combine(_tokenDirectory, sanitized);
     }
@@ -198,19 +198,19 @@ public class OfflineTokenManager : IOfflineTokenManager
             if (!Directory.Exists(_tokenDirectory))
             {
                 Directory.CreateDirectory(_tokenDirectory);
-                _logger.LogDebug("Directorio de tokens creado: {Dir}", _tokenDirectory);
+                _logger.LogDebug("Tokens directory created: {Dir}", _tokenDirectory);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creando directorio de tokens: {Dir}", _tokenDirectory);
+            _logger.LogError(ex, "Error creating tokens directory: {Dir}", _tokenDirectory);
         }
     }
 
     #region DPAPI Encryption
 
     /// <summary>
-    /// Encripta un token usando DPAPI con entropía basada en MachineGuid.
+    /// Encrypts a token using DPAPI with entropy based on MachineGuid.
     /// </summary>
     private string EncryptToken(string plainToken)
     {
@@ -223,13 +223,13 @@ public class OfflineTokenManager : IOfflineTokenManager
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error encriptando token, almacenando sin encriptación");
+            _logger.LogWarning(ex, "Error encrypting token, storing without encryption");
             return plainToken;
         }
     }
 
     /// <summary>
-    /// Desencripta un token usando DPAPI con entropía basada en MachineGuid.
+    /// Decrypts a token using DPAPI with entropy based on MachineGuid.
     /// </summary>
     private string DecryptToken(string encryptedToken)
     {
@@ -242,14 +242,14 @@ public class OfflineTokenManager : IOfflineTokenManager
         }
         catch (FormatException)
         {
-            // No es Base64, probablemente no está encriptado (migración)
-            _logger.LogDebug("Token no está en formato Base64, asumiendo sin encriptar");
+            // Not Base64, probably not encrypted (migration)
+            _logger.LogDebug("Token is not in Base64 format, assuming unencrypted");
             return encryptedToken;
         }
     }
 
     /// <summary>
-    /// Obtiene el MachineGuid como bytes para usar como entropía.
+    /// Gets the MachineGuid as bytes to use as entropy.
     /// </summary>
     private byte[] GetMachineGuidBytes()
     {
@@ -258,7 +258,7 @@ public class OfflineTokenManager : IOfflineTokenManager
     }
 
     /// <summary>
-    /// Obtiene el MachineGuid del registro de Windows.
+    /// Gets the MachineGuid from Windows registry.
     /// </summary>
     private string GetMachineGuid()
     {
@@ -272,7 +272,7 @@ public class OfflineTokenManager : IOfflineTokenManager
             
             if (regKey == null)
             {
-                _logger.LogWarning("Clave de registro no encontrada: {Location}", location);
+                _logger.LogWarning("Registry key not found: {Location}", location);
                 return GetFallbackEntropy();
             }
 
@@ -280,7 +280,7 @@ public class OfflineTokenManager : IOfflineTokenManager
             
             if (machineGuid == null)
             {
-                _logger.LogWarning("MachineGuid no encontrado en registro");
+                _logger.LogWarning("MachineGuid not found in registry");
                 return GetFallbackEntropy();
             }
 
@@ -288,17 +288,17 @@ public class OfflineTokenManager : IOfflineTokenManager
         }
         catch (Exception ex)
         {
-            _logger.LogWarning(ex, "Error obteniendo MachineGuid del registro");
+            _logger.LogWarning(ex, "Error getting MachineGuid from registry");
             return GetFallbackEntropy();
         }
     }
 
     /// <summary>
-    /// Genera entropía de respaldo si MachineGuid no está disponible.
+    /// Generates fallback entropy if MachineGuid is not available.
     /// </summary>
     private string GetFallbackEntropy()
     {
-        // Usar nombre de máquina + usuario como entropía de respaldo
+        // Use machine name + user as fallback entropy
         return $"{Environment.MachineName}_{Environment.UserName}_FiplexControlSoftware";
     }
 

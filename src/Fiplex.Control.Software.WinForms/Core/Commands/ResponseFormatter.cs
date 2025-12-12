@@ -3,13 +3,13 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Commands;
 
 /// <summary>
-/// Formatea respuestas seriales según especificaciones de settings.cfg
-/// Implementa formato "splitwith3tabs" para compatibilidad con frontend JavaScript
+/// Formats serial responses according to settings.cfg specifications
+/// Implements "splitwith3tabs" format for JavaScript frontend compatibility
 /// 
-/// Algunos dispositivos (1c5.2, etc.) ya envían la respuesta CON los triple tabs y datos de remotes.
-/// En ese caso, NO debemos reformatear - solo pasar la respuesta tal cual.
-/// Otros dispositivos (5dm1, etc.) envían solo datos del master y requieren que agreguemos
-/// los frames de remotes vacíos.
+/// Some devices (1c5.2, etc.) already send the response WITH triple tabs and remote data.
+/// In that case, we should NOT reformat - just pass the response as is.
+/// Other devices (5dm1, etc.) send only master data and require us to add
+/// empty remote frames.
 /// </summary>
 public class ResponseFormatter
 {
@@ -24,35 +24,35 @@ public class ResponseFormatter
     }
 
     /// <summary>
-    /// Aplica formato splitwith3tabs a respuesta hex raw.
-    /// Formato esperado por JavaScript: frames separados por "\t\t\t", cada frame con estructura interna separada por "\t"
-    /// Para global_conf (U1): Master + 8 Remotes
+    /// Applies splitwith3tabs format to raw hex response.
+    /// Expected format for JavaScript: frames separated by "\t\t\t", each frame with internal structure separated by "\t"
+    /// For global_conf (U1): Master + 8 Remotes
     /// 
-    /// - Si la respuesta YA contiene triple tabs, el dispositivo ya formateó → pasar sin modificar
-    /// - Si la respuesta NO contiene triple tabs pero tiene datos extra al final (IDs de remotes),
-    ///   extraer esos datos y formatear correctamente
-    /// - Solo generar "0000" para remotes cuando el dispositivo no envió información de remotes
+    /// - If the response ALREADY contains triple tabs, the device already formatted → pass without modifying
+    /// - If the response does NOT contain triple tabs but has extra data at the end (remote IDs),
+    ///   extract that data and format correctly
+    /// - Only generate "0000" for remotes when the device did not send remote information
     /// </summary>
-    /// <param name="rawResponse">Respuesta hex completa del dispositivo</param>
-    /// <param name="lengthSpec">Especificación de formato (ej: "splitwith3tabs:3104,2870,2528,4")</param>
-    /// <param name="nrOfRemotes">Número de dispositivos remotos (típicamente 8)</param>
-    /// <returns>Respuesta formateada con separadores de tabuladores</returns>
+    /// <param name="rawResponse">Complete hex response from the device</param>
+    /// <param name="lengthSpec">Format specification (e.g.: "splitwith3tabs:3104,2870,2528,4")</param>
+    /// <param name="nrOfRemotes">Number of remote devices (typically 8)</param>
+    /// <returns>Formatted response with tab separators</returns>
     public string FormatResponse(string rawResponse, string lengthSpec, int nrOfRemotes = 8)
     {
         if (string.IsNullOrEmpty(rawResponse))
         {
-            _logger.LogWarning("FormatResponse: respuesta vacía");
+            _logger.LogWarning("FormatResponse: empty response");
             return rawResponse;
         }
 
         if (!lengthSpec.StartsWith("splitwith3tabs:", StringComparison.OrdinalIgnoreCase))
         {
-            // No requiere formato especial
+            // Does not require special formatting
             return rawResponse;
         }
         if (rawResponse.Contains(TripleTab))
         {
-            _logger.LogDebug("FormatResponse: Respuesta ya contiene triple tabs - preservando formato original");
+            _logger.LogDebug("FormatResponse: Response already contains triple tabs - preserving original format");
             return rawResponse;
         }
 
@@ -63,13 +63,13 @@ public class ResponseFormatter
             var specParts = lengthSpec.Substring("splitwith3tabs:".Length).Split(',');
             if (specParts.Length < 1)
             {
-                _logger.LogError("FormatResponse: spec inválida, se esperan al menos 1 valor: {LengthSpec}", lengthSpec);
+                _logger.LogError("FormatResponse: invalid spec, expected at least 1 value: {LengthSpec}", lengthSpec);
                 return rawResponse;
             }
 
             int expectedMasterLength = int.Parse(specParts[0]);
             
-            // Longitud de cada ID de remote (típicamente 4 chars hex: "0100", "0200", etc.)
+            // Length of each remote ID (typically 4 hex chars: "0100", "0200", etc.)
             const int remoteIdLength = 4;
             int expectedTotalWithRemotes = expectedMasterLength + (nrOfRemotes * remoteIdLength);
 
@@ -85,12 +85,12 @@ public class ResponseFormatter
             
             frames.Add(masterFrame);
             _logger.LogDebug("FormatResponse: Master frame ({Length} chars)", masterFrame.Length);
-            // Algunos dispositivos envían: [master data][0100][0200][0300]...[0800]
-            // En lugar de enviar con tabs como: [master]\t\t\t[remote1]\t\t\t[remote2]...
+            // Some devices send: [master data][0100][0200][0300]...[0800]
+            // Instead of sending with tabs like: [master]\t\t\t[remote1]\t\t\t[remote2]...
             if (rawResponse.Length >= expectedTotalWithRemotes)
             {
-                // El dispositivo incluyó los IDs de remotes - extraerlos
-                _logger.LogDebug("FormatResponse: Dispositivo incluyó IDs de remotes al final");
+                // The device included remote IDs - extract them
+                _logger.LogDebug("FormatResponse: Device included remote IDs at the end");
                 
                 int remoteDataStart = expectedMasterLength;
                 for (int i = 0; i < nrOfRemotes; i++)
@@ -104,23 +104,23 @@ public class ResponseFormatter
                     }
                     else
                     {
-                        frames.Add("0000"); // Fallback si no hay suficientes datos
-                        _logger.LogDebug("FormatResponse: Remote {Index} frame (sin datos, usando 0000)", i + 1);
+                        frames.Add("0000"); // Fallback if not enough data
+                        _logger.LogDebug("FormatResponse: Remote {Index} frame (no data, using 0000)", i + 1);
                     }
                 }
             }
             else
             {
-                // El dispositivo NO incluyó datos de remotes - generar frames vacíos
-                // Esto es típico cuando no hay remotes conectados
-                _logger.LogDebug("FormatResponse: Dispositivo no incluyó IDs de remotes, generando frames vacíos");
+                // The device did NOT include remote data - generate empty frames
+                // This is typical when no remotes are connected
+                _logger.LogDebug("FormatResponse: Device did not include remote IDs, generating empty frames");
                 
                 for (int i = 0; i < nrOfRemotes; i++)
                 {
-                    // Header de 4 caracteres hex: "0000" = no conectado
-                    // El JavaScript verifica substring(2,4) == "01" para marcar como conectado
+                    // Header of 4 hex characters: "0000" = not connected
+                    // JavaScript checks substring(2,4) == "01" to mark as connected
                     frames.Add("0000");
-                    _logger.LogDebug("FormatResponse: Remote {Index} frame (vacío/desconectado)", i + 1);
+                    _logger.LogDebug("FormatResponse: Remote {Index} frame (empty/disconnected)", i + 1);
                 }
             }
 
@@ -134,8 +134,8 @@ public class ResponseFormatter
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "FormatResponse: Error aplicando splitwith3tabs a respuesta de {Length} chars", rawResponse.Length);
-            return rawResponse; // Fallback: retornar sin formatear
+            _logger.LogError(ex, "FormatResponse: Error applying splitwith3tabs to response of {Length} chars", rawResponse.Length);
+            return rawResponse; // Fallback: return unformatted
         }
     }
 }

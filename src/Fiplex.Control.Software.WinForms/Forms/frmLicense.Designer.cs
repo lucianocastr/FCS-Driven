@@ -319,19 +319,19 @@ partial class frmLicense
     private ToolTip ToolTip1;
     private GroupBox Frame1;
 
-    // Checkboxes para Narrow Filters
+    // Checkboxes for Narrow Filters
     private CheckBox chkNbEn0;
     private CheckBox chkNbEn1;
 
-    // Checkboxes para AdjBW Filters
+    // Checkboxes for AdjBW Filters
     private CheckBox chkAdjEn0;
     private CheckBox chkAdjEn1;
 
-    // Checkboxes para Single Band
+    // Checkboxes for Single Band
     private CheckBox chkSingEn0;
     private CheckBox chkSingEn1;
 
-    // TextBoxes para Power Limit Downlink
+    // TextBoxes for Power Limit Downlink
     private TextBox txtPowDL0;
     private TextBox txtPowDL1;
 
@@ -343,10 +343,10 @@ partial class frmLicense
     private Label Label5;  // BAND0
     private Label Label6;  // BAND1
 
-    // Botón Apply
+    // Apply Button
     private Button cmdApply;
 
-    // Feedback visual OK/KO
+    // Visual feedback OK/KO
     private PictureBox pctOK;
     private PictureBox pctKO;
 }

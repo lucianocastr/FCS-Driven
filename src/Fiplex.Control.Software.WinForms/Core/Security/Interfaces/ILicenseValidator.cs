@@ -3,32 +3,32 @@ using Fiplex.Control.Software.WinForms.Models;
 namespace Fiplex.Control.Software.WinForms.Core.Security.Interfaces;
 
 /// <summary>
-/// Validador de licencias para dispositivos Fiplex.
+/// License validator for Fiplex devices.
 /// </summary>
 public interface ILicenseValidator
 {
     /// <summary>
-    /// Valida la licencia para un dispositivo específico.
+    /// Validates the license for a specific device.
     /// </summary>
     Task<bool> ValidateLicenseAsync(string deviceId, CancellationToken ct = default);
     
     /// <summary>
-    /// Indica si la licencia actual está expirada.
+    /// Indicates if the current license is expired.
     /// </summary>
     bool IsLicenseExpired();
     
     /// <summary>
-    /// Obtiene la fecha de expiración más cercana.
+    /// Gets the closest expiration date.
     /// </summary>
     DateTime? GetExpirationDate();
     
     /// <summary>
-    /// Obtiene información completa de la licencia cargada.
+    /// Gets complete information of the loaded license.
     /// </summary>
     LicenseInfo? GetLicenseInfo();
     
     /// <summary>
-    /// Recarga el archivo de licencia desde disco.
+    /// Reloads the license file from disk.
     /// </summary>
     Task ReloadLicenseAsync(CancellationToken ct = default);
 }

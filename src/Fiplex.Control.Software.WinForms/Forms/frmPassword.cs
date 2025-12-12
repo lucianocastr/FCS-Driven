@@ -3,13 +3,13 @@ using System.ComponentModel;
 namespace Fiplex.Control.Software.WinForms.Forms;
 
 /// <summary>
-/// Diálogo modal para captura segura de contraseña del dispositivo.
+/// Modal dialog for secure device password capture.
 /// </summary>
 /// <remarks>
-/// Soporta dos modos de operación:
+/// Supports two modes of operation:
 /// <list type="bullet">
-///   <item><description>Modo captura: Autenticación estándar del dispositivo</description></item>
-///   <item><description>Modo edición: Cambio de contraseña (muestra campo de confirmación)</description></item>
+///   <item><description>Capture mode: Standard device authentication</description></item>
+///   <item><description>Edit mode: Password change (shows confirmation field)</description></item>
 /// </list>
 /// </remarks>
 public partial class frmPassword : Form
@@ -17,8 +17,8 @@ public partial class frmPassword : Form
     private bool _isEditMode;
     
     /// <summary>
-    /// Obtiene o establece la contraseña ingresada por el usuario.
-    /// Permite pre-población del campo para UX mejorada.
+    /// Gets or sets the password entered by the user.
+    /// Allows pre-population of the field for improved UX.
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string Password 
@@ -28,7 +28,7 @@ public partial class frmPassword : Form
     }
 
     /// <summary>
-    /// Obtiene o establece la contraseña de confirmación en modo edición.
+    /// Gets or sets the confirmation password in edit mode.
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string ConfirmPassword
@@ -38,16 +38,16 @@ public partial class frmPassword : Form
     }
 
     /// <summary>
-    /// Indica si el usuario seleccionó recordar la contraseña.
+    /// Indicates whether the user selected to remember the password.
     /// </summary>
     public bool RememberPassword => chkRemember.Checked;
 
     /// <summary>
-    /// Indica si el diálogo está en modo edición (cambio de contraseña).
+    /// Indicates whether the dialog is in edit mode (password change).
     /// </summary>
     /// <remarks>
-    /// En modo edición: Título y prompt cambian, chkRemember se oculta, 
-    /// campo de confirmación se muestra.
+    /// In edit mode: Title and prompt change, chkRemember is hidden,
+    /// confirmation field is shown.
     /// </remarks>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool IsEditMode
@@ -61,8 +61,8 @@ public partial class frmPassword : Form
     }
 
     /// <summary>
-    /// Controla visibilidad del botón Cancelar.
-    /// Por defecto visible. Ocultar para forzar ingreso de contraseña.
+    /// Controls Cancel button visibility.
+    /// Visible by default. Hide to force password entry.
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool ShowCancel
@@ -72,7 +72,7 @@ public partial class frmPassword : Form
     }
 
     /// <summary>
-    /// Constructor del formulario de contraseña.
+    /// Password form constructor.
     /// </summary>
     public frmPassword()
     {
@@ -80,41 +80,41 @@ public partial class frmPassword : Form
     }
 
     /// <summary>
-    /// Actualiza la visualización según el modo (captura vs edición).
+    /// Updates the display according to the mode (capture vs edit).
     /// </summary>
     private void UpdateModeDisplay()
     {
         if (_isEditMode)
         {
-            // Modo edición: Cambiar contraseña del dispositivo
+            // Edit mode: Change device password
             Text = "Change Device Password";
             lblPrompt.Text = "Enter new password:";
             chkRemember.Visible = false;
             
-            // Mostrar campo de confirmación y ajustar altura
+            // Show confirmation field and adjust height
             lblConfirm.Visible = true;
             txtConfirmPassword.Visible = true;
             lblPasswordError.Visible = true;
             lblPasswordError.Text = string.Empty;
             
-            // Ajustar posición de botones para modo edición
+            // Adjust button position for edit mode
             Height = 210;
             btnOK.Top = 135;
             btnCancel.Top = 135;
         }
         else
         {
-            // Modo captura: Autenticación estándar
+            // Capture mode: Standard authentication
             Text = "Device Authentication";
             lblPrompt.Text = "Enter device password:";
             chkRemember.Visible = true;
             
-            // Ocultar campo de confirmación
+            // Hide confirmation field
             lblConfirm.Visible = false;
             txtConfirmPassword.Visible = false;
             lblPasswordError.Visible = false;
             
-            // Ajustar altura para modo autenticación
+            // Adjust height for authentication mode
             Height = 160;
             btnOK.Top = 85;
             btnCancel.Top = 85;
@@ -122,9 +122,9 @@ public partial class frmPassword : Form
     }
 
     /// <summary>
-    /// Muestra un mensaje de error de validación.
+    /// Displays a validation error message.
     /// </summary>
-    /// <param name="errorMessage">Mensaje de error a mostrar.</param>
+    /// <param name="errorMessage">Error message to display.</param>
     public void ShowValidationError(string errorMessage)
     {
         if (_isEditMode && lblPasswordError != null)
@@ -135,7 +135,7 @@ public partial class frmPassword : Form
     }
 
     /// <summary>
-    /// Limpia los mensajes de error.
+    /// Clears error messages.
     /// </summary>
     public void ClearValidationError()
     {
@@ -146,16 +146,16 @@ public partial class frmPassword : Form
     }
 
     /// <summary>
-    /// Maneja el click del botón Aceptar con validación.
+    /// Handles OK button click with validation.
     /// </summary>
     /// <remarks>
-    /// En modo edición valida que las contraseñas coincidan antes de cerrar.
+    /// In edit mode validates that passwords match before closing.
     /// </remarks>
     private void btnOK_Click(object sender, EventArgs e)
     {
         ClearValidationError();
         
-        // Validar que la contraseña no esté vacía
+        // Validate that the password is not empty
         if (string.IsNullOrWhiteSpace(txtPassword.Text))
         {
             MessageBox.Show(
@@ -166,13 +166,13 @@ public partial class frmPassword : Form
                 MessageBoxButtons.OK, 
                 MessageBoxIcon.Warning);
             
-            // Prevenir cierre del diálogo
+            // Prevent dialog close
             DialogResult = DialogResult.None;
             txtPassword.Focus();
             return;
         }
 
-        // Validación de coincidencia en modo edición
+        // Match validation in edit mode
         if (_isEditMode)
         {
             if (string.IsNullOrWhiteSpace(txtConfirmPassword.Text))
@@ -193,12 +193,12 @@ public partial class frmPassword : Form
             }
         }
 
-        // Validación exitosa - permitir cierre
+        // Successful validation - allow close
         DialogResult = DialogResult.OK;
     }
 
     /// <summary>
-    /// Maneja el click del botón Cancelar.
+    /// Handles Cancel button click.
     /// </summary>
     private void btnCancel_Click(object sender, EventArgs e)
     {

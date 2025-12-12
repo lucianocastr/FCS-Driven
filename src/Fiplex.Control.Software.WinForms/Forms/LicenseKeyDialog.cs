@@ -7,15 +7,15 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Forms;
 
 /// <summary>
-/// Diálogo para visualización y edición de la licencia del dispositivo.
+/// Dialog for viewing and editing device license.
 /// </summary>
 /// <remarks>
-/// <para>Funcionalidad:</para>
+/// <para>Functionality:</para>
 /// <list type="bullet">
-///   <item><description>Modo lectura: Visualiza información de licencia actual</description></item>
-///   <item><description>Modo edición: Permite escribir nueva licencia al dispositivo</description></item>
+///   <item><description>Read mode: Displays current license information</description></item>
+///   <item><description>Edit mode: Allows writing new license to device</description></item>
 /// </list>
-/// <para>Comando serial para escritura: <c>;0{Index:X2}{Key64}</c> donde Index es 00 o 01.</para>
+/// <para>Serial command for writing: <c>;0{Index:X2}{Key64}</c> where Index is 00 or 01.</para>
 /// </remarks>
 public partial class LicenseKeyDialog : Form
 {
@@ -26,29 +26,29 @@ public partial class LicenseKeyDialog : Form
     private bool _isApplying;
     private CancellationTokenSource? _cts;
     
-    // Indicadores visuales de feedback (paneles verde/rojo)
+    // Visual feedback indicators (green/red panels)
     private Panel? _pctOK;
     private Panel? _pctKO;
 
     /// <summary>
-    /// Evento disparado cuando se aplica la licencia exitosamente.
+    /// Event fired when the license is successfully applied.
     /// </summary>
     /// <remarks>
-    /// Permite a frmMain ejecutar WebRefresh para actualizar la UI del dispositivo.
+    /// Allows frmMain to execute WebRefresh to update the device UI.
     /// </remarks>
     public event EventHandler? LicenseApplied;
 
     /// <summary>
-    /// Índice de licencia a aplicar (0 o 1).
+    /// License index to apply (0 or 1).
     /// </summary>
     /// <remarks>
-    /// Se usa en el comando serial: <c>;0{Index:X2}{Key64}</c>
+    /// Used in serial command: <c>;0{Index:X2}{Key64}</c>
     /// </remarks>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public int LicenseIndex { get; set; }
 
     /// <summary>
-    /// Obtiene o establece la clave de licencia.
+    /// Gets or sets the license key.
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string LicenseKey
@@ -58,7 +58,7 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Obtiene o establece el nombre del dispositivo (solo lectura).
+    /// Gets or sets the device name (read-only).
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string DeviceName
@@ -68,7 +68,7 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Obtiene o establece el tipo de dispositivo (solo lectura).
+    /// Gets or sets the device type (read-only).
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string DeviceType
@@ -78,7 +78,7 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Obtiene o establece la versión del dispositivo (solo lectura).
+    /// Gets or sets the device version (read-only).
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string DeviceVersion
@@ -88,7 +88,7 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Obtiene o establece el estado de la licencia.
+    /// Gets or sets the license status.
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string LicenseStatus
@@ -97,7 +97,7 @@ public partial class LicenseKeyDialog : Form
         set
         {
             lblStatusValue.Text = value ?? string.Empty;
-            // Cambiar color según estado
+            // Change color based on status
             lblStatusValue.ForeColor = value?.Contains("Valid", StringComparison.OrdinalIgnoreCase) == true
                 ? FiplexTheme.StateSuccess
                 : FiplexTheme.StateError;
@@ -105,7 +105,7 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Obtiene o establece la fecha de expiración.
+    /// Gets or sets the expiration date.
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string ExpirationDate
@@ -115,7 +115,7 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Indica si el diálogo está en modo solo lectura.
+    /// Indicates whether the dialog is in read-only mode.
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool IsReadOnly
@@ -129,7 +129,7 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Constructor con inyección de dependencias para modo edición.
+    /// Constructor with dependency injection for edit mode.
     /// </summary>
     public LicenseKeyDialog(
         ISerialCommandPipeline pipeline,
@@ -144,7 +144,7 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Constructor sin parámetros para modo solo lectura (compatibilidad Designer).
+    /// Parameterless constructor for read-only mode (Designer compatibility).
     /// </summary>
     public LicenseKeyDialog()
     {
@@ -154,11 +154,11 @@ public partial class LicenseKeyDialog : Form
     }
     
     /// <summary>
-    /// Inicializa indicadores visuales de feedback (panel verde para éxito, rojo para error).
+    /// Initializes visual feedback indicators (green panel for success, red for error).
     /// </summary>
     private void InitializeFeedbackIndicators()
     {
-        // Panel de éxito (verde)
+        // Success panel (green)
         _pctOK = new Panel
         {
             Size = new Size(16, 16),
@@ -167,7 +167,7 @@ public partial class LicenseKeyDialog : Form
             Anchor = AnchorStyles.Top | AnchorStyles.Right
         };
         
-        // Panel de error (rojo)
+        // Error panel (red)
         _pctKO = new Panel
         {
             Size = new Size(16, 16),
@@ -176,7 +176,7 @@ public partial class LicenseKeyDialog : Form
             Anchor = AnchorStyles.Top | AnchorStyles.Right
         };
         
-        // Posicionar junto al botón Apply
+        // Position next to Apply button
         _pctOK.Location = new Point(btnApply.Left - 24, btnApply.Top + 7);
         _pctKO.Location = new Point(btnApply.Left - 24, btnApply.Top + 7);
         
@@ -185,7 +185,7 @@ public partial class LicenseKeyDialog : Form
     }
     
     /// <summary>
-    /// Configura validación en tiempo real del campo de licencia.
+    /// Configures real-time validation for the license field.
     /// </summary>
     private void SetupValidation()
     {
@@ -195,10 +195,10 @@ public partial class LicenseKeyDialog : Form
     }
     
     /// <summary>
-    /// Valida la clave en tiempo real al cambiar el texto.
+    /// Validates the key in real-time when text changes.
     /// </summary>
     /// <remarks>
-    /// Habilita el botón Apply solo si la clave tiene exactamente 64 caracteres hexadecimales.
+    /// Enables Apply button only if key has exactly 64 hexadecimal characters.
     /// </remarks>
     private void TxtLicenseKey_TextChanged(object? sender, EventArgs e)
     {
@@ -209,7 +209,7 @@ public partial class LicenseKeyDialog : Form
     }
     
     /// <summary>
-    /// Valida que la clave sea exactamente 64 caracteres hexadecimales.
+    /// Validates that the key is exactly 64 hexadecimal characters.
     /// </summary>
     private static bool IsValidHexKey(string key)
     {
@@ -220,14 +220,14 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Actualiza la UI según el modo (lectura vs edición).
+    /// Updates the UI according to mode (read vs edit).
     /// </summary>
     private void UpdateReadOnlyMode()
     {
         txtLicenseKey.ReadOnly = _isReadOnly;
         btnApply.Visible = !_isReadOnly;
         
-        // Actualizar estado inicial del botón Apply según validación
+        // Update initial Apply button state based on validation
         if (!_isReadOnly)
         {
             btnApply.Enabled = IsValidHexKey(txtLicenseKey.Text);
@@ -248,9 +248,9 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Valida el formato de la clave de licencia.
+    /// Validates the license key format.
     /// </summary>
-    /// <returns><c>true</c> si la clave es válida (64 caracteres hex); <c>false</c> en caso contrario.</returns>
+    /// <returns><c>true</c> if the key is valid (64 hex characters); <c>false</c> otherwise.</returns>
     private bool ValidateLicenseKey()
     {
         var key = txtLicenseKey.Text.Trim();
@@ -266,7 +266,7 @@ public partial class LicenseKeyDialog : Form
             return false;
         }
 
-        // Validar longitud exacta de 64 caracteres
+        // Validate exact length of 64 characters
         if (key.Length != 64)
         {
             MessageBox.Show(
@@ -278,7 +278,7 @@ public partial class LicenseKeyDialog : Form
             return false;
         }
         
-        // Validar caracteres hexadecimales
+        // Validate hexadecimal characters
         if (!IsValidHexKey(key))
         {
             MessageBox.Show(
@@ -294,17 +294,17 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Aplica la licencia al dispositivo.
+    /// Applies the license to the device.
     /// </summary>
     /// <remarks>
-    /// <para>Flujo de ejecución:</para>
+    /// <para>Execution flow:</para>
     /// <list type="number">
-    ///   <item><description>Validar clave (64 caracteres hexadecimales)</description></item>
-    ///   <item><description>Deshabilitar controles durante la operación</description></item>
-    ///   <item><description>Enviar comando <c>;0{Index:X2}{Key64}</c></description></item>
-    ///   <item><description>Mostrar feedback visual (OK/KO)</description></item>
-    ///   <item><description>Esperar 2000ms para visualizar resultado</description></item>
-    ///   <item><description>Si éxito: disparar evento LicenseApplied y cerrar</description></item>
+    ///   <item><description>Validate key (64 hexadecimal characters)</description></item>
+    ///   <item><description>Disable controls during operation</description></item>
+    ///   <item><description>Send command <c>;0{Index:X2}{Key64}</c></description></item>
+    ///   <item><description>Show visual feedback (OK/KO)</description></item>
+    ///   <item><description>Wait 2000ms to display result</description></item>
+    ///   <item><description>If success: fire LicenseApplied event and close</description></item>
     /// </list>
     /// </remarks>
     private async void btnApply_Click(object sender, EventArgs e)
@@ -314,10 +314,10 @@ public partial class LicenseKeyDialog : Form
             return;
         }
         
-        // Verificar que tenemos pipeline para enviar comandos
+        // Verify that we have pipeline to send commands
         if (_pipeline == null)
         {
-            _logger?.LogWarning("Pipeline no disponible - cerrando con DialogResult.OK");
+            _logger?.LogWarning("Pipeline not available - closing with DialogResult.OK");
             DialogResult = DialogResult.OK;
             return;
         }
@@ -330,15 +330,15 @@ public partial class LicenseKeyDialog : Form
         {
             _isApplying = true;
             
-            // Deshabilitar controles durante operación
+            // Disable controls during operation
             SetControlsEnabled(false);
             
-            // Mostrar cursor de espera
+            // Show wait cursor
             Cursor = Cursors.WaitCursor;
             
-            _logger?.LogDebug("Enviando licencia (Index: {Index})", LicenseIndex);
+            _logger?.LogDebug("Sending license (Index: {Index})", LicenseIndex);
             
-            // Formato: ;0{Index:X2}{Key64} - ej: ;000AABBCCDD...64chars
+            // Format: ;0{Index:X2}{Key64} - e.g.: ;000AABBCCDD...64chars
             var indexHex = LicenseIndex.ToString("X2");
             var command = new SerialCommand
             {
@@ -352,25 +352,25 @@ public partial class LicenseKeyDialog : Form
             
             ct.ThrowIfCancellationRequested();
             
-            // Verificar resultado de la operación
+            // Verify operation result
             if (result.Success)
             {
                 ShowSuccessFeedback();
-                _logger?.LogInformation("Licencia aplicada exitosamente (Index: {Index})", LicenseIndex);
+                _logger?.LogInformation("License applied successfully (Index: {Index})", LicenseIndex);
             }
             else
             {
                 ShowFailureFeedback();
-                _logger?.LogWarning("Error aplicando licencia. Status: {Status}", result.Status);
+                _logger?.LogWarning("Error applying license. Status: {Status}", result.Status);
             }
             
-            // Esperar para mostrar feedback visual
+            // Wait to show visual feedback
             await Task.Delay(2000, ct);
             
-            // Ocultar indicadores de feedback
+            // Hide feedback indicators
             HideFeedback();
             
-            // Si fue exitoso, notificar y cerrar
+            // If successful, notify and close
             if (result.Success)
             {
                 LicenseApplied?.Invoke(this, EventArgs.Empty);
@@ -380,12 +380,12 @@ public partial class LicenseKeyDialog : Form
         }
         catch (OperationCanceledException)
         {
-            _logger?.LogDebug("Operación de aplicación de licencia cancelada");
+            _logger?.LogDebug("License apply operation cancelled");
             HideFeedback();
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error enviando licencia al dispositivo");
+            _logger?.LogError(ex, "Error sending license to device");
             ShowFailureFeedback();
             
             MessageBox.Show(
@@ -404,7 +404,7 @@ public partial class LicenseKeyDialog : Form
         }
         finally
         {
-            // Restaurar estado de controles
+            // Restore control state
             _isApplying = false;
             Cursor = Cursors.Default;
             SetControlsEnabled(true);
@@ -412,9 +412,9 @@ public partial class LicenseKeyDialog : Form
     }
     
     /// <summary>
-    /// Habilita o deshabilita los controles del diálogo durante operaciones.
+    /// Enables or disables dialog controls during operations.
     /// </summary>
-    /// <param name="enabled"><c>true</c> para habilitar; <c>false</c> para deshabilitar.</param>
+    /// <param name="enabled"><c>true</c> to enable; <c>false</c> to disable.</param>
     private void SetControlsEnabled(bool enabled)
     {
         btnApply.Enabled = enabled && IsValidHexKey(txtLicenseKey.Text);
@@ -424,7 +424,7 @@ public partial class LicenseKeyDialog : Form
     }
     
     /// <summary>
-    /// Muestra indicador visual de éxito (panel verde).
+    /// Shows success visual indicator (green panel).
     /// </summary>
     private void ShowSuccessFeedback()
     {
@@ -433,7 +433,7 @@ public partial class LicenseKeyDialog : Form
     }
     
     /// <summary>
-    /// Muestra indicador visual de fallo (panel rojo).
+    /// Shows failure visual indicator (red panel).
     /// </summary>
     private void ShowFailureFeedback()
     {
@@ -442,7 +442,7 @@ public partial class LicenseKeyDialog : Form
     }
     
     /// <summary>
-    /// Oculta ambos indicadores visuales de feedback.
+    /// Hides both visual feedback indicators.
     /// </summary>
     private void HideFeedback()
     {
@@ -451,7 +451,7 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Maneja el click del botón Cerrar/Cancelar.
+    /// Handles Close/Cancel button click.
     /// </summary>
     private void btnClose_Click(object sender, EventArgs e)
     {
@@ -460,7 +460,7 @@ public partial class LicenseKeyDialog : Form
     }
 
     /// <summary>
-    /// Maneja el click del botón Copiar.
+    /// Handles Copy button click.
     /// </summary>
     private void btnCopy_Click(object sender, EventArgs e)
     {
@@ -486,7 +486,7 @@ public partial class LicenseKeyDialog : Form
     }
     
     /// <summary>
-    /// Limpia recursos y cancela operaciones pendientes al cerrar el formulario.
+    /// Cleans up resources and cancels pending operations when closing the form.
     /// </summary>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
@@ -501,33 +501,33 @@ public partial class LicenseKeyDialog : Form
     }
     
     /// <summary>
-    /// Inicializa el formulario al cargar.
+    /// Initializes the form on load.
     /// </summary>
     /// <remarks>
-    /// En modo edición, limpia el campo si está vacío. El botón Apply solo se habilita
-    /// cuando la clave cumple con la validación (64 caracteres hex).
+    /// In edit mode, clears the field if empty. Apply button is only enabled
+    /// when the key meets validation (64 hex characters).
     /// </remarks>
     protected override void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
         
-        // En modo edición, si no hay valor, limpiar; si hay valor, mantenerlo
+        // In edit mode, if no value, clear; if there's a value, keep it
         if (!_isReadOnly && string.IsNullOrWhiteSpace(txtLicenseKey.Text))
         {
             txtLicenseKey.Text = string.Empty;
         }
         
-        // El botón Apply solo se habilita cuando la clave es válida (64 hex)
+        // Apply button is only enabled when key is valid (64 hex)
         btnApply.Enabled = !_isReadOnly && IsValidHexKey(txtLicenseKey.Text);
         
-        // Dar foco al campo de texto en modo edición
+        // Focus text field in edit mode
         if (!_isReadOnly)
         {
             txtLicenseKey.Focus();
             txtLicenseKey.SelectAll();
         }
         
-        _logger?.LogDebug("LicenseKeyDialog cargado - ReadOnly: {ReadOnly}, Index: {Index}", 
+        _logger?.LogDebug("LicenseKeyDialog loaded - ReadOnly: {ReadOnly}, Index: {Index}", 
             _isReadOnly, LicenseIndex);
     }
 }

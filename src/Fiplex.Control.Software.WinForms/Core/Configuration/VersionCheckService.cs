@@ -7,13 +7,13 @@ using System.Reflection;
 namespace Fiplex.Control.Software.WinForms.Core.Configuration;
 
 /// <summary>
-/// Configuración para el servicio de verificación de versiones.
-/// Se carga desde appsettings.json sección "VersionCheck".
+/// Configuration for the version check service.
+/// Loaded from appsettings.json section "VersionCheck".
 /// </summary>
 public class VersionCheckSettings
 {
     /// <summary>
-    /// URL del archivo de versiones .
+    /// URL of the versions file.
     /// Formato esperado: "fcs 1.9.0.0\nfcsng 2.0.0.0\n..."
     /// </summary>
     public string VersionsUrl { get; set; } = "http://www.fiplex.com/poms/lastversions.txt";
@@ -24,27 +24,27 @@ public class VersionCheckSettings
     public string DownloadUrl { get; set; } = "http://www.fiplex.com/poms/FiplexControlSoftware.zip";
 
     /// <summary>
-    /// Código del producto para buscar en el archivo de versiones .
+    /// Product code to search for in the versions file.
     /// </summary>
     public string ProductCode { get; set; } = "fcs";
 
     /// <summary>
-    /// Timeout en segundos para la petición HTTP.
+    /// Timeout in seconds for the HTTP request.
     /// </summary>
     public int TimeoutSeconds { get; set; } = 10;
 
     /// <summary>
-    /// Habilita o deshabilita la verificación de versiones.
+    /// Enables or disables version checking.
     /// </summary>
     public bool Enabled { get; set; } = true;
 }
 
 /// <summary>
-/// Implementación del servicio de verificación de versiones.
+/// Implementation of the version check service.
 /// 
-/// - C# usa HttpClient async para obtener el archivo de versiones directamente
-/// - Manejo robusto de errores y timeouts
-/// - Logging estructurado para diagnóstico
+/// - C# uses async HttpClient to fetch the versions file directly
+/// - Robust error and timeout handling
+/// - Structured logging for diagnostics
 /// </summary>
 public class VersionCheckService : IVersionCheckService
 {
@@ -56,8 +56,8 @@ public class VersionCheckService : IVersionCheckService
     private bool _updateAvailable;
 
     /// <summary>
-    /// Versión actual del software.
-    /// Usa InformationalVersion para soportar sufijos semánticos (-alpha, -beta, etc.)
+    /// Current software version.
+    /// Uses InformationalVersion to support semantic suffixes (-alpha, -beta, etc.)
     /// </summary>
     public string CurrentVersion { get; }
 
@@ -79,8 +79,8 @@ public class VersionCheckService : IVersionCheckService
         _settings = settings.Value;
         _logger = logger;
 
-        // Obtener versión actual del ensamblado
-        // Split('+')[0] elimina el hash de Git que .NET agrega automáticamente
+        // Get current version from assembly
+        // Split('+')[0] removes the Git hash that .NET adds automatically
         CurrentVersion = (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
             ?.InformationalVersion ?? "3.0.0")
@@ -107,7 +107,7 @@ public class VersionCheckService : IVersionCheckService
         {
             _logger.LogInformation("Checking for updates at {Url}", _settings.VersionsUrl);
 
-            // Agregar parámetro de fecha para evitar cache 
+            // Add date parameter to avoid cache
             var urlWithCacheBuster = $"{_settings.VersionsUrl}?d={DateTime.Now.Ticks}";
 
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -120,7 +120,7 @@ public class VersionCheckService : IVersionCheckService
 
             _logger.LogDebug("Received version file content: {Content}", content);
 
-            // Parsear y detectar nueva versión 
+            // Parse and detect new version
             var (updateAvailable, latestVersion) = DetectNewVersion(content);
 
             _latestVersion = latestVersion;
@@ -197,7 +197,7 @@ public class VersionCheckService : IVersionCheckService
 
             _logger.LogInformation("Opening download URL: {Url}", urlWithCacheBuster);
 
-            // UseShellExecute = true es necesario para abrir URLs en el navegador predeterminado
+            // UseShellExecute = true is required to open URLs in the default browser
             Process.Start(new ProcessStartInfo
             {
                 FileName = urlWithCacheBuster,
@@ -214,15 +214,15 @@ public class VersionCheckService : IVersionCheckService
     }
 
     /// <summary>
-    /// Detecta si hay una nueva versión disponible parseando el contenido del archivo de versiones.
+    /// Detects if a new version is available by parsing the versions file content.
     /// 
-    /// Formato esperado del archivo:
+    /// Expected file format:
     /// fcs 1.9.0.0
     /// fcsng 2.0.0.0
     /// other 1.0.0.0
     /// </summary>
-    /// <param name="content">Contenido del archivo de versiones</param>
-    /// <returns>Tupla (updateAvailable, latestVersion)</returns>
+    /// <param name="content">Versions file content</param>
+    /// <returns>Tuple (updateAvailable, latestVersion)</returns>
     private (bool UpdateAvailable, string? LatestVersion) DetectNewVersion(string content)
     {
         try
@@ -258,20 +258,20 @@ public class VersionCheckService : IVersionCheckService
     }
 
     /// <summary>
-    /// Compara dos versiones para determinar si la remota es más reciente.
+    /// Compares two versions to determine if the remote one is newer.
     /// </summary>
-    /// <param name="currentVersion">Versión actual local</param>
-    /// <param name="remoteVersion">Versión remota a comparar</param>
-    /// <returns>True si la versión remota es más reciente</returns>
+    /// <param name="currentVersion">Current local version</param>
+    /// <param name="remoteVersion">Remote version to compare</param>
+    /// <returns>True if the remote version is newer</returns>
     private bool CompareVersions(string currentVersion, string remoteVersion)
     {
         try
         {
-            // Limpiar sufijos semánticos (-alpha, -beta, -rc1, etc.) para comparación numérica
+            // Clean semantic suffixes (-alpha, -beta, -rc1, etc.) for numeric comparison
             var cleanCurrent = CleanVersionString(currentVersion);
             var cleanRemote = CleanVersionString(remoteVersion);
 
-            // Usar Version.TryParse para comparación robusta
+            // Use Version.TryParse for robust comparison
             if (Version.TryParse(cleanCurrent, out var current) &&
                 Version.TryParse(cleanRemote, out var remote))
             {
@@ -292,7 +292,7 @@ public class VersionCheckService : IVersionCheckService
     }
 
     /// <summary>
-    /// Limpia el string de versión removiendo sufijos semánticos.
+    /// Cleans the version string by removing semantic suffixes.
     /// "3.0.0-alpha" → "3.0.0"
     /// "1.8.0.0" → "1.8.0.0"
     /// </summary>
@@ -303,10 +303,10 @@ public class VersionCheckService : IVersionCheckService
     }
 
     /// <summary>
-    /// Convierte versión a entero largo para comparación.
+    /// Converts version to long integer for comparison.
     /// 
     /// aux = aux + 2 ^ (8 * (3 - i)) * CInt(buff(i))
-    /// Esto crea un número donde cada parte tiene 8 bits (256 valores).
+    /// This creates a number where each part has 8 bits (256 values).
     /// </summary>
     private static long VersionToLong(string version)
     {
@@ -317,7 +317,7 @@ public class VersionCheckService : IVersionCheckService
         {
             if (int.TryParse(parts[i], out var part))
             {
-                // Shift 8 bits por cada posición (equivalente a 2^(8*(3-i)))
+                // Shift 8 bits per position (equivalent to 2^(8*(3-i)))
                 result += (long)part << (8 * (3 - i));
             }
         }
@@ -326,7 +326,7 @@ public class VersionCheckService : IVersionCheckService
     }
 
     /// <summary>
-    /// Normaliza espacios múltiples a un solo espacio.
+    /// Normalizes multiple spaces to a single space.
     /// </summary>
     private static string NormalizeWhitespace(string input)
     {

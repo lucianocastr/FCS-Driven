@@ -4,8 +4,8 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Commands;
 
 /// <summary>
-/// Handler de respuestas para dispositivos 1C versión 5.2.
-/// Implementa workaround para bug bugSFco700 en factory params.
+/// Response handler for 1C devices version 5.2.
+/// Implements workaround for bugSFco700 in factory params.
 /// 
 ///   If frmMain.tdev = "1c" And frmMain.ndev = 5.2 Then
 ///       If command_Renamed = "F1" Then
@@ -17,10 +17,10 @@ public class Device1C_V52_ResponseHandler : IDeviceResponseHandler
 {
     private readonly ILogger<Device1C_V52_ResponseHandler> _logger;
     
-    // Flag de workaround para bug en parámetros factory
+    // Workaround flag for bug in factory parameters
     private bool _bugSFco700 = false;
     
-    // Parámetros factory corregidos
+    // Corrected factory parameters
     private string _factStrFixed = string.Empty;
     
     public int Priority => 90; // Alta prioridad
@@ -31,42 +31,42 @@ public class Device1C_V52_ResponseHandler : IDeviceResponseHandler
     }
 
     /// <summary>
-    /// Aplica a dispositivos 1c versión 5.2 exactamente.
+    /// Applies to 1c devices version 5.2 exactly.
     /// </summary>
     public bool CanHandle(string deviceType, double version)
         => deviceType.Equals("1c", StringComparison.OrdinalIgnoreCase) 
            && Math.Abs(version - 5.2) < 0.05;
 
     /// <summary>
-    /// Procesa respuestas F1 con workaround para bugSFco700.
+    /// Processes F1 responses with workaround for bugSFco700.
     /// </summary>
     public string ProcessResponse(string command, string rawResponse)
     {
         if (string.IsNullOrEmpty(rawResponse))
             return rawResponse;
 
-        // Comando F1: Factory Parameters con workaround
+        // F1 Command: Factory Parameters with workaround
         if (command.Equals("F1", StringComparison.OrdinalIgnoreCase))
         {
             _bugSFco700 = AnalyzeFactoryBDASFco(rawResponse);
             
             if (_bugSFco700)
             {
-                _logger.LogWarning("Bug SFco700 detectado en respuesta F1, aplicando corrección");
+                _logger.LogWarning("Bug SFco700 detected in F1 response, applying fix");
                 return _factStrFixed;
             }
         }
 
-        // Resetear flag después de uso
+        // Reset flag after use
         _bugSFco700 = false;
         return rawResponse;
     }
 
     /// <summary>
-    /// Analiza respuesta F1 para detectar bug SFco700.
+    /// Analyzes F1 response to detect bug SFco700.
     /// 
-    /// El bug afecta ciertos bytes de los parámetros factory en firmware
-    /// versión 5.2 de dispositivos 1c con serial que comienza con ciertos caracteres.
+    /// The bug affects certain bytes of factory parameters in firmware
+    /// version 5.2 of 1c devices with serial starting with certain characters.
     /// </summary>
     private bool AnalyzeFactoryBDASFco(string response)
     {
@@ -75,9 +75,9 @@ public class Device1C_V52_ResponseHandler : IDeviceResponseHandler
 
         try
         {
-            // en los bytes de calibración BDA (Bandpass Digital Attenuator)
+            // in the BDA (Bandpass Digital Attenuator) calibration bytes
             
-            // Posiciones críticas donde el bug manifiesta valores incorrectos
+            // Critical positions where the bug manifests incorrect values
             // Bytes 20-23: BDA low channel
             // Bytes 24-27: BDA high channel
             
@@ -86,14 +86,14 @@ public class Device1C_V52_ResponseHandler : IDeviceResponseHandler
                 var bdaLow = response.Substring(20, 4);
                 var bdaHigh = response.Substring(24, 4);
                 
-                // El bug produce valores 0x0000 o 0xFFFF en calibración
+                // The bug produces 0x0000 or 0xFFFF values in calibration
                 if (bdaLow == "0000" || bdaLow == "FFFF" || 
                     bdaHigh == "0000" || bdaHigh == "FFFF")
                 {
-                    // Construir respuesta corregida con valores default conocidos
+                    // Build corrected response with known default values
                     _factStrFixed = BuildFixedFactoryResponse(response);
                     _logger.LogInformation(
-                        "Bug SFco700: BDA valores inválidos detectados (low={BdaLow}, high={BdaHigh})",
+                        "Bug SFco700: Invalid BDA values detected (low={BdaLow}, high={BdaHigh})",
                         bdaLow, bdaHigh);
                     return true;
                 }
@@ -103,13 +103,13 @@ public class Device1C_V52_ResponseHandler : IDeviceResponseHandler
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error analizando factory BDA SFco700");
+            _logger.LogError(ex, "Error analyzing factory BDA SFco700");
             return false;
         }
     }
 
     /// <summary>
-    /// Construye respuesta factory corregida con valores default.
+    /// Builds corrected factory response with default values.
     /// </summary>
     private string BuildFixedFactoryResponse(string originalResponse)
     {
@@ -121,15 +121,15 @@ public class Device1C_V52_ResponseHandler : IDeviceResponseHandler
             var builder = new char[originalResponse.Length];
             originalResponse.CopyTo(0, builder, 0, originalResponse.Length);
             
-            // Reemplazar valores BDA con defaults conocidos para 1c5.2
-            const string defaultBdaLow = "3F70";  // 0.94 en formato IEEE754 16-bit
+            // Replace BDA values with known defaults for 1c5.2
+            const string defaultBdaLow = "3F70";  // 0.94 in IEEE754 16-bit format
             const string defaultBdaHigh = "3F80"; // 1.00 en formato IEEE754 16-bit
             
-            // Posición 20-23: BDA low
+            // Position 20-23: BDA low
             for (int i = 0; i < 4 && i + 20 < builder.Length; i++)
                 builder[20 + i] = defaultBdaLow[i];
             
-            // Posición 24-27: BDA high
+            // Position 24-27: BDA high
             for (int i = 0; i < 4 && i + 24 < builder.Length; i++)
                 builder[24 + i] = defaultBdaHigh[i];
             
@@ -142,7 +142,7 @@ public class Device1C_V52_ResponseHandler : IDeviceResponseHandler
     }
 
     /// <summary>
-    /// Resetea el estado del handler.
+    /// Resets the handler state.
     /// </summary>
     public void Reset()
     {

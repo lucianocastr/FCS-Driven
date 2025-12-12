@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Security;
 
 /// <summary>
-/// Validador de licencias que lee desde fiplex.license.
+/// License validator that reads from fiplex.license.
 /// </summary>
 public class LicenseValidator : ILicenseValidator
 {
@@ -27,7 +27,7 @@ public class LicenseValidator : ILicenseValidator
             return false;
         }
 
-        // Cargar licencia si no está en caché
+        // Load license if not cached
         if (_cachedLicense == null || !_cachedLicense.IsLoaded)
         {
             await LoadLicenseFileAsync(ct);
@@ -39,7 +39,7 @@ public class LicenseValidator : ILicenseValidator
             return false;
         }
 
-        // Verificar expiración
+        // Verify expiration
         var isValid = !IsLicenseExpired();
         
         _logger.LogInformation("License validation for device {DeviceId}: {Status} (User: {User}, Org: {Org})", 
@@ -61,14 +61,14 @@ public class LicenseValidator : ILicenseValidator
 
         var now = DateTime.UtcNow;
         
-        // Verificar LoginExpiryDate
+        // Verify LoginExpiryDate
         if (_cachedLicense.LoginExpiryDate.HasValue && now > _cachedLicense.LoginExpiryDate.Value)
         {
             _logger.LogWarning("Login license expired on {Date}", _cachedLicense.LoginExpiryDate.Value);
             return true;
         }
 
-        // Verificar TrainingExpiryDate
+        // Verify TrainingExpiryDate
         if (_cachedLicense.TrainingExpiryDate.HasValue && now > _cachedLicense.TrainingExpiryDate.Value)
         {
             _logger.LogWarning("Training license expired on {Date}", _cachedLicense.TrainingExpiryDate.Value);
@@ -83,7 +83,7 @@ public class LicenseValidator : ILicenseValidator
         if (_cachedLicense == null || !_cachedLicense.IsLoaded)
             return null;
 
-        // Retornar la fecha más cercana de expiración
+        // Return the closest expiration date
         var dates = new List<DateTime>();
         
         if (_cachedLicense.LoginExpiryDate.HasValue)
@@ -96,7 +96,7 @@ public class LicenseValidator : ILicenseValidator
     }
 
     /// <summary>
-    /// Obtiene la información completa de la licencia cargada.
+    /// Gets the complete loaded license information.
     /// </summary>
     public LicenseInfo? GetLicenseInfo()
     {
@@ -104,8 +104,8 @@ public class LicenseValidator : ILicenseValidator
     }
 
     /// <summary>
-    /// Carga el archivo de licencia desde disco.
-    /// Busca en: directorio actual, App.BaseDirectory
+    /// Loads the license file from disk.
+    /// Searches in: current directory, App.BaseDirectory
     /// </summary>
     private async Task LoadLicenseFileAsync(CancellationToken ct = default)
     {
@@ -174,7 +174,7 @@ public class LicenseValidator : ILicenseValidator
     }
 
     /// <summary>
-    /// Fuerza recarga del archivo de licencia.
+    /// Forces license file reload.
     /// </summary>
     public async Task ReloadLicenseAsync(CancellationToken ct = default)
     {

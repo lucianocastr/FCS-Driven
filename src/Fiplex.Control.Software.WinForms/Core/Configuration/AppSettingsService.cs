@@ -4,7 +4,7 @@ using System.Text.Json;
 namespace Fiplex.Control.Software.WinForms.Core.Configuration;
 
 /// <summary>
-/// Servicio para gestionar configuraci�n persistente de la aplicaci�n
+/// Service for managing persistent application configuration
 /// 
 /// [General]
 /// rs232port=10
@@ -102,3 +102,4 @@ public class AppSettingsService : IAppSettingsService
         await SaveSettingAsync("LastUsedComPort", portNumber);
     }
 }
+

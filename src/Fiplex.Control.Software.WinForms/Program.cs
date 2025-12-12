@@ -36,16 +36,16 @@ internal static class Program
         
         using var scope = host.Services.CreateScope();
         
-        // Flujo de login: Primero mostrar Login, luego frmMain si login exitoso
+        // Login flow: First show Login, then frmMain if login successful
         var loginForm = scope.ServiceProvider.GetRequiredService<Login>();
         var loginResult = loginForm.ShowDialog();
         
         if (loginResult == DialogResult.OK && loginForm.LoginSuccessful)
         {
-            // Login exitoso → Cargar información de tokens y mostrar suscripción
+            // Login successful → Load token information and show subscription
             try
             {
-                // Cargar información de training/license ANTES de mostrar el diálogo
+                // Load training/license information BEFORE showing the dialog
                 var trainingService = scope.ServiceProvider.GetRequiredService<ITrainingValidationService>();
                 trainingService.ReadTokenInformationAsync().GetAwaiter().GetResult();
                 
@@ -54,17 +54,17 @@ internal static class Program
             }
             catch (Exception ex)
             {
-                // No bloquear si hay error mostrando SubscriptionInfo
+                // Do not block if there is an error showing SubscriptionInfo
                 Console.WriteLine($"Warning: Could not show subscription info: {ex.Message}");
             }
             
-            // Mostrar aplicación principal
+            // Show main application
             var mainForm = scope.ServiceProvider.GetRequiredService<frmMain>();
             Application.Run(mainForm);
         }
         else
         {
-            // Login cancelado o fallido → cerrar aplicación
+            // Login cancelled or failed → close application
             Application.Exit();
         }
     }
@@ -100,7 +100,7 @@ internal static class Program
             builder.AddDebug();
             builder.SetMinimumLevel(LogLevel.Debug);
             
-            // Filtros personalizados
+            // Custom filters
             builder.AddFilter("Microsoft", LogLevel.Warning);
             builder.AddFilter("System", LogLevel.Warning);
             builder.AddFilter("Fiplex", LogLevel.Debug);
@@ -108,34 +108,34 @@ internal static class Program
     }
 
     /// <summary>
-    /// Configura OidcSettings desde appsettings.json.
+    /// Configures OidcSettings from appsettings.json.
     /// </summary>
     private static void ConfigureOidcSettings(IServiceCollection services, IConfiguration configuration)
     {
-        // Bind OidcSettings desde configuración
+        // Bind OidcSettings from configuration
         services.Configure<OidcSettings>(configuration.GetSection("OidcSettings"));
         
-        // Bind ApiEndpoints para generación de tokens offline
+        // Bind ApiEndpoints for offline token generation
         services.Configure<ApiEndpoints>(configuration.GetSection("ApiEndpoints"));
     }
 
     private static void ConfigureSerialServices(IServiceCollection services, IConfiguration configuration)
     {
-        // Leer configuración de modo desarrollo
+        // Read development mode configuration
         var devModeSettings = configuration
             .GetSection("DevelopmentMode")
             .Get<DevelopmentModeSettings>();
         
-        // Serial Port: Real o Simulado según configuración NoUSB
+        // Serial Port: Real or Simulated according to NoUSB configuration
         if (devModeSettings?.NoUSB == true)
         {
-            // Modo NoUSB: Usar puerto simulado con respuestas predefinidas
+            // NoUSB mode: Use simulated port with predefined responses
             services.AddSingleton<ISerialPort, SimulatedSerialPort>();
-            Console.WriteLine("🔧 MODO SIMULADO (NoUSB=true) - Usando SimulatedSerialPort");
+            Console.WriteLine("🔧 SIMULATED MODE (NoUSB=true) - Using SimulatedSerialPort");
         }
         else
         {
-            // Modo normal: Usar puerto serial real
+            // Normal mode: Use real serial port
             services.AddSingleton<ISerialPort, SerialPortAdapter>();
         }
         
@@ -146,27 +146,27 @@ internal static class Program
 
     private static void ConfigureDeviceServices(IServiceCollection services)
     {
-        // Catalog (Singleton, cargado una vez)
+        // Catalog (Singleton, loaded once)
         services.AddSingleton<IDeviceCatalogService, DeviceCatalogService>();
         
-        // Discovery (Transient, cada escaneo es independiente)
+        // Discovery (Transient, each scan is independent)
         services.AddTransient<IDeviceDiscoveryService, DeviceDiscoveryService>();
     }
 
     private static void ConfigureHttpServices(IServiceCollection services)
     {
-        // HTTP (Singleton, servidor único)
+        // HTTP (Singleton, single server)
         services.AddSingleton<IEmbeddedHttpServer, EmbeddedHttpServer>();
         
-        // HTTP Command Logger (Singleton, logging compartido para análisis comparativo)
-        // Genera archivos en %LocalAppData%/Fiplex.Control.Software/HttpCommandLogs/
+        // HTTP Command Logger (Singleton, shared logging for comparative analysis)
+        // Generates files in %LocalAppData%/Fiplex.Control.Software/HttpCommandLogs/
         services.AddSingleton<HttpCommandLogger>();
         
-        // Router HTTP→Serial (Singleton, configuración compartida)
+        // Router HTTP→Serial (Singleton, shared configuration)
         services.AddSingleton<ResponseFormatter>();
         services.AddSingleton<IDeviceCommandRouter, DeviceCommandRouter>();
         
-        // Device Response Handlers (Strategy pattern para casos especiales)
+        // Device Response Handlers (Strategy pattern for special cases)
         services.AddSingleton<IDeviceResponseHandler, Device1C_V22_ResponseHandler>();
         services.AddSingleton<IDeviceResponseHandler, Device1C_V52_ResponseHandler>();
         services.AddSingleton<DeviceResponseProcessor>();
@@ -174,49 +174,49 @@ internal static class Program
 
     private static void ConfigureConfigServices(IServiceCollection services, IConfiguration configuration)
     {
-        // AppSettings (Singleton, configuración persistente compartida)
+        // AppSettings (Singleton, shared persistent configuration)
         services.AddSingleton<IAppSettingsService, AppSettingsService>();
         
-        // Config (Transient, operaciones independientes)
+        // Config (Transient, independent operations)
         services.AddTransient<ISettingsParser, SettingsParser>();
         services.AddTransient<IConfigService, ConfigService>();
         services.AddTransient<ICalibrationService, CalibrationService>();
         
-        // File Operations (Transient, operaciones Save/Load independientes)
+        // File Operations (Transient, independent Save/Load operations)
         services.AddTransient<IFileOperationService, FileOperationService>();
         
-        // ETAPA 6: Factory Parameters (Singleton, parámetros compartidos)
+        // STEP 6: Factory Parameters (Singleton, shared parameters)
         services.AddSingleton<FactoryParametersService>();
         
-        // Dynamic Config Builder (Transient, construcción de tramas CFG por sesión)
+        // Dynamic Config Builder (Transient, CFG frame construction per session)
         services.AddTransient<DynamicConfigBuilder>();
         
-        // Ethernet Module Service (Transient, operaciones F0/F1)
+        // Ethernet Module Service (Transient, F0/F1 operations)
         services.AddTransient<IEthernetModuleService, EthernetModuleService>();
         
-        // ETAPA 8: Command Metrics (Singleton, métricas compartidas)
+        // STEP 8: Command Metrics (Singleton, shared metrics)
         services.AddSingleton<CommandMetrics>();
         
-        // License Options Parser (Singleton, conversión hex M0/M1)
+        // License Options Parser (Singleton, hex M0/M1 conversion)
         services.AddSingleton<LicenseOptionsParser>();
 
-        // Version Check Service (Singleton, verificación de actualizaciones)
+        // Version Check Service (Singleton, update verification)
         services.Configure<VersionCheckSettings>(configuration.GetSection("VersionCheck"));
         services.AddSingleton<IVersionCheckService, VersionCheckService>();
     }
 
     private static void ConfigureSecurityServices(IServiceCollection services)
     {
-        // Auth (Transient, operaciones puntuales)
+        // Auth (Transient, point-in-time operations)
         services.AddTransient<IAuthService, AuthService>();
         
         // HttpClient para llamadas HTTP de tokens
         services.AddSingleton<HttpClient>();
         
-        // OIDC Auth (Singleton, sesión compartida)
+        // OIDC Auth (Singleton, shared session)
         services.AddSingleton<IOfflineTokenManager, OfflineTokenManager>();
         
-        // Offline Token Generator y Validator
+        // Offline Token Generator and Validator
         services.AddSingleton<IOfflineTokenGenerator, OfflineTokenGenerator>();
         services.AddSingleton<IOfflineTokenValidator, OfflineTokenValidator>();
         
@@ -226,32 +226,32 @@ internal static class Program
         // Watchdog (Singleton, debe persistir)
         services.AddSingleton<IWatchdogService, WatchdogService>();
         
-        // License (Singleton, validación compartida)
+        // License (Singleton, shared validation)
         services.AddSingleton<ILicenseValidator, LicenseValidator>();
         
-        // Training Validation (Singleton, estado compartido)
+        // Training Validation (Singleton, shared state)
         services.AddSingleton<ITrainingValidationService, TrainingValidationService>();
         
-        // Usuarios privilegiados con whitelist y pass.bin cifrado con DPAPI
+        // Privileged users with whitelist and pass.bin encrypted with DPAPI
         services.AddSingleton<IPrivilegedUserService, PrivilegedUserService>();
     }
 
     private static void ConfigureForms(IServiceCollection services)
     {
-        // Init License Form (Transient, términos y condiciones)
+        // Init License Form (Transient, terms and conditions)
         services.AddTransient<frmInitLicense>();
         
-        // Login Form (Transient, formulario de inicio)
+        // Login Form (Transient, startup form)
         services.AddTransient<Login>();
         
         // Main Form (Transient, cada instancia independiente)
         services.AddTransient<frmMain>();
         
-        // PasswordDialog (Transient, instancia por solicitud)
+        // PasswordDialog (Transient, instance per request)
         services.AddTransient<frmPassword>();
         
         // License Key Dialogs (Transient)
-        // LicenseKeyDialog: UI mejorada con info dispositivo (1 botón Apply + LicenseIndex)
+        // LicenseKeyDialog: Improved UI with device info (1 Apply button + LicenseIndex)
         services.AddTransient<frmLicenseKey>();
         services.AddTransient<LicenseKeyDialog>();
         
@@ -260,10 +260,10 @@ internal static class Program
         // CLSS Dialog (Transient)
         services.AddTransient<SubscriptionInfo>();
         
-        // License Options Dialog - Multi-banda (Transient, comandos M0/M1 para 4 bandas)
+        // License Options Dialog - Multi-band (Transient, M0/M1 commands for 4 bands)
         services.AddTransient<frmLicenseMaster>();
         
-        // License Options Dialog - 2 bandas (Transient, comandos M0/M1 para 2 bandas)
+        // License Options Dialog - 2 bands (Transient, M0/M1 commands for 2 bands)
         services.AddTransient<frmLicense>();
     }
 }

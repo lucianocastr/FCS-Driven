@@ -1,55 +1,55 @@
 namespace Fiplex.Control.Software.WinForms.Models;
 
 /// <summary>
-/// Almacena los tokens de autenticación OIDC para la sesión actual.
+/// Stores OIDC authentication tokens for the current session.
 /// </summary>
 /// <remarks>
-/// Contiene todos los tokens necesarios para autenticación y autorización:
+/// Contains all tokens required for authentication and authorization:
 /// <list type="bullet">
-///   <item><see cref="IdentityToken"/> - Claims del usuario</item>
-///   <item><see cref="AccessToken"/> - Acceso a APIs</item>
-///   <item><see cref="RefreshToken"/> - Renovación de sesión</item>
+///   <item><see cref="IdentityToken"/> - User claims</item>
+///   <item><see cref="AccessToken"/> - API access</item>
+///   <item><see cref="RefreshToken"/> - Session renewal</item>
 /// </list>
 /// </remarks>
 public class FireAccessToken
 {
     /// <summary>
-    /// Token de identidad JWT.
-    /// Contiene claims del usuario autenticado.
+    /// JWT identity token.
+    /// Contains claims of the authenticated user.
     /// </summary>
     public string? IdentityToken { get; set; }
 
     /// <summary>
-    /// Token de refresco para obtener nuevos access tokens.
-    /// Permite renovar la sesión sin re-autenticación.
+    /// Refresh token to obtain new access tokens.
+    /// Allows session renewal without re-authentication.
     /// </summary>
     public string? RefreshToken { get; set; }
 
     /// <summary>
-    /// Token de acceso para llamadas a APIs protegidas.
+    /// Access token for calls to protected APIs.
     /// </summary>
     public string? AccessToken { get; set; }
 
     /// <summary>
-    /// Fecha de expiración del access token.
+    /// Access token expiration date.
     /// </summary>
     public DateTime? ExpiresAt { get; set; }
 
     /// <summary>
-    /// Token para llamadas a servicios cloud de Fiplex.
+    /// Token for calls to Fiplex cloud services.
     /// </summary>
-    /// <remarks>Utilizado para comunicación con APIs backend de CLSS.</remarks>
+    /// <remarks>Used for communication with CLSS backend APIs.</remarks>
     public string? CloudCallAccessToken { get; set; }
 
     /// <summary>
-    /// Indica si el token es válido y no ha expirado.
+    /// Indicates if the token is valid and has not expired.
     /// </summary>
     public bool IsValid => 
         !string.IsNullOrEmpty(AccessToken) && 
         (!ExpiresAt.HasValue || ExpiresAt.Value > DateTime.UtcNow);
 
     /// <summary>
-    /// Limpia todos los tokens almacenados.
+    /// Clears all stored tokens.
     /// </summary>
     public void Clear()
     {

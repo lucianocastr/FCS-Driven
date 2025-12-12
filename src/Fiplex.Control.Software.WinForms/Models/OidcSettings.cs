@@ -1,69 +1,69 @@
 namespace Fiplex.Control.Software.WinForms.Models;
 
 /// <summary>
-/// Configuración OIDC para autenticación con Azure Active Directory.
+/// OIDC configuration for authentication with Azure Active Directory.
 /// </summary>
 /// <remarks>
-/// Contiene todos los parámetros necesarios para el flujo OAuth v1.0 con Azure AD.
-/// Los valores se cargan desde la sección "OidcSettings" de appsettings.json.
+/// Contains all parameters required for the OAuth v1.0 flow with Azure AD.
+/// Values are loaded from the "OidcSettings" section of appsettings.json.
 /// </remarks>
 public class OidcSettings
 {
     /// <summary>
-    /// URL base de autoridad de Azure AD.
+    /// Azure AD authority base URL.
     /// </summary>
     /// <remarks>
-    /// Formato OAuth v1.0: "https://login.microsoftonline.com/{0}"
-    /// El marcador {0} será reemplazado por <see cref="TenantName"/>.
+    /// OAuth v1.0 format: "https://login.microsoftonline.com/{0}"
+    /// The {0} placeholder will be replaced by <see cref="TenantName"/>.
     /// </remarks>
     public string Authority { get; set; } = "https://login.microsoftonline.com/{0}";
 
     /// <summary>
-    /// Nombre del tenant de Azure AD.
+    /// Azure AD tenant name.
     /// </summary>
     public string TenantName { get; set; } = string.Empty;
 
     /// <summary>
-    /// ID de cliente de la aplicación registrada en Azure AD.
+    /// Client ID of the application registered in Azure AD.
     /// </summary>
     public string ClientId { get; set; } = string.Empty;
 
     /// <summary>
-    /// ResourceId para el flujo OAuth v1.0.
+    /// ResourceId for the OAuth v1.0 flow.
     /// </summary>
     public string ResourceId { get; set; } = string.Empty;
 
     /// <summary>
-    /// Issuer esperado para validación de tokens JWT.
+    /// Expected issuer for JWT token validation.
     /// </summary>
-    /// <value>Por defecto: "HONEYWELL-PKI"</value>
+    /// <value>Default: "HONEYWELL-PKI"</value>
     public string Issuer { get; set; } = "HONEYWELL-PKI";
 
     /// <summary>
-    /// URI de redirección tras completar la autenticación.
+    /// Redirect URI after completing authentication.
     /// </summary>
     public string RedirectUri { get; set; } = "http://localhost:4200/signin";
 
     /// <summary>
-    /// Scopes solicitados durante la autenticación.
-    /// Para OAuth v1.0: Solo openid y offline_access
+    /// Scopes requested during authentication.
+    /// For OAuth v1.0: Only openid and offline_access
     /// </summary>
     public string[] Scopes { get; set; } = ["openid", "offline_access"];
 
     /// <summary>
-    /// Tolerancia de reloj para validación de tokens (en minutos).
+    /// Clock tolerance for token validation (in minutes).
     /// </summary>
-    /// <value>Por defecto: 1441 minutos (~24 horas).</value>
+    /// <value>Default: 1441 minutes (~24 hours).</value>
     public int ClockSkewMinutes { get; set; } = 1441;
 
     /// <summary>
-    /// Timeout para operaciones del browser (en segundos).
+    /// Timeout for browser operations (in seconds).
     /// </summary>
     public int BrowserTimeoutSeconds { get; set; } = 3600;
 
     /// <summary>
-    /// Indica si la configuración es válida.
-    /// Verifica que no sean valores por defecto/placeholder.
+    /// Indicates if the configuration is valid.
+    /// Verifies that values are not default/placeholder values.
     /// </summary>
     public bool IsValid => 
         !string.IsNullOrWhiteSpace(TenantName) && 
@@ -72,28 +72,28 @@ public class OidcSettings
         !ClientId.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
-    /// Mensaje de error de validación.
+    /// Validation error message.
     /// </summary>
     public string ValidationError
     {
         get
         {
             if (string.IsNullOrWhiteSpace(TenantName) || TenantName.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
-                return "TenantName no configurado en appsettings.json. Configure 'OidcSettings.TenantName' con el nombre de su tenant de Azure AD.";
+                return "TenantName not configured in appsettings.json. Configure 'OidcSettings.TenantName' with your Azure AD tenant name.";
             if (string.IsNullOrWhiteSpace(ClientId) || ClientId.StartsWith("YOUR_", StringComparison.OrdinalIgnoreCase))
-                return "ClientId no configurado en appsettings.json. Configure 'OidcSettings.ClientId' con el ID de cliente de Azure AD.";
+                return "ClientId not configured in appsettings.json. Configure 'OidcSettings.ClientId' with the Azure AD client ID.";
             return string.Empty;
         }
     }
 
     /// <summary>
-    /// Obtiene la URL de autoridad formateada.
+    /// Gets the formatted authority URL.
     /// </summary>
     public string GetFormattedAuthority() => 
         string.Format(System.Globalization.CultureInfo.InvariantCulture, Authority, TenantName);
 
     /// <summary>
-    /// Obtiene los scopes como string concatenado.
+    /// Gets the scopes as a concatenated string.
     /// </summary>
     public string GetScopesString() => string.Join(" ", Scopes);
 }

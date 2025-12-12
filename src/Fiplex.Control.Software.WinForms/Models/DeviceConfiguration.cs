@@ -26,124 +26,124 @@ namespace Fiplex.Control.Software.WinForms.Models;
 public class DeviceConfiguration
 {
     /// <summary>
-    /// Lista de comandos GET HTTP mapeados a comandos seriales.
+    /// List of HTTP GET commands mapped to serial commands.
     /// </summary>
     public List<GetCommand> GetCommands { get; set; } = new();
 
     /// <summary>
-    /// Lista de comandos POST HTTP mapeados a comandos seriales.
+    /// List of HTTP POST commands mapped to serial commands.
     /// </summary>
     public List<PostCommand> PostCommands { get; set; } = new();
 
     /// <summary>
-    /// Lista de comandos para operaciones de archivo (guardar/cargar configuración).
+    /// List of commands for file operations (save/load configuration).
     /// </summary>
     public List<FileCommand> FileCommands { get; set; } = new();
 }
 
 /// <summary>
-/// Mapeo de petición HTTP GET a comando serial.
+/// HTTP GET request to serial command mapping.
 /// </summary>
 public class GetCommand
 {
     /// <summary>
-    /// Nombre de la página HTTP (ej: "getVersion", "getStatus").
+    /// HTTP page name (e.g., "getVersion", "getStatus").
     /// </summary>
     public string Page { get; set; } = string.Empty;
 
     /// <summary>
-    /// Comando serial a ejecutar (ej: "V1", "S1").
+    /// Serial command to execute (e.g., "V1", "S1").
     /// </summary>
     public string Command { get; set; } = string.Empty;
 
     /// <summary>
-    /// Indica si la respuesta debe codificarse/decodificarse en hexadecimal.
+    /// Indicates whether the response should be encoded/decoded in hexadecimal.
     /// </summary>
     public bool Encode { get; set; }
 
     /// <summary>
-    /// Parámetros URL esperados que se concatenarán al comando.
+    /// Expected URL parameters that will be concatenated to the command.
     /// </summary>
     public string[] UrlParameters { get; set; } = Array.Empty<string>();
 
     /// <summary>
-    /// Longitudes esperadas de respuesta para validación.
+    /// Expected response lengths for validation.
     /// </summary>
     public string[] ExpectedLengths { get; set; } = Array.Empty<string>();
 }
 
 /// <summary>
-/// Mapeo de petición HTTP POST a comando serial.
+/// HTTP POST request to serial command mapping.
 /// </summary>
 public class PostCommand
 {
     /// <summary>
-    /// Nombre de la página HTTP (ej: "setConfig", "updateFirmware").
+    /// HTTP page name (e.g., "setConfig", "updateFirmware").
     /// </summary>
     public string Page { get; set; } = string.Empty;
 
     /// <summary>
-    /// Comando serial a ejecutar con datos del body.
+    /// Serial command to execute with body data.
     /// </summary>
     public string Command { get; set; } = string.Empty;
 
     /// <summary>
-    /// Indica si el comando/respuesta debe codificarse/decodificarse en hexadecimal.
+    /// Indicates whether the command/response should be encoded/decoded in hexadecimal.
     /// </summary>
     public bool Encode { get; set; }
 
     /// <summary>
-    /// Indica si se debe esperar respuesta del dispositivo.
+    /// Indicates whether to wait for a response from the device.
     /// </summary>
     public bool WaitResponse { get; set; }
     
     /// <summary>
-    /// Indica si el body del POST debe decodificarse de hex antes de concatenar al comando.
+    /// Indicates whether the POST body should be decoded from hex before concatenating to the command.
     /// </summary>
     /// <remarks>
-    /// Se deriva de Encode: cuando Encode=true, también se decodifica el body entrante.
+    /// Derived from Encode: when Encode=true, the incoming body is also decoded.
     /// </remarks>
     public bool DecodeBody { get; set; }
     
     /// <summary>
-    /// Número de caracteres iniciales del body que NO se decodifican de hex.
+    /// Number of initial body characters that are NOT decoded from hex.
     /// </summary>
     /// <remarks>
-    /// Ejemplo: valor 4 significa que los primeros 4 caracteres se mantienen sin decodificar.
+    /// Example: value 4 means the first 4 characters are kept without decoding.
     /// </remarks>
     public int NoDecodeChars { get; set; } = 0;
 }
 
 /// <summary>
-/// Comando para operaciones de archivo (guardar/cargar configuración y calibración).
+/// Command for file operations (save/load configuration and calibration).
 /// </summary>
 public class FileCommand
 {
     /// <summary>
-    /// Tipo de operación: SaveCFG, LoadCFG, SaveCAL, LoadCAL.
+    /// Operation type: SaveCFG, LoadCFG, SaveCAL, LoadCAL.
     /// </summary>
     public string OperationType { get; set; } = string.Empty;
 
     /// <summary>
-    /// Lista de comandos seriales a ejecutar en secuencia.
+    /// List of serial commands to execute in sequence.
     /// </summary>
     public string[] Commands { get; set; } = Array.Empty<string>();
 
     /// <summary>
-    /// Longitud esperada de respuesta para validación.
+    /// Expected response length for validation.
     /// </summary>
     /// <remarks>
-    /// Formatos soportados: "splitwith3tabs:40", "128", "128,256".
+    /// Supported formats: "splitwith3tabs:40", "128", "128,256".
     /// </remarks>
     public string LengthValidation { get; set; } = string.Empty;
 
     /// <summary>
-    /// Mensaje descriptivo de la operación a mostrar en la interfaz.
+    /// Descriptive message of the operation to display in the interface.
     /// </summary>
     public string Message { get; set; } = string.Empty;
 
     /// <summary>
-    /// Modo adicional de operación.
+    /// Additional operation mode.
     /// </summary>
     public string Mode { get; set; } = string.Empty;
 }

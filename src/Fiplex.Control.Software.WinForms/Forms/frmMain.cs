@@ -48,28 +48,28 @@ public partial class frmMain : Form
     private int _httpPort = 8000;
     private DevelopmentModeSettings? _devModeSettings;
 
-    // Configuración del dispositivo actual (comandos FILE)
+    // Current device configuration (FILE commands)
     private DeviceConfiguration? _currentDeviceConfig;
     private bool _waitingLF = false;
     private short _chTestActivated = -1;
     private string _confSCA = "";
     private bool _pendingAnswer = false;
 
-    // Contador para combinación de teclas factory mode
+    // Counter for factory mode key combination
     private short _cntmode = 0;
 
-    // Contraseña validada para reintentos INVALID CREDENTIALS
+    // Validated password for INVALID CREDENTIALS retries
     private string? _validatedPassword;
 
-    // Ruta de la página predeterminada para carga inicial y desconexión
-    // Se utiliza cuando no hay dispositivo conectado o al ejecutar Disconnect
+    // Default page path for initial load and disconnection
+    // Used when no device is connected or when executing Disconnect
     private static readonly string DefaultPagePath = Path.Combine(
         AppDomain.CurrentDomain.BaseDirectory,
         "pages", "htdocs_default", "index.html");
 
-    // Versión del software para mostrar en About > SW Info
-    // Usa InformationalVersion para incluir sufijo semántico (-alpha, -beta, etc.)
-    // Split('+')[0] elimina el hash de Git que .NET agrega automáticamente
+    // Software version to display in About > SW Info
+    // Uses InformationalVersion to include semantic suffix (-alpha, -beta, etc.)
+    // Split('+')[0] removes the Git hash that .NET adds automatically
     private static readonly string SoftwareVersion =
         (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
@@ -115,10 +115,10 @@ public partial class frmMain : Form
 
         InitializeComponent();
 
-        // Configurar menú de Debug/Tools para logging y diagnósticos
+        // Configure Debug/Tools menu for logging and diagnostics
         ConfigureDebugMenu();
 
-        // Cargar configuración modo desarrollo
+        // Load development mode configuration
         _devModeSettings = _configuration
             .GetSection("DevelopmentMode")
             .Get<DevelopmentModeSettings>();
@@ -126,33 +126,33 @@ public partial class frmMain : Form
         if (_devModeSettings?.NoUSB == true)
         {
             _logger.LogWarning(
-                "?? MODO DESARROLLO ACTIVO (noUSB=true) - Dispositivo simulado: {Device}",
+                "?? DEVELOPMENT MODE ACTIVE (noUSB=true) - Simulated device: {Device}",
                 _devModeSettings.SimulatedDevice);
         }
 
         InitializeAsync();
 
-        // Suscribir al evento HTTP para procesar comandos
+        // Subscribe to HTTP event to process commands
         _httpServer.CommandReceived += OnHttpCommandReceived;
 
-        // Suscribir al evento BaseJsLoaded para limpiar comandos pendientes
-        // al cargar base.js, evitando comandos huérfanos
+        // Subscribe to BaseJsLoaded event to clear pending commands
+        // when loading base.js, avoiding orphan commands
         _httpServer.BaseJsLoaded += OnHttpServerBaseJsLoaded;
 
-        // Suscribir al evento de credenciales requeridas del pipeline
-        // Esto permite reintento automático cuando el dispositivo responde INVALID CREDENTIALS
+        // Subscribe to pipeline credentials required event
+        // This allows automatic retry when device responds with INVALID CREDENTIALS
         _pipeline.CredentialsRequired += OnPipelineCredentialsRequired;
 
-        // Suscribir al evento de cambio de selección de COM
+        // Subscribe to COM selection change event
         cmbCOM.SelectedIndexChanged += cmbCOM_SelectedIndexChanged;
 
-        // Suscribir eventos del menú CLSS
+        // Subscribe to CLSS menu events
         LogoutToolStripMenuItem.Click += LogoutToolStripMenuItem_Click;
         SubscriptionInformationToolStripMenuItem.Click += SubscriptionInformationToolStripMenuItem_Click;
     }
 
     /// <summary>
-    /// Obtiene un puerto TCP disponible en el rango especificado
+    /// Gets an available TCP port in the specified range
     /// </summary>
     private int GetAvailablePort(int startPort = 8080, int endPort = 8090)
     {
@@ -168,19 +168,19 @@ public partial class frmMain : Form
             }
             catch (System.Net.Sockets.SocketException)
             {
-                // Puerto ocupado, continuar con el siguiente
+                // Port busy, continue with next one
             }
         }
 
         throw new InvalidOperationException(
-            $"No se encontraron puertos disponibles entre {startPort} y {endPort}");
+            $"No available ports found between {startPort} and {endPort}");
     }
 
     private async void InitializeAsync()
     {
         try
         {
-            // Asignar versión del software al menú About > SW Info
+            // Assign software version to About > SW Info menu
             mnuSWver.Text = SoftwareVersion;
 
             LogStatus("Initializing services...");
@@ -188,25 +188,25 @@ public partial class frmMain : Form
             await _catalog.LoadCatalogAsync();
             await _pipeline.StartAsync();
 
-            // Leer información de token CLSS
+            // Read CLSS token information
             await _trainingValidation.ReadTokenInformationAsync();
 
-            // Mostrar estado de licencia en lbldaysRemaining
+            // Show license status in lbldaysRemaining
             lbldaysRemaining.Text = _trainingValidation.GetStatusMessage();
 
-            // Validar training y configurar cmdConnect 
+            // Validate training and configure cmdConnect
             ValidateTrainingAndUpdateUI();
 
             _sessionContext = _sessionContext with { State = ConnectionState.Disconnected };
 
-            // Inicializar WebView2
+            // Initialize WebView2
             await InitializeWebView2Async();
 
-            // Verificar actualizaciones en background sin bloquear la UI
+            // Check for updates in background without blocking UI
             await CheckForUpdatesAsync();
 
-            // Escaneo rápido de dispositivos al cargar el formulario
-            // Se detiene al encontrar el primer dispositivo válido (QuickScan)
+            // Quick scan for devices when form loads
+            // Stops when first valid device is found (QuickScan)
             await PerformQuickScanAsync();
 
             LogStatus("Services initialized successfully");
@@ -224,25 +224,25 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Valida el estado de training y actualiza UI correspondiente.
+    /// Validates training status and updates UI accordingly.
     /// </summary>
     /// <remarks>
-    /// Si el training está vigente, habilita el botón de conexión.
-    /// Si está expirado, deshabilita el botón y muestra tooltip informativo.
+    /// If training is valid, enables the connection button.
+    /// If expired, disables button and shows informative tooltip.
     /// </remarks>
     private void ValidateTrainingAndUpdateUI()
     {
         if (_trainingValidation.IsTrainingValid)
         {
-            // Training válido: habilitar conexión
-            // Nota: cmdConnect.Enabled también depende de tener dispositivos en la lista
+            // Training valid: enable connection
+            // Note: cmdConnect.Enabled also depends on having devices in the list
             ToolTip1.SetToolTip(cmdConnect, "");
             _logger.LogDebug("Training valid, connection enabled. Days remaining: {Days}",
                 _trainingValidation.DaysRemaining);
         }
         else
         {
-            // Training expirado: deshabilitar conexión y mostrar tooltip
+            // Training expired: disable connection and show tooltip
             cmdConnect.Enabled = false;
             ToolTip1.SetToolTip(cmdConnect, _trainingValidation.GetExpiredTooltip());
             _logger.LogWarning("Training expired, connection disabled");
@@ -257,13 +257,13 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configura el menú de Debug/Tools para logging y diagnósticos.
-    /// Agrega opciones para habilitar/deshabilitar el logging de comandos HTTP.
-    /// El menú solo se muestra si FeatureFlags:EnableDebugMenu está habilitado en appsettings.json.
+    /// Configures the Debug/Tools menu for logging and diagnostics.
+    /// Adds options to enable/disable HTTP command logging.
+    /// The menu is only shown if FeatureFlags:EnableDebugMenu is enabled in appsettings.json.
     /// </summary>
     private void ConfigureDebugMenu()
     {
-        // Verificar si el menú Debug está habilitado en la configuración
+        // Check if Debug menu is enabled in configuration
         var enableDebugMenu = _configuration.GetValue<bool>("FeatureFlags:EnableDebugMenu");
 
         if (!enableDebugMenu)
@@ -272,10 +272,10 @@ public partial class frmMain : Form
             return;
         }
 
-        // Crear menú Debug
+        // Create Debug menu
         var mnuDebug = new ToolStripMenuItem("&Debug");
 
-        // Opción: Enable HTTP Command Logging
+        // Option: Enable HTTP Command Logging
         var mnuEnableLogging = new ToolStripMenuItem("Enable HTTP Command &Logging");
         mnuEnableLogging.ToolTipText = "Enable detailed logging of HTTP GET commands";
         mnuEnableLogging.Click += (sender, e) =>
@@ -312,10 +312,10 @@ public partial class frmMain : Form
         };
         mnuDebug.DropDownItems.Add(mnuEnableLogging);
 
-        // Separador
+        // Separator
         mnuDebug.DropDownItems.Add(new ToolStripSeparator());
 
-        // Opción: Open Log Directory
+        // Option: Open Log Directory
         var mnuOpenLogDir = new ToolStripMenuItem("Open Log &Directory");
         mnuOpenLogDir.ToolTipText = "Open the folder containing HTTP command logs";
         mnuOpenLogDir.Click += (sender, e) =>
@@ -334,7 +334,7 @@ public partial class frmMain : Form
         };
         mnuDebug.DropDownItems.Add(mnuOpenLogDir);
 
-        // Agregar al menú principal
+        // Add to main menu
         MainMenu1.Items.Add(mnuDebug);
 
         _logger.LogDebug("Debug menu configured");
@@ -346,16 +346,16 @@ public partial class frmMain : Form
         {
             await webView.EnsureCoreWebView2Async();
 
-            // Configurar eventos de navegación
+            // Configure navigation events
             webView.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
             webView.CoreWebView2.NavigationCompleted += CoreWebView2_NavigationCompleted;
             webView.CoreWebView2.NewWindowRequested += CoreWebView2_NewWindowRequested;
-            // Nota: No suscribimos DownloadStarting porque .zhtml ahora se sirve como text/html
+            // Note: We don't subscribe to DownloadStarting because .zhtml is now served as text/html
 
-            // Deshabilitar funciones que no necesitamos
+            // Disable features we don't need
             webView.AllowExternalDrop = false;
 
-            // Configurar permisos de contenido local
+            // Configure local content permissions
             webView.CoreWebView2.Settings.IsScriptEnabled = true;
             webView.CoreWebView2.Settings.AreDefaultScriptDialogsEnabled = true;
             webView.CoreWebView2.Settings.IsWebMessageEnabled = true;
@@ -363,7 +363,7 @@ public partial class frmMain : Form
 
             _logger.LogInformation("WebView2 initialized successfully");
 
-            // Navegar a la página predeterminada en la carga inicial
+            // Navigate to default page on initial load
             await NavigateToDefaultPageAsync();
         }
         catch (Exception ex)
@@ -374,14 +374,14 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Navega a la página predeterminada (htdocs_default/index.html).
-    /// Se utiliza en la carga inicial del formulario y al ejecutar Disconnect.
+    /// Navigates to the default page (htdocs_default/index.html).
+    /// Used on form initial load and when executing Disconnect.
     /// </summary>
     private async Task NavigateToDefaultPageAsync()
     {
         if (webView?.CoreWebView2 == null)
         {
-            _logger.LogWarning("WebView2 no inicializado, no se puede navegar a página predeterminada");
+            _logger.LogWarning("WebView2 not initialized, cannot navigate to default page");
             return;
         }
 
@@ -391,20 +391,20 @@ public partial class frmMain : Form
             {
                 var defaultUrl = $"file:///{DefaultPagePath.Replace("\\", "/")}";
                 webView.CoreWebView2.Navigate(defaultUrl);
-                _logger.LogInformation("Navegando a página predeterminada: {Url}", defaultUrl);
+                _logger.LogInformation("Navigating to default page: {Url}", defaultUrl);
             }
             else
             {
-                _logger.LogWarning("Página predeterminada no encontrada: {Path}", DefaultPagePath);
+                _logger.LogWarning("Default page not found: {Path}", DefaultPagePath);
                 webView.CoreWebView2.Navigate("about:blank");
             }
 
-            // Pequeña pausa para asegurar que la navegación se complete
+            // Small pause to ensure navigation completes
             await Task.Delay(50);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error navegando a página predeterminada");
+            _logger.LogError(ex, "Error navigating to default page");
         }
     }
 
@@ -416,7 +416,7 @@ public partial class frmMain : Form
 
     private void CoreWebView2_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
-        // Placeholder para validaciones
+        // Placeholder for validations
     }
 
     private void CoreWebView2_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
@@ -428,17 +428,17 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Navega a la interfaz del dispositivo.
+    /// Navigates to the device interface.
     /// </summary>
     /// <remarks>
-    /// <para>Flujo de navegación:</para>
+    /// <para>Navigation flow:</para>
     /// <list type="bullet">
-    ///   <item><description>Detiene navegación actual antes de iniciar nueva</description></item>
-    ///   <item><description>Dispositivos 2C con forceADV → navega a /std.html</description></item>
-    ///   <item><description>Otros dispositivos → navega a raíz (index.html implícito)</description></item>
+    ///   <item><description>Stops current navigation before starting new one</description></item>
+    ///   <item><description>2C devices with forceADV → navigates to /std.html</description></item>
+    ///   <item><description>Other devices → navigates to root (implicit index.html)</description></item>
     /// </list>
     /// </remarks>
-    /// <param name="forceAdvanced">True para forzar UI avanzada en dispositivos 2C.</param>
+    /// <param name="forceAdvanced">True to force advanced UI on 2C devices.</param>
     private async Task NavigateToDeviceUIAsync(bool forceAdvanced = false)
     {
         if (webView?.CoreWebView2 == null)
@@ -447,34 +447,34 @@ public partial class frmMain : Form
             return;
         }
 
-        // Reset contador factory mode
+        // Reset factory mode counter
         _cntmode = 0;
 
-        // Si desconectado, no navegar
+        // If disconnected, don't navigate
         if (_sessionContext.State != ConnectionState.Connected)
         {
-            _logger.LogDebug("No conectado, navegación cancelada");
+            _logger.LogDebug("Not connected, navigation cancelled");
             return;
         }
 
         try
         {
-            // Detener cualquier carga pendiente antes de navegar
-            // En WebView2, usamos CoreWebView2.Stop()
+            // Stop any pending load before navigating
+            // In WebView2, we use CoreWebView2.Stop()
             webView.CoreWebView2.Stop();
 
-            // Pequeña pausa para asegurar que Stop() se complete
+            // Small pause to ensure Stop() completes
             await Task.Delay(50);
 
-            // Determinar URL según tipo de dispositivo
+            // Determine URL based on device type
             string url;
             var currentDevice = _sessionContext.Device;
 
-            // Dispositivo 2c con forceAdvanced navega a /std.html
+            // 2c device with forceAdvanced navigates to /std.html
             if (currentDevice?.TDev == "2c" && forceAdvanced)
             {
                 url = $"http://localhost:{_httpPort}/std.html";
-                _logger.LogDebug("Dispositivo 2C con forceAdvanced, navegando a std.html");
+                _logger.LogDebug("2C device with forceAdvanced, navigating to std.html");
             }
             else
             {
@@ -484,10 +484,10 @@ public partial class frmMain : Form
             _logger.LogInformation("WebRefresh: Navegando a {Url}", url);
             webView.CoreWebView2.Navigate(url);
 
-            // NOTA: La lógica de ajuste de tamaño del formulario se maneja en
-            // UpdateUIForConnectedState (1350×800 al conectar) y 
-            // UpdateUIForDisconnectedState (1024×720 al desconectar).
-            // Refresh NO modifica el tamaño ni la posición del formulario.
+            // NOTE: Form size adjustment logic is handled in
+            // UpdateUIForConnectedState (1350×800 on connect) and 
+            // UpdateUIForDisconnectedState (1024×720 on disconnect).
+            // Refresh does NOT modify form size or position.
         }
         catch (Exception ex)
         {
@@ -496,8 +496,8 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Refresca la página web del dispositivo.
-    /// Llamado por botón cmdRefresh.
+    /// Refreshes the device web page.
+    /// Called by cmdRefresh button.
     /// </summary>
     private async Task RefreshDeviceUIAsync()
     {
@@ -505,45 +505,45 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para evento BaseJsLoaded del servidor HTTP.
+    /// Handler for HTTP server BaseJsLoaded event.
     /// </summary>
     /// <remarks>
-    /// Limpia todos los comandos pendientes del pipeline cuando la UI carga base.js,
-    /// evitando que comandos huérfanos interfieran con la nueva sesión de navegación.
+    /// Clears all pending commands from the pipeline when UI loads base.js,
+    /// preventing orphan commands from interfering with the new navigation session.
     /// </remarks>
     private void OnHttpServerBaseJsLoaded(object? sender, EventArgs e)
     {
         try
         {
-            _logger.LogDebug("base.js cargado - cancelando comandos pendientes");
+            _logger.LogDebug("base.js loaded - cancelling pending commands");
             _pipeline.CancelPendingCommands();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al limpiar comandos tras carga de base.js");
+            _logger.LogError(ex, "Error clearing commands after base.js load");
         }
     }
 
     /// <summary>
-    /// Handler para eventos de comandos HTTP recibidos
-    /// Procesa comandos HTTP y los enruta al dispositivo serial
+    /// Handler for received HTTP command events.
+    /// Processes HTTP commands and routes them to the serial device.
     /// </summary>
     private async void OnHttpCommandReceived(object? sender, HttpCommandEventArgs e)
     {
         try
         {
-            _logger.LogDebug("Comando HTTP recibido: {Command}, Params: {Params}",
+            _logger.LogDebug("HTTP command received: {Command}, Params: {Params}",
                 e.CommandName, string.Join(", ", e.Parameters.Select(kvp => $"{kvp.Key}={kvp.Value}")));
 
-            // Validar que estamos conectados
+            // Validate that we are connected
             if (_sessionContext.State != ConnectionState.Connected)
             {
-                _logger.LogWarning("Comando recibido pero no conectado");
+                _logger.LogWarning("Command received but not connected");
                 e.SetResponse("ERROR: Not connected");
                 return;
             }
 
-            // Delegar a IDeviceCommandRouter
+            // Delegate to IDeviceCommandRouter
             var response = await _commandRouter.ProcessGetRequestAsync(
                 e.CommandName,
                 e.Parameters,
@@ -551,30 +551,30 @@ public partial class frmMain : Form
 
             e.SetResponse(response);
 
-            _logger.LogDebug("Respuesta enviada: {Response}",
+            _logger.LogDebug("Response sent: {Response}",
                 response.Length > 100 ? $"{response[..100]}..." : response);
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Comando cancelado: {Command}", e.CommandName);
+            _logger.LogWarning("Command cancelled: {Command}", e.CommandName);
             e.SetResponse("ERROR: Operation cancelled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error procesando comando {Command}", e.CommandName);
+            _logger.LogError(ex, "Error processing command {Command}", e.CommandName);
             e.SetResponse($"ERROR: {ex.Message}");
         }
     }
 
     private async void cmdIDPort_Click(object sender, EventArgs e)
     {
-        // Escaneo completo invocado manualmente por el usuario
+        // Full scan manually invoked by user
         await ExecuteDeviceScanAsync(DeviceScanMode.FullScan);
     }
 
     /// <summary>
-    /// Escaneo rápido para carga inicial del formulario.
-    /// Se detiene al encontrar el primer dispositivo válido.
+    /// Quick scan for form initial load.
+    /// Stops when first valid device is found.
     /// </summary>
     public async Task PerformQuickScanAsync()
     {
@@ -582,29 +582,29 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para cambio de selección en ComboBox de puertos COM.
+    /// Handler for selection change in COM ports ComboBox.
     /// </summary>
     /// <remarks>
-    /// Habilita cmdConnect cuando hay un dispositivo válido seleccionado y el training está vigente.
+    /// Enables cmdConnect when a valid device is selected and training is valid.
     /// </remarks>
     private void cmbCOM_SelectedIndexChanged(object? sender, EventArgs e)
     {
-        // Solo procesar si hay dispositivos encontrados y el índice es válido
+        // Only process if devices found and index is valid
         if (_foundDevices.Count == 0 || cmbCOM.SelectedIndex < 0)
         {
             cmdConnect.Enabled = false;
             return;
         }
 
-        // Verificar que la selección sea un dispositivo válido (no un mensaje de estado)
+        // Verify selection is a valid device (not a status message)
         if (cmbCOM.SelectedIndex < _foundDevices.Count)
         {
             var device = _foundDevices[cmbCOM.SelectedIndex];
 
-            // Habilitar botón Connect solo si training es válido
+            // Enable Connect button only if training is valid
             cmdConnect.Enabled = _trainingValidation.IsTrainingValid;
 
-            _logger.LogDebug("Dispositivo seleccionado: {Device} en COM{Port}",
+            _logger.LogDebug("Selected device: {Device} on COM{Port}",
                 device.NameTypeDevice, device.ComPort);
 
             LogStatus($"Selected: {device.NameTypeDevice}");
@@ -616,10 +616,10 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Ejecuta el escaneo de dispositivos según el modo especificado.
-    /// Separa lógica de UI de la lógica de escaneo delegando al servicio.
+    /// Executes device scan according to the specified mode.
+    /// Separates UI logic from scan logic by delegating to the service.
     /// </summary>
-    /// <param name="mode">QuickScan: detiene al primer dispositivo. FullScan: todos los puertos.</param>
+    /// <param name="mode">QuickScan: stops at first device. FullScan: all ports.</param>
     private async Task ExecuteDeviceScanAsync(DeviceScanMode mode = DeviceScanMode.FullScan)
     {
         _scanCts?.Cancel();
@@ -654,7 +654,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Prepara el ComboBox para mostrar estado de escaneo en progreso.
+    /// Prepares the ComboBox to show scan in progress status.
     /// </summary>
     private void PrepareComboBoxForScan()
     {
@@ -667,7 +667,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Registra mensaje de escaneo completado según modo.
+    /// Logs scan completed message according to mode.
     /// </summary>
     private void LogScanCompleteStatus(DeviceScanMode mode)
     {
@@ -677,7 +677,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Maneja cancelación del escaneo por usuario.
+    /// Handles scan cancellation by user.
     /// </summary>
     private void HandleScanCancelled()
     {
@@ -686,7 +686,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Maneja errores durante el escaneo.
+    /// Handles errors during scan.
     /// </summary>
     private void HandleScanError(Exception ex)
     {
@@ -700,7 +700,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Establece un mensaje único en el ComboBox (estados de error/cancelación).
+    /// Sets a single message in the ComboBox (error/cancellation states).
     /// </summary>
     private void SetComboBoxMessage(string message)
     {
@@ -718,7 +718,7 @@ public partial class frmMain : Form
             return;
         }
 
-        // Solo actualizar el status bar, no el ComboBox
+        // Only update the status bar, not the ComboBox
         LogStatus($"Scanning {p.CurrentPort} ({p.Completed}/{p.Total}) - Found: {p.DevicesFound}");
     }
 
@@ -730,7 +730,7 @@ public partial class frmMain : Form
             return;
         }
 
-        // Limpieza completa del ComboBox
+        // Complete cleanup of the ComboBox
         cmbCOM.DataSource = null;
         cmbCOM.DisplayMember = string.Empty;
         cmbCOM.ValueMember = string.Empty;
@@ -738,13 +738,13 @@ public partial class frmMain : Form
 
         if (_foundDevices.Any())
         {
-            // Usar BindingList para mejor comportamiento con ComboBox
+            // Use BindingList for better behavior with ComboBox
             var bindingList = new System.ComponentModel.BindingList<DeviceInfo>(_foundDevices);
             cmbCOM.DataSource = bindingList;
             cmbCOM.DisplayMember = nameof(DeviceInfo.NameTypeDevice);
             cmbCOM.ValueMember = nameof(DeviceInfo.ComPort);
 
-            // Selecci�n autom�tica del �ltimo puerto usado
+            // Auto-select last used port
             _ = SelectLastUsedPortAsync();
         }
         else
@@ -806,20 +806,20 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Conecta al dispositivo con flujo completo de 8 fases
-    /// PROMPT 6: Implementación completa de conexión orquestada
+    /// Connects to the device with complete 8-phase flow
+    /// PROMPT 6: Complete orchestrated connection implementation
     /// </summary>
     private async Task ConnectAsync()
     {
         try
         {
-            _logger.LogInformation("=== INICIANDO CONEXIÓN DISPOSITIVO ===");
+            _logger.LogInformation("=== STARTING DEVICE CONNECTION ===");
 
             // FASE 0: Reset de estado inicial 
             _waitingLF = false;
             _pendingAnswer = false;
 
-            // VALIDACIÓN TRAINING: Verificar que el entrenamiento esté vigente
+            // TRAINING VALIDATION: Verify that training is still valid
             if (!_trainingValidation.IsTrainingValid)
             {
                 _logger.LogWarning("Connection blocked: Training expired");
@@ -831,8 +831,8 @@ public partial class frmMain : Form
                 return;
             }
 
-            // FASE 1: Validación selección dispositivo
-            _logger.LogInformation("FASE 1: Validando selección dispositivo");
+            // PHASE 1: Device selection validation
+            _logger.LogInformation("PHASE 1: Validating device selection");
             if (!ValidateDeviceSelection())
             {
                 MessageBox.Show("Please select a device first", "Warning",
@@ -850,44 +850,44 @@ public partial class frmMain : Form
                 return;
             }
 
-            // Deshabilitar controles inmediatamente 
+            // Disable controls immediately 
             cmdConnect.Enabled = false;
             await Task.Yield();
 
             SetUIState(isConnecting: true);
             LogStatus($"Connecting to {selectedDevice.NameTypeDevice} on {portName}...");
 
-            // Crear CancellationTokenSource para toda la conexión
+            // Create CancellationTokenSource for the entire connection
             _cts = new CancellationTokenSource();
             _sessionContext = _sessionContext with { State = ConnectionState.Connecting };
 
-            // FASE 2: Apertura puerto serial
-            _logger.LogInformation("FASE 2: Abriendo puerto serial {Port}", portName);
+            // PHASE 2: Serial port opening
+            _logger.LogInformation("PHASE 2: Opening serial port {Port}", portName);
             LogStatus($"Opening port {portName}...");
 
-            // CRÍTICO: Cerrar puerto previo si está abierto
+            // CRITICAL: Close previous port if open
             if (_serialPort.IsOpen)
             {
-                _logger.LogWarning("Puerto previamente abierto, cerrando antes de reconectar...");
+                _logger.LogWarning("Port previously open, closing before reconnecting...");
                 try
                 {
                     await _serialPort.CloseAsync();
-                    await Task.Delay(100); // Pequeña pausa para asegurar cierre completo
+                    await Task.Delay(100); // Small pause to ensure complete closure
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogWarning(ex, "Error cerrando puerto previo, continuando...");
+                    _logger.LogWarning(ex, "Error closing previous port, continuing...");
                 }
             }
 
             bool opened;
 
-            // Modo noUSB: Bypass apertura física del puerto
+            // noUSB mode: Bypass physical port opening
             if (_devModeSettings?.NoUSB == true)
             {
-                _logger.LogWarning("Modo noUSB: Simulando apertura puerto {Port}", portName);
-                opened = true; // Simular éxito
-                LogStatus($"Puerto {portName} simulado (noUSB)");
+                _logger.LogWarning("noUSB mode: Simulating port {Port} opening", portName);
+                opened = true; // Simulate success
+                LogStatus($"Port {portName} simulated (noUSB)");
             }
             else
             {
@@ -900,11 +900,11 @@ public partial class frmMain : Form
                 throw new InvalidOperationException($"Failed to open serial port {portName}");
             }
 
-            _logger.LogInformation("Puerto serial {Status}",
-                _devModeSettings?.NoUSB == true ? "simulado" : "abierto correctamente");
+            _logger.LogInformation("Serial port {Status}",
+                _devModeSettings?.NoUSB == true ? "simulated" : "opened successfully");
 
-            // FASE 3: Determinar PathShared
-            _logger.LogInformation("FASE 3: Determinando PathShared");
+            // PHASE 3: Determine PathShared
+            _logger.LogInformation("PHASE 3: Determining PathShared");
             LogStatus("Locating device files...");
 
             var devicePath = await GetDevicePathShared(selectedDevice);
@@ -920,20 +920,20 @@ public partial class frmMain : Form
                     $"Device directory does not exist: {devicePath}");
             }
 
-            // FASE 4: Cargar settings.cfg
-            _logger.LogInformation("FASE 4: Cargando configuración dispositivo");
+            // PHASE 4: Load settings.cfg
+            _logger.LogInformation("PHASE 4: Loading device configuration");
             LogStatus("Loading device configuration...");
 
             var settingsPath = Path.Combine(devicePath, "settings.cfg");
 
-            // Fallback a settingsW.cfg si settings.cfg no existe O está vacío
+            // Fallback to settingsW.cfg if settings.cfg does not exist OR is empty
             if (!File.Exists(settingsPath) || new FileInfo(settingsPath).Length == 0)
             {
                 var fallbackPath = Path.Combine(devicePath, "settingsW.cfg");
                 if (File.Exists(fallbackPath) && new FileInfo(fallbackPath).Length > 0)
                 {
                     settingsPath = fallbackPath;
-                    _logger.LogDebug("settings.cfg no existe o vacío, usando settingsW.cfg");
+                    _logger.LogDebug("settings.cfg does not exist or is empty, using settingsW.cfg");
                 }
             }
 
@@ -949,17 +949,17 @@ public partial class frmMain : Form
                 throw new InvalidOperationException("Failed to load device configuration");
             }
 
-            // Guardar configuración para operaciones FILE (SaveCFG, LoadCFG)
+            // Save configuration for FILE operations (SaveCFG, LoadCFG)
             _currentDeviceConfig = deviceConfig;
 
-            // FASE 5: Cargar configuración en router
-            _logger.LogInformation("FASE 5: Cargando configuración en router");
+            // PHASE 5: Load configuration in router
+            _logger.LogInformation("PHASE 5: Loading configuration in router");
             LogStatus("Configuring command router...");
 
             _commandRouter.LoadConfiguration(deviceConfig);
 
-            // ETAPA 7: Configurar parámetros de dispositivo
-            _logger.LogInformation("Configurando parámetros de dispositivo: {Type} v{Version}",
+            // STAGE 7: Configure device parameters
+            _logger.LogInformation("Configuring device parameters: {Type} v{Version}",
                 selectedDevice.TDev, selectedDevice.NDev);
             await _commandRouter.ConfigureDeviceAsync(
                 selectedDevice.TDev,
@@ -967,25 +967,25 @@ public partial class frmMain : Form
                 _cts.Token);
             _logger.LogDebug("Device parameters configured");
 
-            // FASE 6: Verificar autenticaci�n ?? CR�TICO
-            _logger.LogInformation("FASE 6: Verificando autenticaci�n");
+            // PHASE 6: Verify authentication - CRITICAL
+            _logger.LogInformation("PHASE 6: Verifying authentication");
             LogStatus("Checking authentication...");
 
             AuthResult authResult;
 
-            // Modo noUSB: Simular sin autenticaci�n
+            // noUSB mode: Simulate without authentication
             if (_devModeSettings?.NoUSB == true)
             {
-                _logger.LogInformation("Modo noUSB: Simulando NoAuthRequired");
+                _logger.LogInformation("noUSB mode: Simulating NoAuthRequired");
                 authResult = AuthResult.NoAuthRequired;
             }
             else
             {
-                // Verificaci�n real
+                // Real verification
                 authResult = await _authService.CheckAuthenticationRequirementAsync(_cts.Token);
             }
 
-            _logger.LogInformation("Resultado autenticaci�n: {Result}", authResult);
+            _logger.LogInformation("Authentication result: {Result}", authResult);
 
             switch (authResult)
             {
@@ -1003,46 +1003,46 @@ public partial class frmMain : Form
                     _logger.LogInformation("Device requires authentication");
                     LogStatus("Password required...");
 
-                    // ETAPA 3: Intentar recuperar password guardada
+                    // STAGE 3: Try to retrieve saved password
                     string? savedPassword = null;
                     try
                     {
                         savedPassword = await _appSettings.GetSettingAsync<string>("DevicePassword");
                         if (!string.IsNullOrEmpty(savedPassword))
                         {
-                            _logger.LogDebug("Password recuperada desde configuraci�n");
+                            _logger.LogDebug("Password retrieved from configuration");
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogDebug(ex, "No hay password guardada o error recuperando");
+                        _logger.LogDebug(ex, "No saved password or error retrieving");
                     }
 
-                    // ETAPA 3: Autenticaci�n autom�tica si hay password guardada
+                    // STAGE 3: Automatic authentication if saved password exists
                     if (!string.IsNullOrEmpty(savedPassword))
                     {
-                        _logger.LogInformation("Intentando autenticaci�n autom�tica con password guardada");
+                        _logger.LogInformation("Attempting automatic authentication with saved password");
                         var autoAuth = await _authService.AuthenticateAsync(savedPassword, _cts.Token);
 
                         if (autoAuth)
                         {
-                            _logger.LogInformation("Autenticación automática exitosa");
+                            _logger.LogInformation("Automatic authentication successful");
                             LogStatus("Auto-authentication successful");
 
-                            // Almacenar password validada y configurar en pipeline y router
+                            // Store validated password and configure in pipeline and router
                             _validatedPassword = savedPassword;
                             _pipeline.SetStoredPassword(savedPassword);
                             _commandRouter.SetStoredPassword(savedPassword);
-                            break; // Salir del switch, continuar flujo
+                            break; // Exit switch, continue flow
                         }
 
-                        _logger.LogWarning("Autenticaci�n autom�tica fall�, solicitando password manual");
+                        _logger.LogWarning("Automatic authentication failed, requesting manual password");
                     }
 
-                    // Di�logo manual (preservar c�digo existente)
+                    // Manual dialog (preserve existing code)
                     using (var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>())
                     {
-                        // ETAPA 3: Pre-popular con password guardada si existe (UX mejorada)
+                        // STAGE 3: Pre-populate with saved password if exists (improved UX)
                         if (!string.IsNullOrEmpty(savedPassword))
                         {
                             passwordDialog.Password = savedPassword;
@@ -1070,24 +1070,24 @@ public partial class frmMain : Form
                             return;
                         }
 
-                        // Guardar password si RememberPassword est� marcado
+                        // Save password if RememberPassword is checked
                         if (passwordDialog.RememberPassword)
                         {
                             try
                             {
                                 await _appSettings.SaveSettingAsync("DevicePassword", passwordDialog.Password);
-                                _logger.LogInformation("Password guardada para futuras conexiones");
+                                _logger.LogInformation("Password saved for future connections");
                             }
                             catch (Exception ex)
                             {
-                                _logger.LogWarning(ex, "Error guardando password");
+                                _logger.LogWarning(ex, "Error saving password");
                             }
                         }
 
                         _logger.LogInformation("Authentication successful");
                         LogStatus("Authentication successful");
 
-                        // Almacenar password validada y configurar en pipeline y router
+                        // Store validated password and configure in pipeline and router
                         _validatedPassword = passwordDialog.Password;
                         _pipeline.SetStoredPassword(passwordDialog.Password);
                         _commandRouter.SetStoredPassword(passwordDialog.Password);
@@ -1100,8 +1100,8 @@ public partial class frmMain : Form
                     break;
             }
 
-            // FASE 7: Iniciar servidor HTTP
-            _logger.LogInformation("FASE 7: Iniciando servidor HTTP");
+            // PHASE 7: Start HTTP server
+            _logger.LogInformation("PHASE 7: Starting HTTP server");
             LogStatus("Starting HTTP server...");
 
             try
@@ -1111,20 +1111,20 @@ public partial class frmMain : Form
                 _httpServerIsRunning = true;
                 _httpPort = port;
 
-                _logger.LogInformation("Servidor HTTP iniciado en puerto {Port}", port);
-                _logger.LogInformation("Ruta ra�z: {RootPath}", devicePath);
+                _logger.LogInformation("HTTP server started on port {Port}", port);
+                _logger.LogInformation("Root path: {RootPath}", devicePath);
 
-                // Navegar WebView2 a la p�gina principal
+                // Navigate WebView2 to main page
                 if (webView?.CoreWebView2 != null)
                 {
                     var url = $"http://localhost:{port}/index.html";
                     webView.CoreWebView2.Navigate(url);
-                    _logger.LogDebug("WebView2 navegando a {Url}", url);
+                    _logger.LogDebug("WebView2 navigating to {Url}", url);
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error iniciando servidor HTTP");
+                _logger.LogError(ex, "Error starting HTTP server");
                 await DisconnectAsync();
                 MessageBox.Show(
                     $"Error starting HTTP server: {ex.Message}",
@@ -1134,19 +1134,19 @@ public partial class frmMain : Form
                 return;
             }
 
-            // FASE 8: Watchdog + WebView + Menús post-autenticación
-            _logger.LogInformation("FASE 8: Inicializando watchdog y navegador");
+            // PHASE 8: Watchdog + WebView + Post-authentication menus
+            _logger.LogInformation("PHASE 8: Initializing watchdog and browser");
 
-            // Configurar menús según deviceWithPass
+            // Configure menus based on deviceWithPass
             if (selectedDevice.DeviceWithPass)
             {
                 mnuPassword.Visible = true;
                 mnuEth.Visible = true;
-                _logger.LogDebug("Menús password y ethernet habilitados");
+                _logger.LogDebug("Password and ethernet menus enabled");
             }
 
-            // Condición de licencia : (tdev="1c" AND ndev=7 AND ucVersion>=0x10B) OR tdev="2c"
-            // CRÍTICO: Ahora usa ucVersion real extraído de respuesta V1
+            // License condition: (tdev="1c" AND ndev=7 AND ucVersion>=0x10B) OR tdev="2c"
+            // CRITICAL: Now uses real ucVersion extracted from V1 response
             var ucVersion = _authService.UcVersion;
             var showLicenseMenu = (selectedDevice.TDev == "1c" && (int)selectedDevice.NDev == 7 && ucVersion >= 0x10B)
                                    || selectedDevice.TDev == "2c";
@@ -1154,26 +1154,26 @@ public partial class frmMain : Form
             if (showLicenseMenu)
             {
                 mnuLicense.Visible = true;
-                _logger.LogDebug("Menú licencia habilitado (ucVersion=0x{UcVersion:X}, condición cumplida)", ucVersion);
+                _logger.LogDebug("License menu enabled (ucVersion=0x{UcVersion:X}, condition met)", ucVersion);
             }
             else
             {
-                _logger.LogDebug("Menú licencia NO habilitado (tdev={TDev}, ndev={NDev}, ucVersion=0x{UcVersion:X})",
+                _logger.LogDebug("License menu NOT enabled (tdev={TDev}, ndev={NDev}, ucVersion=0x{UcVersion:X})",
                     selectedDevice.TDev, selectedDevice.NDev, ucVersion);
             }
 
-            // Menús adicionales según tipo de dispositivo 
-            // mnuFactDefault: Solo visible para dispositivos con password en modo factory
-            // mnuProd: Visible según configuración específica del dispositivo
+            // Additional menus based on device type 
+            // mnuFactDefault: Only visible for password devices in factory mode
+            // mnuProd: Visible based on device-specific configuration
             ConfigureDeviceSpecificMenus(selectedDevice);
 
-            // Iniciar watchdog si el dispositivo lo requiere
+            // Start watchdog if the device requires it
             if (RequiresWatchdog(selectedDevice))
             {
                 LogStatus("Starting watchdog service...");
                 try
                 {
-                    // CRÍTICO: Usar 25 segundos 
+                    // CRITICAL: Use 25 seconds 
                     await _watchdog.StartAsync(TimeSpan.FromSeconds(25));
                     _logger.LogInformation("Watchdog service started (25s interval)");
                 }
@@ -1183,7 +1183,7 @@ public partial class frmMain : Form
                 }
             }
 
-            // Navegar a la interfaz del dispositivo
+            // Navigate to device interface
             if (webView?.CoreWebView2 != null)
             {
                 var url = $"http://localhost:{_httpPort}";
@@ -1192,7 +1192,7 @@ public partial class frmMain : Form
                 _logger.LogInformation("Navigated to device interface");
             }
 
-            // Actualizar variables de estado
+            // Update state variables
             _chTestActivated = -1;
             _confSCA = "";
             _pendingAnswer = false;
@@ -1200,12 +1200,12 @@ public partial class frmMain : Form
             cmdRefresh.Visible = true;
             mnuFWInfo.Visible = true;
 
-            // Habilitar menús de configuración
+            // Enable configuration menus
             mnuConfig.Enabled = true;
             mnuLoadConfig.Enabled = true;
             mnuSaveConfig.Enabled = true;
 
-            // Habilitar menús de calibración si están visibles
+            // Enable calibration menus if visible
             if (mnuCal.Visible)
             {
                 mnuCal.Enabled = true;
@@ -1213,22 +1213,22 @@ public partial class frmMain : Form
                 mnuLoadCal.Enabled = true;
             }
 
-            // Actualizar contexto de sesión
+            // Update session context
             _sessionContext = _sessionContext with
             {
                 State = ConnectionState.Connected,
                 Device = selectedDevice
             };
 
-            // Guardar último puerto usado
+            // Save last used port
             await SaveLastUsedPortAsync(selectedDevice.ComPort);
 
-            // Task.Yield para procesar eventos pendientes 
+            // Task.Yield to process pending events 
             await Task.Yield();
 
             UpdateUIForConnectedState();
             LogStatus($"Connected to {selectedDevice.NameTypeDevice}");
-            _logger.LogInformation("=== CONEXIÓN COMPLETA ===");
+            _logger.LogInformation("=== CONNECTION COMPLETE ===");
         }
         catch (Exception ex)
         {
@@ -1248,20 +1248,20 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Desconecta del dispositivo y libera todos los recursos
-    /// PROMPT 6: Implementaci�n completa de desconexi�n
+    /// Disconnects from the device and releases all resources
+    /// PROMPT 6: Complete disconnection implementation
     /// </summary>
     private async Task DisconnectAsync()
     {
         try
         {
-            _logger.LogInformation("=== INICIANDO DESCONEXI�N ===");
+            _logger.LogInformation("=== STARTING DISCONNECTION ===");
             LogStatus("Disconnecting...");
 
-            // Cancelar operaciones en curso
+            // Cancel ongoing operations
             _cts?.Cancel();
 
-            // Detener watchdog
+            // Stop watchdog
             if (_watchdog != null)
             {
                 try
@@ -1275,7 +1275,7 @@ public partial class frmMain : Form
                 }
             }
 
-            // Detener servidor HTTP
+            // Stop HTTP server
             if (_httpServerIsRunning)
             {
                 try
@@ -1290,19 +1290,19 @@ public partial class frmMain : Form
                 }
             }
 
-            // Cerrar puerto serial
+            // Close serial port
             if (_serialPort.IsOpen)
             {
                 try
                 {
-                    // Modo noUSB: No intentar cerrar puerto simulado
+                    // noUSB mode: Don't try to close simulated port
                     if (_devModeSettings?.NoUSB == true)
                     {
-                        _logger.LogInformation("Modo noUSB: Omitiendo cierre puerto simulado");
+                        _logger.LogInformation("noUSB mode: Skipping simulated port close");
                     }
                     else
                     {
-                        _logger.LogInformation("Cerrando puerto serial");
+                        _logger.LogInformation("Closing serial port");
                         await _serialPort.CloseAsync();
                     }
 
@@ -1314,17 +1314,17 @@ public partial class frmMain : Form
                 }
             }
 
-            // Navegar a página predeterminada al desconectar
+            // Navigate to default page on disconnect
             if (webView?.CoreWebView2 != null)
             {
                 try
                 {
-                    // PASO 1: Primera navegación a about:blank (Stop)
+                    // STEP 1: First navigation to about:blank (Stop)
                     webView.CoreWebView2.Navigate("about:blank");
-                    await Task.Delay(50); // Pequeña pausa para asegurar navegación
-                    _logger.LogDebug("Primera navegación: about:blank (Stop)");
+                    await Task.Delay(50); // Small pause to ensure navigation
+                    _logger.LogDebug("First navigation: about:blank (Stop)");
 
-                    // PASO 2: Navegar a página predeterminada
+                    // STEP 2: Navigate to default page
                     await NavigateToDefaultPageAsync();
                 }
                 catch (Exception ex)
@@ -1333,10 +1333,10 @@ public partial class frmMain : Form
                 }
             }
 
-            // Cerrar formularios secundarios
+            // Close secondary forms
             CloseSecondaryForms();
 
-            // Ocultar menús específicos del dispositivo
+            // Hide device-specific menus
             mnuFactDefault.Visible = false;
             mnuLicense.Visible = false;
             mnuPassword.Visible = false;
@@ -1345,17 +1345,17 @@ public partial class frmMain : Form
             mnuFWInfo.Visible = false;
             mnuFWVer.Visible = false;
 
-            // Ocultar menús de calibración (agregados en conexión según tipo dispositivo)
+            // Hide calibration menus (added in connection based on device type)
             mnuLoadCal.Visible = false;
             mnuSaveCal.Visible = false;
 
-            // Restaurar menús base 
+            // Restore base menus 
             mnuOneCH.Visible = true;
             mnuTwoCH.Visible = true;
             mnuSixCH.Visible = true;
 
-            // Deshabilitar menús de configuración
-            // Deshabilitar tanto submenús padre como items hijos
+            // Disable configuration menus
+            // Disable both parent submenus and child items
             mnuConfig.Enabled = false;
             mnuLoadConfig.Enabled = false;
             mnuSaveConfig.Enabled = false;
@@ -1366,14 +1366,14 @@ public partial class frmMain : Form
             lblHyperLink.Enabled = false;
             lblHyperLink.Visible = false;
 
-            // Reset variables de estado
+            // Reset state variables
             _chTestActivated = -1;
             _confSCA = "";
             _pendingAnswer = false;
             _waitingLF = false;
             _currentDeviceConfig = null;
 
-            // Actualizar contexto de sesión
+            // Update session context
             _sessionContext = _sessionContext with
             {
                 State = ConnectionState.Disconnected,
@@ -1383,14 +1383,14 @@ public partial class frmMain : Form
             UpdateUIForDisconnectedState();
             LogStatus("Disconnected");
 
-            // Limpiar password validada (seguridad)
+            // Clear validated password (security)
             _validatedPassword = null;
             _pipeline.ClearStoredPassword();
 
-            // Resetear router (limpia cache, password, procesadores de respuesta)
+            // Reset router (clears cache, password, response processors)
             _commandRouter.Reset();
 
-            _logger.LogInformation("=== DESCONEXIÓN COMPLETA ===");
+            _logger.LogInformation("=== DISCONNECTION COMPLETE ===");
         }
         catch (Exception ex)
         {
@@ -1405,28 +1405,28 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para evento CredentialsRequired del pipeline.
+    /// Handler for pipeline CredentialsRequired event.
     /// </summary>
     /// <remarks>
-    /// Se invoca cuando el dispositivo responde INVALID CREDENTIALS.
-    /// Retorna la contraseña validada o solicita una nueva al usuario.
+    /// Invoked when device responds with INVALID CREDENTIALS.
+    /// Returns validated password or requests a new one from user.
     /// </remarks>
     private async Task<string?> OnPipelineCredentialsRequired()
     {
-        // Primero intentar usar password ya validada
+        // First try to use already validated password
         if (!string.IsNullOrEmpty(_validatedPassword))
         {
-            _logger.LogDebug("Retornando password validada para reintento");
+            _logger.LogDebug("Returning validated password for retry");
             return _validatedPassword;
         }
 
-        // Intentar recuperar password guardada de configuración
+        // Try to retrieve saved password from configuration
         try
         {
             var savedPassword = await _appSettings.GetSettingAsync<string>("DevicePassword");
             if (!string.IsNullOrEmpty(savedPassword))
             {
-                _logger.LogDebug("Usando password guardada para reintento INVALID CREDENTIALS");
+                _logger.LogDebug("Using saved password for INVALID CREDENTIALS retry");
                 _validatedPassword = savedPassword;
                 _pipeline.SetStoredPassword(savedPassword);
                 return savedPassword;
@@ -1434,11 +1434,11 @@ public partial class frmMain : Form
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex, "Error recuperando password guardada");
+            _logger.LogDebug(ex, "Error retrieving saved password");
         }
 
-        // Como último recurso, mostrar diálogo de password
-        // Nota: Esto debe ejecutarse en el hilo de UI
+        // As last resort, show password dialog
+        // Note: This must run on the UI thread
         string? password = null;
 
         if (InvokeRequired)
@@ -1494,30 +1494,30 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configura menús específicos según tipo de dispositivo.
+    /// Configures menus specific to device type.
     /// </summary>
     /// <remarks>
-    /// Configura la visibilidad de menús Factory Default, Producción y Calibración
-    /// según el tipo de dispositivo conectado (TDev).
+    /// Configures visibility of Factory Default, Production, and Calibration menus
+    /// according to the connected device type (TDev).
     /// </remarks>
     private void ConfigureDeviceSpecificMenus(DeviceInfo device)
     {
-        // mnuFactDefault: Solo visible para dispositivo 2c (BDA Dual)
-        // Solo dispositivos 2c soportan factory reset
+        // mnuFactDefault: Only visible for 2c device (BDA Dual)
+        // Only 2c devices support factory reset
         if (device.TDev == "2c")
         {
             mnuFactDefault.Visible = true;
-            _logger.LogDebug("mnuFactDefault habilitado para dispositivo 2c");
+            _logger.LogDebug("mnuFactDefault enabled for 2c device");
         }
         else
         {
             mnuFactDefault.Visible = false;
         }
 
-        // mnuProd: Menú de producción - Configura visibilidad según tipo de dispositivo
+        // mnuProd: Production menu - Configure visibility based on device type
         UpdateProductionMenuVisibility(device);
 
-        // mnuCal (Calibración): Visible para 2c, 4dm, 5dm
+        // mnuCal (Calibration): Visible for 2c, 4dm, 5dm
         var showCalibration = device.TDev switch
         {
             "2c" => true,
@@ -1531,7 +1531,7 @@ public partial class frmMain : Form
             mnuCal.Visible = true;
             mnuLoadCal.Visible = true;
             mnuSaveCal.Visible = true;
-            _logger.LogDebug("Menús de calibración habilitados para {DeviceType}", device.TDev);
+            _logger.LogDebug("Calibration menus enabled for {DeviceType}", device.TDev);
         }
         else
         {
@@ -1542,24 +1542,24 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Obtiene PathShared con fallback robustos: device ? tipo ? default.
-    /// Crea contenido m�nimo si no existe.
-    /// ETAPA 5: PathShared Fallback
+    /// Gets PathShared with robust fallbacks: device -> type -> default.
+    /// Creates minimal content if not exists.
+    /// STAGE 5: PathShared Fallback
     /// </summary>
     private async Task<string> GetDevicePathShared(DeviceInfo device)
     {
-        // Modo noUSB: Usar PathShared simulado
+        // noUSB mode: Use simulated PathShared
         if (_devModeSettings?.NoUSB == true)
         {
             var simulatedPath = Path.Combine(
                 AppDomain.CurrentDomain.BaseDirectory,
                 _devModeSettings.SimulatedPathShared);
 
-            _logger.LogInformation("Modo noUSB: PathShared simulado = {Path}", simulatedPath);
+            _logger.LogInformation("noUSB mode: Simulated PathShared = {Path}", simulatedPath);
 
             if (!Directory.Exists(simulatedPath))
             {
-                _logger.LogWarning("PathShared simulado no existe, creando: {Path}", simulatedPath);
+                _logger.LogWarning("Simulated PathShared does not exist, creating: {Path}", simulatedPath);
                 Directory.CreateDirectory(simulatedPath);
                 await CreateDefaultDeviceContent(simulatedPath, device);
             }
@@ -1567,39 +1567,39 @@ public partial class frmMain : Form
             return simulatedPath;
         }
 
-        // L�gica de fallback robusta
+        // Robust fallback logic
         string devicePath = string.Empty;
 
-        // 1. Intentar PathShared del dispositivo
+        // 1. Try device PathShared
         if (!string.IsNullOrEmpty(device.PathShared) && Directory.Exists(device.PathShared))
         {
             devicePath = device.PathShared;
-            _logger.LogInformation("Usando PathShared del dispositivo: {Path}", devicePath);
+            _logger.LogInformation("Using device PathShared: {Path}", devicePath);
         }
         else
         {
-            // 2. Fallback a directorio basado en tipo de dispositivo
+            // 2. Fallback to directory based on device type
             var baseDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "pages");
             var deviceTypeDir = $"htdocs_{device.TDev}";
             devicePath = Path.Combine(baseDir, deviceTypeDir);
 
             if (Directory.Exists(devicePath))
             {
-                _logger.LogWarning("PathShared original no v�lido, usando fallback tipo: {Path}", devicePath);
+                _logger.LogWarning("Original PathShared not valid, using type fallback: {Path}", devicePath);
             }
             else
             {
-                // 3. �ltimo fallback: htdocs_default
+                // 3. Last fallback: htdocs_default
                 devicePath = Path.Combine(baseDir, "htdocs_default");
                 if (!Directory.Exists(devicePath))
                 {
-                    _logger.LogWarning("Creando PathShared por defecto: {Path}", devicePath);
+                    _logger.LogWarning("Creating default PathShared: {Path}", devicePath);
                     Directory.CreateDirectory(devicePath);
                     await CreateDefaultDeviceContent(devicePath, device);
                 }
                 else
                 {
-                    _logger.LogWarning("Usando PathShared por defecto: {Path}", devicePath);
+                    _logger.LogWarning("Using default PathShared: {Path}", devicePath);
                 }
             }
         }
@@ -1608,14 +1608,14 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Crea contenido m�nimo para directorio de dispositivo por defecto.
-    /// ETAPA 5: Contenido default
+    /// Creates minimal content for default device directory.
+    /// STAGE 5: Default content
     /// </summary>
     private async Task CreateDefaultDeviceContent(string path, DeviceInfo device)
     {
         try
         {
-            // Crear index.html b�sico
+            // Create basic index.html
             var indexPath = Path.Combine(path, "index.html");
             if (!File.Exists(indexPath))
             {
@@ -1678,10 +1678,10 @@ public partial class frmMain : Form
 </html>";
 
                 await File.WriteAllTextAsync(indexPath, defaultHtml);
-                _logger.LogInformation("index.html por defecto creado en {Path}", path);
+                _logger.LogInformation("Default index.html created at {Path}", path);
             }
 
-            // Crear settings.cfg b�sico
+            // Create basic settings.cfg
             var settingsPath = Path.Combine(path, "settings.cfg");
             if (!File.Exists(settingsPath))
             {
@@ -1694,12 +1694,12 @@ public partial class frmMain : Form
 /update	U1{data}	0	1	Update configuration";
 
                 await File.WriteAllTextAsync(settingsPath, defaultSettings);
-                _logger.LogInformation("settings.cfg por defecto creado en {Path}", path);
+                _logger.LogInformation("Default settings.cfg created at {Path}", path);
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error creando contenido por defecto en {Path}", path);
+            _logger.LogError(ex, "Error creating default content in {Path}", path);
             throw;
         }
     }
@@ -1732,7 +1732,7 @@ public partial class frmMain : Form
                 _logger.LogWarning("No commands found in settings file: {Path}", settingsPath);
                 _logger.LogWarning("File content might be in an unexpected format");
 
-                // Intentar leer primeras l�neas para diagn�stico
+                // Try to read first lines for diagnostics
                 try
                 {
                     var sampleLines = (await File.ReadAllLinesAsync(settingsPath)).Take(5);
@@ -1740,13 +1740,13 @@ public partial class frmMain : Form
                 }
                 catch
                 {
-                    // Ignorar errores de lectura de muestra
+                    // Ignore sample read errors
                 }
 
                 return null;
             }
 
-            // Construir DeviceConfiguration desde la lista de CommandDefinition
+            // Build DeviceConfiguration from the CommandDefinition list
             var config = new DeviceConfiguration
             {
                 GetCommands = commands
@@ -1756,7 +1756,7 @@ public partial class frmMain : Form
                         Page = c.Page,
                         Command = c.Command,
                         Encode = c.HexEncoding,
-                        // CORREGIDO: Preservar LengthValidation original para splitwith3tabs
+                        // FIXED: Preserve original LengthValidation for splitwith3tabs
                         ExpectedLengths = !string.IsNullOrEmpty(c.LengthValidation)
                             ? new[] { c.LengthValidation }
                             : Array.Empty<string>(),
@@ -1813,7 +1813,7 @@ public partial class frmMain : Form
 
     private bool RequiresWatchdog(DeviceInfo device)
     {
-        // Los dispositivos con contrase�a requieren watchdog
+        // Devices with password require watchdog
         return device.DeviceWithPass;
     }
 
@@ -1872,20 +1872,20 @@ public partial class frmMain : Form
         try
         {
             cmdConnect.Text = "Disconnect";
-            cmdConnect.BackColor = Color.FromArgb(220, 53, 69); // Rojo para disconnect
-            cmdConnect.Enabled = true; // Re-habilitar después de conexión
+            cmdConnect.BackColor = Color.FromArgb(220, 53, 69); // Red for disconnect
+            cmdConnect.Enabled = true; // Re-enable after connection
             cmdIDPort.Enabled = false;
             cmbCOM.Enabled = false;
             cmdRefresh.Enabled = true;
 
-            // Ajustar tamaño fijo y centrar formulario al conectar
-            // Tamaño: 1350 × 800 px
+            // Set fixed size and center form on connect
+            // Size: 1350 x 800 px
             this.WindowState = FormWindowState.Normal;
             this.Size = new Size(1350, 800);
             this.MinimumSize = new Size(1024, 720);
             CenterFormOnScreen();
 
-            // Actualizar información de firmware en menú
+            // Update firmware information in menu
             UpdateFirmwareInfo();
         }
         finally
@@ -1898,10 +1898,10 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Actualiza el menú con información del firmware.
+    /// Updates the menu with firmware information.
     /// </summary>
     /// <remarks>
-    /// Formato: "FW: 2C v1.0 (uc:0x10B)" donde ucVersion se muestra si está disponible.
+    /// Format: "FW: 2C v1.0 (uc:0x10B)" where ucVersion is shown if available.
     /// </remarks>
     private void UpdateFirmwareInfo()
     {
@@ -1910,11 +1910,11 @@ public partial class frmMain : Form
         var device = _sessionContext.Device;
         var ucVersion = _authService.UcVersion;
 
-        // Formato extendido con información de ucVersion para diagnóstico
+        // Extended format with ucVersion information for diagnostics
         var tdevUpper = device.TDev.ToUpperInvariant();
         var fwInfo = $"FW: {tdevUpper} v{device.NDev:F1}";
 
-        // Agregar ucVersion solo si está disponible (> 0)
+        // Add ucVersion only if available (> 0)
         if (ucVersion > 0)
         {
             fwInfo += $" (uc:0x{ucVersion:X})";
@@ -1923,7 +1923,7 @@ public partial class frmMain : Form
         mnuFWVer.Text = fwInfo;
         mnuFWVer.Visible = true;
 
-        _logger.LogDebug("Firmware info actualizado: {FwInfo}", fwInfo);
+        _logger.LogDebug("Firmware info updated: {FwInfo}", fwInfo);
     }
 
     private void UpdateUIForDisconnectedState()
@@ -1946,8 +1946,8 @@ public partial class frmMain : Form
             cmbCOM.Enabled = true;
             cmdRefresh.Enabled = false;
 
-            // Ajustar tamaño mínimo y centrar formulario al desconectar
-            // Tamaño mínimo: 1024 × 720 px
+            // Set minimum size and center form on disconnect
+            // Minimum size: 1024 x 720 px
             this.WindowState = FormWindowState.Normal;
             this.MinimumSize = new Size(1024, 720);
             this.Size = new Size(1024, 720);
@@ -1963,7 +1963,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Centra el formulario en la pantalla actual.
+    /// Centers the form on the current screen.
     /// </summary>
     private void CenterFormOnScreen()
     {
@@ -2014,10 +2014,10 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para clic en el enlace de actualización.
+    /// Handler for update link click.
     /// </summary>
     /// <remarks>
-    /// Abre la URL de descarga en el navegador predeterminado.
+    /// Opens the download URL in the default browser.
     /// </remarks>
     private void lblHyperLink_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
     {
@@ -2044,11 +2044,11 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Verifica si hay actualizaciones disponibles y actualiza lblHyperLink.
+    /// Checks for available updates and updates lblHyperLink.
     /// </summary>
     /// <remarks>
-    /// El enlace de actualización solo es visible si hay una nueva versión disponible
-    /// y el dispositivo NO está conectado.
+    /// The update link is only visible if there is a new version available
+    /// and the device is NOT connected.
     /// </remarks>
     private async Task CheckForUpdatesAsync()
     {
@@ -2084,7 +2084,7 @@ public partial class frmMain : Form
         }
         catch (Exception ex)
         {
-            // No bloquear la inicialización si falla la verificación de versiones
+            // Don't block initialization if version check fails
             _logger.LogWarning(ex, "Failed to check for updates (non-blocking)");
         }
     }
@@ -2092,7 +2092,7 @@ public partial class frmMain : Form
     #region FILE Operations (SaveCFG, LoadCFG, SaveCAL, LoadCAL)
 
     /// <summary>
-    /// Handler para menú Save Configuration.
+    /// Handler for Save Configuration menu.
     /// </summary>
     private async void mnuSaveConfig_Click(object sender, EventArgs e)
     {
@@ -2115,7 +2115,7 @@ public partial class frmMain : Form
         using var saveDialog = new SaveFileDialog
         {
             Title = "Save Device Configuration",
-            // Soporta nuevo formato (.cfg)
+            // Supports new format (.cfg)
             Filter = "Configuration Files (*.cfg)|*.cfg|Legacy Format (*.cfgr)|*.cfgr|All Files (*.*)|*.*",
             DefaultExt = "cfg",
             FileName = $"{_sessionContext.Device?.TDev ?? "device"}_config_{DateTime.Now:yyyyMMdd_HHmmss}.cfg"
@@ -2128,7 +2128,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Load Configuration.
+    /// Handler for Load Configuration menu.
     /// </summary>
     private async void mnuLoadConfig_Click(object sender, EventArgs e)
     {
@@ -2151,7 +2151,7 @@ public partial class frmMain : Form
         using var openDialog = new OpenFileDialog
         {
             Title = "Load Device Configuration",
-            // Soporta nuevo formato (.cfg)
+            // Supports new format (.cfg)
             Filter = "Configuration Files (*.cfg;*.cfgr)|*.cfg;*.cfgr|New Format (*.cfg)|*.cfg|Legacy Format (*.cfgr)|*.cfgr|All Files (*.*)|*.*",
             DefaultExt = "cfg"
         };
@@ -2163,7 +2163,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Save Calibration.
+    /// Handler for Save Calibration menu.
     /// </summary>
     private async void mnuSaveCal_Click(object sender, EventArgs e)
     {
@@ -2186,7 +2186,7 @@ public partial class frmMain : Form
         using var saveDialog = new SaveFileDialog
         {
             Title = "Save Device Calibration",
-            // Soporta nuevo formato (.cal)
+            // Supports new format (.cal)
             Filter = "Calibration Files (*.cal)|*.cal|Legacy Format (*.calr)|*.calr|All Files (*.*)|*.*",
             DefaultExt = "cal",
             FileName = $"{_sessionContext.Device?.TDev ?? "device"}_calibration_{DateTime.Now:yyyyMMdd_HHmmss}.cal"
@@ -2199,7 +2199,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Load Calibration.
+    /// Handler for Load Calibration menu.
     /// </summary>
     private async void mnuLoadCal_Click(object sender, EventArgs e)
     {
@@ -2222,7 +2222,7 @@ public partial class frmMain : Form
         using var openDialog = new OpenFileDialog
         {
             Title = "Load Device Calibration",
-            // Soporta nuevo formato (.cal)
+            // Supports new format (.cal)
             Filter = "Calibration Files (*.cal;*.calr)|*.cal;*.calr|New Format (*.cal)|*.cal|Legacy Format (*.calr)|*.calr|All Files (*.*)|*.*",
             DefaultExt = "cal"
         };
@@ -2234,7 +2234,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Ejecuta una operación de archivo (Save/Load Config/Cal).
+    /// Executes a file operation (Save/Load Config/Cal).
     /// </summary>
     private async Task ExecuteFileOperationAsync(
         FileOperationType operationType,
@@ -2253,7 +2253,7 @@ public partial class frmMain : Form
         _logger.LogInformation("Starting {Operation} to {Path}", operationName, filePath);
         LogStatus($"{operationName} in progress...");
 
-        // Convertir FileCommand a FileOperationCommand
+        // Convert FileCommand to FileOperationCommand
         var commands = fileCommands.Select(fc => new FileOperationCommand
         {
             Commands = fc.Commands,
@@ -2263,7 +2263,7 @@ public partial class frmMain : Form
             OperationType = operationType
         }).ToList();
 
-        // Crear progress reporter
+        // Create progress reporter
         var progress = new Progress<FileOperationProgress>(p =>
         {
             var message = !string.IsNullOrEmpty(p.Message)
@@ -2274,7 +2274,7 @@ public partial class frmMain : Form
 
         try
         {
-            // Deshabilitar menús durante operación
+            // Disable menus during operation
             mnuConfig.Enabled = false;
             mnuSaveConfig.Enabled = false;
             mnuLoadConfig.Enabled = false;
@@ -2305,14 +2305,14 @@ public partial class frmMain : Form
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
 
-                // Navegación post-operación para calibración
+                // Post-operation navigation for calibration
                 if (operationType == FileOperationType.SaveCalibration ||
                     operationType == FileOperationType.LoadCalibration)
                 {
                     await NavigateToFactoryMenuAsync();
                 }
 
-                // Refresh WebView para LoadConfig y SaveConfig exitosos
+                // Refresh WebView for successful LoadConfig and SaveConfig
                 if (operationType == FileOperationType.LoadConfig ||
                     operationType == FileOperationType.SaveConfig)
                 {
@@ -2331,7 +2331,7 @@ public partial class frmMain : Form
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
 
-                // Refresh WebView también en caso de error para Config
+                // Refresh WebView also on error for Config
                 if (operationType == FileOperationType.LoadConfig ||
                     operationType == FileOperationType.SaveConfig)
                 {
@@ -2356,14 +2356,14 @@ public partial class frmMain : Form
         }
         finally
         {
-            // Rehabilitar menús si aún conectado
-            // Incluye menús padre junto con items hijos
+            // Re-enable menus if still connected
+            // Includes parent menus along with child items
             if (_sessionContext.State == ConnectionState.Connected)
             {
                 mnuConfig.Enabled = true;
                 mnuSaveConfig.Enabled = true;
                 mnuLoadConfig.Enabled = true;
-                // Rehabilitar menús de calibración solo si el dispositivo los soporta
+                // Re-enable calibration menus only if device supports them
                 if (mnuCal.Visible)
                 {
                     mnuCal.Enabled = true;
@@ -2376,10 +2376,10 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Navega al menú de fábrica después de operaciones de calibración.
+    /// Navigates to factory menu after calibration operations.
     /// </summary>
     /// <remarks>
-    /// Se llama al finalizar SaveCal y LoadCal exitosamente.
+    /// Called after SaveCal and LoadCal complete successfully.
     /// </remarks>
     private async Task NavigateToFactoryMenuAsync()
     {
@@ -2394,13 +2394,13 @@ public partial class frmMain : Form
             var factoryMenuUrl = $"http://localhost:{_httpPort}/factory/fmenu.html";
             _logger.LogInformation("Navigating to factory menu: {Url}", factoryMenuUrl);
 
-            // Detener navegación actual primero
+            // Stop current navigation first
             webView.Stop();
 
-            // Pequeño delay para asegurar que el browser está listo
+            // Small delay to ensure browser is ready
             await Task.Delay(100);
 
-            // Navegar al menú de fábrica
+            // Navigate to factory menu
             webView.Source = new Uri(factoryMenuUrl);
 
             _logger.LogDebug("Navigation to factory menu initiated");
@@ -2408,15 +2408,15 @@ public partial class frmMain : Form
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error navigating to factory menu");
-            // No lanzar excepción - la navegación es secundaria a la operación principal
+            // Don't throw exception - navigation is secondary to main operation
         }
     }
 
     /// <summary>
-    /// Refresca el WebView después de operaciones de carga de configuración.
+    /// Refreshes WebView after configuration load operations.
     /// </summary>
     /// <remarks>
-    /// Recarga la página actual para reflejar los cambios de configuración.
+    /// Reloads current page to reflect configuration changes.
     /// </remarks>
     private async Task RefreshWebViewAsync()
     {
@@ -2430,10 +2430,10 @@ public partial class frmMain : Form
 
             _logger.LogInformation("Refreshing WebView after configuration load");
 
-            // Pequeño delay antes del refresh
+            // Small delay before refresh
             await Task.Delay(100);
 
-            // Recargar la página actual
+            // Reload current page
             webView.CoreWebView2.Reload();
 
             _logger.LogDebug("WebView refresh initiated");
@@ -2441,7 +2441,7 @@ public partial class frmMain : Form
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error refreshing WebView");
-            // No lanzar excepción - el refresh es secundario a la operación principal
+            // Don't throw exception - refresh is secondary to main operation
         }
     }
 
@@ -2450,10 +2450,10 @@ public partial class frmMain : Form
     #region Menu CLSS - Logout, Training Details
 
     /// <summary>
-    /// Handler para menú CLSS > Logout.
+    /// Handler for CLSS > Logout menu.
     /// </summary>
     /// <remarks>
-    /// Cierra sesión CLSS invalidando token y cerrando aplicación.
+    /// Logs out of CLSS by invalidating token and closing application.
     /// </remarks>
     private void LogoutToolStripMenuItem_Click(object? sender, EventArgs e)
     {
@@ -2474,7 +2474,7 @@ public partial class frmMain : Form
         {
             _logger.LogInformation("User initiated CLSS logout");
 
-            // Limpiar datos de licencia y training
+            // Clear license and training data
             _trainingValidation.ClearLicenseData();
 
             MessageBox.Show(
@@ -2495,10 +2495,10 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú CLSS > Training Details.
+    /// Handler for CLSS > Training Details menu.
     /// </summary>
     /// <remarks>
-    /// Muestra formulario con información de suscripción y entrenamiento.
+    /// Shows form with subscription and training information.
     /// </remarks>
     private void SubscriptionInformationToolStripMenuItem_Click(object? sender, EventArgs e)
     {
@@ -2527,10 +2527,10 @@ public partial class frmMain : Form
     #region Menu File - Exit, Password, License, Factory Default
 
     /// <summary>
-    /// Handler para menú Exit.
+    /// Handler for Exit menu.
     /// </summary>
     /// <remarks>
-    /// Cierra el formulario disparando FormClosing para limpieza ordenada.
+    /// Closes the form triggering FormClosing for orderly cleanup.
     /// </remarks>
     private void mnuExit_Click(object sender, EventArgs e)
     {
@@ -2539,10 +2539,10 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Edit Password.
+    /// Handler for Edit Password menu.
     /// </summary>
     /// <remarks>
-    /// Permite cambiar la contraseña del dispositivo conectado usando comando ^0.
+    /// Allows changing the password of the connected device using ^0 command.
     /// </remarks>
     private async void mnuPassword_Click(object sender, EventArgs e)
     {
@@ -2556,12 +2556,12 @@ public partial class frmMain : Form
             return;
         }
 
-        // Crear diálogo en modo edición
+        // Create dialog in edit mode
         using var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>();
-        passwordDialog.IsEditMode = true;  // Configura título, prompt y oculta chkRemember
-        passwordDialog.ShowCancel = true;  // Permitir cancelación
+        passwordDialog.IsEditMode = true;  // Configures title, prompt and hides chkRemember
+        passwordDialog.ShowCancel = true;  // Allow cancellation
 
-        // Pre-popular con password actual si está disponible
+        // Pre-populate with current password if available
         if (!string.IsNullOrEmpty(_validatedPassword))
         {
             passwordDialog.Password = _validatedPassword;
@@ -2591,7 +2591,7 @@ public partial class frmMain : Form
             cmdConnect.Enabled = false;
             mnuPassword.Enabled = false;
 
-            // Comando ^0 = Cambio de password (no confundir con *0 que es autenticación)
+            // Command ^0 = Password change (not to be confused with *0 which is authentication)
             var serialCommand = new SerialCommand
             {
                 Payload = $"^0{newPassword}",
@@ -2603,16 +2603,16 @@ public partial class frmMain : Form
             };
             var result = await _pipeline.EnqueueCommandAsync(serialCommand);
 
-            // Verificar respuesta exitosa
+            // Verify successful response
             if (result.Success && result.Data.Equals("ACK", StringComparison.OrdinalIgnoreCase))
             {
-                // Actualizar password almacenada
+                // Update stored password
                 _validatedPassword = newPassword;
                 _pipeline.SetStoredPassword(newPassword);
                 _commandRouter.SetStoredPassword(newPassword);
 
-                // En modo edición, siempre guardar la nueva contraseña
-                // (el usuario ya autenticó para poder cambiarla)
+                // In edit mode, always save the new password
+                // (user already authenticated to be able to change it)
                 await _appSettings.SaveSettingAsync("DevicePassword", newPassword);
                 _logger.LogInformation("New password saved to settings");
 
@@ -2627,7 +2627,7 @@ public partial class frmMain : Form
             }
         else
         {
-            // Procesar errores específicos de validación de password
+            // Process specific password validation errors
             var errorMessage = ParsePasswordValidationError(result.Data);                _logger.LogWarning("Password change failed: {Response} -> {Error}", result.Data, errorMessage);
                 LogStatus("Password change failed");
                 MessageBox.Show(
@@ -2658,16 +2658,16 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Parsea respuesta de error de validación de password del dispositivo.
+    /// Parses device password validation error response.
     /// </summary>
     /// <remarks>
-    /// El dispositivo retorna códigos de error específicos en formato hexadecimal:
-    /// - 0x80: Longitud inválida (debe ser entre 8 y 16 caracteres)
-    /// - 0x01: Carácter inválido
-    /// - 0x02: Debe contener al menos una mayúscula
-    /// - 0x04: Debe contener al menos una minúscula
-    /// - 0x08: Debe contener al menos un número
-    /// - 0x10: Debe contener al menos un carácter especial
+    /// The device returns specific error codes in hexadecimal format:
+    /// - 0x80: Invalid length (must be between 8 and 16 characters)
+    /// - 0x01: Invalid character
+    /// - 0x02: Must contain at least one uppercase
+    /// - 0x04: Must contain at least one lowercase
+    /// - 0x08: Must contain at least one number
+    /// - 0x10: Must contain at least one special character
     /// </remarks>
     private static string ParsePasswordValidationError(string response)
     {
@@ -2682,7 +2682,7 @@ public partial class frmMain : Form
         if (upperResponse.Contains("INVALID"))
             return "Invalid Credentials";
 
-        // Intentar parsear código de error hexadecimal
+        // Try to parse hexadecimal error code
         try
         {
             var hexPart = response.Length >= 4 ? response[..4] : response;
@@ -2711,25 +2711,25 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú License.
-    /// Muestra formulario para ingresar clave de licencia (64 hex) y habilitar/deshabilitar features.
+    /// Handler for License menu.
+    /// Shows form to enter license key (64 hex) and enable/disable features.
     /// </summary>
     private void mnuLicense_Click(object sender, EventArgs e)
     {
 
         try
         {
-            // Obtener instancia via DI (tiene ISerialCommandPipeline inyectado)
+            // Get instance via DI (has ISerialCommandPipeline injected)
             var licenseForm = _serviceProvider.GetRequiredService<frmLicenseKey>();
 
-            // Suscribir evento para WebRefresh al aplicar licencia exitosamente
+            // Subscribe event for WebRefresh when license applied successfully
             licenseForm.LicenseApplied += async (s, args) =>
             {
-                _logger.LogInformation("Licencia aplicada exitosamente - refrescando UI");
+                _logger.LogInformation("License applied successfully - refreshing UI");
                 await NavigateToDeviceUIAsync(forceAdvanced: true);
             };
 
-            // Mostrar formulario (no modal)
+            // Show form (non-modal)
             licenseForm.Show(this);
             LogStatus("License form opened");
         }
@@ -2745,8 +2745,8 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Ethernet > Install.
-    /// Abre diálogo para activar/desactivar módulo Ethernet Rabbit.
+    /// Handler for Ethernet > Install menu.
+    /// Opens dialog to activate/deactivate Rabbit Ethernet module.
     /// </summary>
     private void mnuEthInstall_Click(object sender, EventArgs e)
     {
@@ -2767,20 +2767,20 @@ public partial class frmMain : Form
         {
             LogStatus("Opening Ethernet Module configuration...");
 
-            // Crear y configurar diálogo
+            // Create and configure dialog
             using var dialog = _serviceProvider.GetRequiredService<frmEthernetInstall>();
             dialog.SetDevice(device);
 
-            // Mostrar diálogo modal
+            // Show modal dialog
             var result = dialog.ShowDialog(this);
 
-            // Si se aplicaron cambios, refrescar WebView
+            // If changes were applied, refresh WebView
             if (result == DialogResult.OK)
             {
                 _logger.LogInformation("Ethernet configuration changed, refreshing device UI");
                 LogStatus("Ethernet configuration applied, refreshing...");
 
-                // Refrescar WebView después de aplicar cambios
+                // Refresh WebView after applying changes
                 _ = NavigateToDeviceUIAsync(true);
             }
             else
@@ -2800,9 +2800,9 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Reset To Factory Default.
-    /// Restablece configuración a valores de fábrica.
-    /// Solo disponible para dispositivos 2c (BDA Dual).
+    /// Handler for Reset To Factory Default menu.
+    /// Resets configuration to factory default values.
+    /// Only available for 2c (BDA Dual) devices.
     /// </summary>
     private async void mnuFactDefault_Click(object sender, EventArgs e)
     {
@@ -2830,7 +2830,7 @@ public partial class frmMain : Form
             return;
         }
 
-        // Confirmación del usuario
+        // User confirmation
         var confirm = MessageBox.Show(
             "Configuration will be reset to factory default.\n\n" +
             "This will restore all settings to their original values.\n" +
@@ -2866,7 +2866,7 @@ public partial class frmMain : Form
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
 
-                // Refrescar UI del dispositivo
+                // Refresh device UI
                 await NavigateToDeviceUIAsync(true);
             }
             else
@@ -2902,18 +2902,18 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Restaura configuración de fábrica del dispositivo.
-    /// Específico para dispositivo 2c (BDA Dual).
+    /// Restores device factory configuration.
+    /// Specific for 2c (BDA Dual) device.
     /// </summary>
-    /// <param name="device">Información del dispositivo</param>
-    /// <returns>True si exitoso</returns>
+    /// <param name="device">Device information</param>
+    /// <returns>True if successful</returns>
     private async Task<bool> RestoreFactoryConfigAsync(DeviceInfo device)
     {
         _logger.LogInformation("Starting factory reset for device {Device}", device.NameTypeDevice);
 
         try
         {
-            // PASO 1: Leer configuración actual para preservar BBU info (solo para ndev >= 2)
+            // STEP 1: Read current configuration to preserve BBU info (only for ndev >= 2)
             string currentConfig = string.Empty;
 
             if (device.NDev >= 2.0)
@@ -2937,7 +2937,7 @@ public partial class frmMain : Form
 
                 currentConfig = currentConfigResult.Data;
 
-                // Validar longitud mínima de respuesta
+                // Validate minimum response length
                 if (currentConfig.Length < 636)
                 {
                     _logger.LogError("Configuration response too short: {Length} chars (expected >= 636)",
@@ -2946,7 +2946,7 @@ public partial class frmMain : Form
                 }
             }
 
-            // PASO 2: Preparar configuración de fábrica según versión del dispositivo
+            // STEP 2: Prepare factory configuration based on device version
             string factoryConfig = GetFactoryConfigForDevice(device.NDev);
 
             if (string.IsNullOrEmpty(factoryConfig))
@@ -2955,14 +2955,14 @@ public partial class frmMain : Form
                 return false;
             }
 
-            // PASO 3: Para ndev >= 2.0, construir cadena completa con BBU preservado
+            // STEP 3: For ndev >= 2.0, build complete string with BBU preserved
             if (device.NDev >= 2.0 && currentConfig.Length >= 636)
             {
-                // Agregar caracter BBU preservado (posición 636 en 1-indexed = 635 en 0-indexed)
+                // Add preserved BBU character (position 636 in 1-indexed = 635 in 0-indexed)
                 char bbuChar = currentConfig[635];
                 factoryConfig += bbuChar;
 
-                // Agregar segunda parte de la configuración
+                // Add second part of configuration
                 factoryConfig += GetFactoryConfigSecondPart();
 
                 _logger.LogDebug("Factory config for v2.0+ with BBU preserved: {Length} chars", factoryConfig.Length);
@@ -2970,7 +2970,7 @@ public partial class frmMain : Form
 
             _logger.LogDebug("Factory config prepared: {Length} chars", factoryConfig.Length);
 
-            // PASO 4: Enviar configuración de fábrica
+            // STEP 4: Send factory configuration
             var resetCommand = new SerialCommand
             {
                 Payload = factoryConfig,
@@ -2988,7 +2988,7 @@ public partial class frmMain : Form
                 return false;
             }
 
-            // Verificar que se recibió ACK exitosamente
+            // Verify ACK was received successfully
             _logger.LogInformation("Factory reset completed successfully - ACK received");
             return true;
         }
@@ -3000,41 +3000,41 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Obtiene la cadena de configuración de fábrica para una versión de dispositivo 2c.
+    /// Gets factory configuration string for a 2c device version.
     /// </summary>
     /// <remarks>
-    /// Las cadenas para ndev >= 2 incluyen placeholder en posición 636 para BBU info.
+    /// Strings for ndev >= 2 include placeholder at position 636 for BBU info.
     /// </remarks>
-    /// <param name="deviceVersion">Versión del dispositivo (ndev)</param>
-    /// <returns>Cadena de configuración de fábrica (primera parte antes de BBU)</returns>
+    /// <param name="deviceVersion">Device version (ndev)</param>
+    /// <returns>Factory configuration string (first part before BBU)</returns>
     private static string GetFactoryConfigForDevice(double deviceVersion)
     {
-        // Formato: Primera parte + [BBU info preservada] + Segunda parte
+        // Format: First part + [preserved BBU info] + Second part
 
         if (deviceVersion >= 2.0)
         {
-            // Configuración para 2c v2.0+
-            // Primera parte (635 chars) - antes del caracter BBU
-            // Segunda parte se añade después de preservar BBU
+            // Configuration for 2c v2.0+
+            // First part (635 chars) - before BBU character
+            // Second part is added after preserving BBU
             return "C000000914003C000C319C3718FF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A361003721FF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A3E3FD5302A300FD5302A3D8FD5302A3000";
         }
         else if (deviceVersion >= 1.0)
         {
-            // Configuración para 2c v1.0+
-            // Esta versión NO preserva BBU (cadena completa sin placeholder)
+            // Configuration for 2c v1.0+
+            // This version does NOT preserve BBU (complete string without placeholder)
             return "C000000914003C000C319C3718F3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A361003721F3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3000914003C0001319C3718F30080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D061003721F30080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFF00008DA1A1A1A18DA1A1A1A12B009C002B009C002B009C00005000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180";
         }
         else
         {
-            // Configuración para 2c v0.x (legacy)
-            // Similar a v1.0 pero con ligera diferencia en la sección final
+            // Configuration for 2c v0.x (legacy)
+            // Similar to v1.0 but with slight difference in final section
             return "C000000914003C000C319C3718F3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A361003721F3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3000914003C0001319C3718F30080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D061003721F30080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B09292B0B0B0B0FFFFFFFF00008DA1A1A1A18DA1A1A1A12B009C002B009C002B009C0000500001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180";
         }
     }
 
     /// <summary>
-    /// Obtiene la segunda parte de la configuración de fábrica (después del BBU info).
-    /// Solo aplica para ndev >= 2.0 que usa formato con placeholder BBU.
+    /// Gets second part of factory configuration (after BBU info).
+    /// Only applies for ndev >= 2.0 that uses format with BBU placeholder.
     /// </summary>
     private static string GetFactoryConfigSecondPart()
     {
@@ -3046,8 +3046,8 @@ public partial class frmMain : Form
     #region Production Tests Menu Handlers
 
     /// <summary>
-    /// Handler para menú Production Tests > Clear EEPROM.
-    /// Borra EEPROM y resetea configuración del dispositivo.
+    /// Handler for Production Tests > Clear EEPROM menu.
+    /// Clears EEPROM and resets device configuration.
     /// </summary>
     private async void mnuClear_Click(object sender, EventArgs e)
     {
@@ -3056,8 +3056,8 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Production Tests > 1 CH.
-    /// Aplica configuración de producción de 1 canal.
+    /// Handler for Production Tests > 1 CH menu.
+    /// Applies 1-channel production configuration.
     /// </summary>
     private async void mnuOneCH_Click(object sender, EventArgs e)
     {
@@ -3066,8 +3066,8 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Production Tests > 2 CH > Band start.
-    /// Aplica configuración de producción de 2 canales (inicio de banda).
+    /// Handler for Production Tests > 2 CH > Band start menu.
+    /// Applies 2-channel production configuration (band start).
     /// </summary>
     private async void mnuTwoCHStart_Click(object sender, EventArgs e)
     {
@@ -3076,8 +3076,8 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Production Tests > 2 CH > Band center.
-    /// Aplica configuración de producción de 2 canales (centro de banda).
+    /// Handler for Production Tests > 2 CH > Band center menu.
+    /// Applies 2-channel production configuration (band center).
     /// </summary>
     private async void mnuTwoCHCenter_Click(object sender, EventArgs e)
     {
@@ -3086,8 +3086,8 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Production Tests > 2 CH > Band stop.
-    /// Aplica configuración de producción de 2 canales (fin de banda).
+    /// Handler for Production Tests > 2 CH > Band stop menu.
+    /// Applies 2-channel production configuration (band end).
     /// </summary>
     private async void mnuTwoCHStop_Click(object sender, EventArgs e)
     {
@@ -3096,8 +3096,8 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Production Tests > 6 CH.
-    /// Aplica configuración de producción de 6 canales.
+    /// Handler for Production Tests > 6 CH menu.
+    /// Applies 6-channel production configuration.
     /// </summary>
     private async void mnuSixCH_Click(object sender, EventArgs e)
     {
@@ -3106,8 +3106,8 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Handler para menú Production Tests > FirstNet Filter.
-    /// Aplica configuración de producción FirstNet (solo para 1c v5).
+    /// Handler for Production Tests > FirstNet Filter menu.
+    /// Applies FirstNet production configuration (only for 1c v5).
     /// </summary>
     private async void mnuFirstNet_Click(object sender, EventArgs e)
     {
@@ -3116,18 +3116,18 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Ejecuta una operación de Production Test con validación y manejo de errores común.
-    /// Wrapper para SendProdConfigAsync con UI feedback.
+    /// Executes a Production Test operation with common validation and error handling.
+    /// Wrapper for SendProdConfigAsync with UI feedback.
     /// </summary>
-    /// <param name="nchannels">Número de canales (0=FirstNet, 1=1CH, 2=2CH, 6=6CH)</param>
-    /// <param name="mode">Modo para 2CH: 0=start, 1=center, 2=stop</param>
-    /// <param name="clearROM">True para borrar EEPROM</param>
-    /// <param name="operationName">Nombre de la operación para logging/UI</param>
+    /// <param name="nchannels">Number of channels (0=FirstNet, 1=1CH, 2=2CH, 6=6CH)</param>
+    /// <param name="mode">Mode for 2CH: 0=start, 1=center, 2=stop</param>
+    /// <param name="clearROM">True to clear EEPROM</param>
+    /// <param name="operationName">Operation name for logging/UI</param>
     private async Task ExecuteProductionTestAsync(short nchannels, short mode, bool clearROM, string operationName)
     {
         var device = _sessionContext.Device;
 
-        // Validación de conexión
+        // Connection validation
         if (device == null || _sessionContext.State != ConnectionState.Connected)
         {
             MessageBox.Show(
@@ -3138,7 +3138,7 @@ public partial class frmMain : Form
             return;
         }
 
-        // Confirmación para operaciones de Clear EEPROM
+        // Confirmation for Clear EEPROM operations
         if (clearROM)
         {
             var confirm = MessageBox.Show(
@@ -3173,7 +3173,7 @@ public partial class frmMain : Form
                 LogStatus($"{operationName} completed successfully");
                 _logger.LogInformation("Production test completed: {Operation}", operationName);
 
-                // Refrescar UI del dispositivo
+                // Refresh device UI
                 await NavigateToDeviceUIAsync(true);
             }
             else
@@ -3208,7 +3208,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Habilita o deshabilita los menús de Production Tests durante operaciones.
+    /// Enables or disables Production Tests menus during operations.
     /// </summary>
     private void SetProductionMenusEnabled(bool enabled)
     {
@@ -3220,14 +3220,14 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Actualiza la visibilidad de los menús de Production Tests según el dispositivo.
+    /// Updates Production Tests menu visibility based on device.
     /// </summary>
     private async void UpdateProductionMenuVisibility(DeviceInfo device)
     {
-        // Restaurar estado habilitado
+        // Restore enabled state
         SetProductionMenusEnabled(true);
 
-        // Visibilidad por defecto
+        // Default visibility
         mnuProd.Visible = false;
         mnuClear.Visible = false;
         mnuFirstNet.Visible = false;
@@ -3235,7 +3235,7 @@ public partial class frmMain : Form
         mnuTwoCH.Visible = false;
         mnuSixCH.Visible = false;
 
-        // TwoCH sub-items - Start/Stop deshabilitados por defecto (solo Center activo)
+        // TwoCH sub-items - Start/Stop disabled by default (only Center active)
         mnuTwoCHStart.Enabled = false;
         mnuTwoCHCenter.Enabled = true;
         mnuTwoCHStop.Enabled = false;
@@ -3265,7 +3265,7 @@ public partial class frmMain : Form
             {
                 mnuProd.Visible = true;
 
-                // Si isADJBW o 1c v2.2, solo Clear visible (sin canales)
+                // If isADJBW or 1c v2.2, only Clear visible (no channels)
                 if ((tdev == "1c" && Math.Abs(ndev - 2.2) < 0.05) || factParams.IsAdjBW)
                 {
                     mnuClear.Visible = true;
@@ -3280,7 +3280,7 @@ public partial class frmMain : Form
                     mnuSixCH.Visible = true;
                 }
 
-                // Si bandwidth >= 3MHz, habilitar TwoCHStart/Stop
+                // If bandwidth >= 3MHz, enable TwoCHStart/Stop
                 if (factParams.BandWidth >= 3_000_000.0)
                 {
                     mnuTwoCHStart.Enabled = true;
@@ -3313,7 +3313,7 @@ public partial class frmMain : Form
         {
             mnuProd.Visible = true;
             mnuClear.Visible = true;
-            // Para estos dispositivos, ocultar menús de canales
+                // For these devices, hide channel menus
             mnuOneCH.Visible = false;
             mnuTwoCH.Visible = false;
             mnuSixCH.Visible = false;
@@ -3334,18 +3334,18 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Envía configuración de producción al dispositivo.
+    /// Sends production configuration to device.
     /// </summary>
     /// <remarks>
-    /// Esta función contiene configuraciones hardcodeadas extensas para múltiples
-    /// tipos de dispositivos. La implementación actual soporta los dispositivos más comunes.
-    /// Para dispositivos no soportados, se muestra un mensaje informativo.
+    /// This function contains extensive hardcoded configurations for multiple
+    /// device types. The current implementation supports the most common devices.
+    /// For unsupported devices, an informative message is shown.
     /// </remarks>
-    /// <param name="device">Información del dispositivo</param>
-    /// <param name="nchannels">Número de canales (0=FirstNet, 1=1CH, 2=2CH, 6=6CH)</param>
-    /// <param name="mode">Modo para 2CH: 0=start, 1=center, 2=stop</param>
-    /// <param name="clearROM">True para borrar EEPROM y resetear tag</param>
-    /// <returns>True si exitoso</returns>
+    /// <param name="device">Device information</param>
+    /// <param name="nchannels">Number of channels (0=FirstNet, 1=1CH, 2=2CH, 6=6CH)</param>
+    /// <param name="mode">Mode for 2CH: 0=start, 1=center, 2=stop</param>
+    /// <param name="clearROM">True to clear EEPROM and reset tag</param>
+    /// <returns>True if successful</returns>
     private async Task<bool> SendProdConfigAsync(DeviceInfo device, short nchannels, short mode, bool clearROM)
     {
         string tdev = device.TDev?.ToLowerInvariant() ?? "";
@@ -3356,22 +3356,22 @@ public partial class frmMain : Form
 
         try
         {
-            // Delay de estabilización antes de enviar comandos
+            // Stabilization delay before sending commands
             await Task.Delay(2000);
 
-            // Obtener configuración de producción para el dispositivo
+            // Get production configuration for device
             var prodConfig = GetProductionConfig(tdev, ndev, nchannels, mode, clearROM);
 
-            // Si no hay config hardcodeada, intentar construcción dinámica
+            // If no hardcoded config, try dynamic build
             if (prodConfig == null || prodConfig.Commands.Count == 0)
             {
-                // Intentar construir config dinámica para dispositivos soportados
+                // Try building dynamic config for supported devices
                 if (SupportsDynamicConfig(tdev, ndev))
                 {
                     var dynamicBuilder = _serviceProvider.GetRequiredService<DynamicConfigBuilder>();
                     var factoryService = _serviceProvider.GetRequiredService<FactoryParametersService>();
 
-                    // Obtener parámetros de fábrica del dispositivo
+                    // Get factory parameters from device
                     var factoryParams = await factoryService.GetFactoryParametersAsync(tdev, ndev);
                     if (factoryParams != null)
                     {
@@ -3401,10 +3401,10 @@ public partial class frmMain : Form
                 return false;
             }
 
-            // Mostrar mensaje de progreso
+            // Show progress message
             LogStatus("Applying production configuration...");
 
-            // Enviar cada comando de la configuración
+            // Send each command from configuration
             foreach (var cmdInfo in prodConfig.Commands)
             {
                 _logger.LogDebug("Sending production command: {Description}", cmdInfo.Description);
@@ -3421,7 +3421,7 @@ public partial class frmMain : Form
 
                 var result = await _pipeline.EnqueueCommandAsync(command);
 
-                // El pipeline ya maneja reintentos, verificamos resultado final
+                // Pipeline already handles retries, we verify the final result
                 if (!result.Success && cmdInfo.ExpectsAck)
                 {
                     _logger.LogError("Production command failed: {Description}, Status: {Status}",
@@ -3429,7 +3429,7 @@ public partial class frmMain : Form
                     return false;
                 }
 
-                // Pequeña pausa entre comandos 
+                // Small pause between commands 
                 await Task.Delay(100);
             }
 
@@ -3444,22 +3444,22 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Determina si un dispositivo soporta configuración dinámica via BuildCFGFrames.
+    /// Determines if device supports dynamic configuration via BuildCFGFrames.
     /// </summary>
     /// <remarks>
-    /// Dispositivos que usan BuildCFGFrames() en lugar de configs hardcodeadas.
+    /// Devices that use BuildCFGFrames() instead of hardcoded configs.
     /// </remarks>
     private static bool SupportsDynamicConfig(string tdev, double ndev)
     {
         return tdev switch
         {
-            // 1c versiones 2-6 (excepto 7 y 8 que tienen config hardcodeada)
+            // 1c versions 2-6 (except 7 and 8 which have hardcoded config)
             "1c" when ndev >= 2.0 && ndev < 7.0 => true,
 
-            // 1dm versión 4.1 o superior
+            // 1dm version 4.1 or higher
             "1dm" when ndev >= 4.1 => true,
 
-            // 1dr versión 2.1 o superior
+            // 1dr version 2.1 or higher
             "1dr" when ndev >= 2.1 => true,
 
             // 1cm todas las versiones
@@ -3473,15 +3473,15 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Obtiene la configuración de producción para un dispositivo específico.
+    /// Gets the production configuration for a specific device.
     /// </summary>
     /// <remarks>
-    /// Esta implementación incluye configuraciones para dispositivos comunes.
-    /// Las configuraciones son strings hexadecimales que representan parámetros del firmware.
+    /// This implementation includes configurations for common devices.
+    /// Configurations are hexadecimal strings representing firmware parameters.
     /// </remarks>
     private ProductionConfigData? GetProductionConfig(string tdev, double ndev, short nchannels, short mode, bool clearROM)
     {
-        // Seleccionar configuración según tipo de dispositivo
+        // Select configuration based on device type
         switch (tdev)
         {
             case "1c" when (int)ndev == 7:
@@ -3527,21 +3527,21 @@ public partial class frmMain : Form
                 return GetProductionConfig_1DE(ndev, nchannels, mode, clearROM);
 
             default:
-                // Para otros dispositivos, retornar null para indicar no soportado
-                // BuildCFGFrames() para dispositivos genéricos no implementado aún
+                // For other devices, return null to indicate not supported
+                // BuildCFGFrames() for generic devices not implemented yet
                 _logger.LogDebug("Production config not implemented for device {TDev} v{NDev}", tdev, ndev);
                 return null;
         }
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 1c v7.
+    /// Production configuration for 1c v7 device.
     /// </summary>
     private ProductionConfigData GetProductionConfig_1C_V7(short nchannels, short mode, bool clearROM)
     {
         var config = new ProductionConfigData();
 
-        // Comando C - Configuración principal
+        // Command C - Main configuration
         config.Commands.Add(new ProductionCommand
         {
             Payload = "C000000914003C000CB09C5518E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3000914003C0001B09C5518E3008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0E0005521E3008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFF00000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180",
@@ -3550,7 +3550,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando J - Parámetros adicionales
+        // Command J - Additional parameters
         config.Commands.Add(new ProductionCommand
         {
             Payload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB083F003F007F7F0808000808040000000000804050504058484848224148500001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  ",
@@ -3559,7 +3559,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O - Clear log
+        // Command O - Clear log
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -3568,10 +3568,10 @@ public partial class frmMain : Form
             TimeoutSeconds = 5
         });
 
-        // Si clearROM, agregar comando de tag reset
+        // If clearROM, add tag reset command
         if (clearROM)
         {
-            // Comando T para reset tag
+            // Command T for reset tag
             config.Commands.Add(new ProductionCommand
             {
                 Payload = "T0BDA FIPLEX                    ",
@@ -3585,13 +3585,13 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 1c v8.
+    /// Production configuration for 1c v8 device.
     /// </summary>
     private ProductionConfigData GetProductionConfig_1C_V8(short nchannels, short mode, bool clearROM)
     {
         var config = new ProductionConfigData();
 
-        // Comando C - Configuración principal para v8
+        // Command C - Main configuration for v8
         config.Commands.Add(new ProductionCommand
         {
             Payload = "C000000914003C000C909C8228F3000000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A380008228F3000000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3000914003C0001909C8228F3000000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D080008228F3000000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B09292B0B0A6A6FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B09292B0B0A6A6FFFFFFFF00000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180",
@@ -3600,7 +3600,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando J para v8
+        // Command J for v8
         config.Commands.Add(new ProductionCommand
         {
             Payload = "J003E803E8000A03E809C4000A057E7F0000031F1F0C0000039C0D230023007E7E0404000000040000000000000000000000444C4C254A40000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  ",
@@ -3609,7 +3609,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O
+        // Command O
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -3633,24 +3633,24 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 2c (BDA Dual).
+    /// Production configuration for 2c device (BDA Dual).
     /// </summary>
     private ProductionConfigData GetProductionConfig_2C(double ndev, short nchannels, short mode, bool clearROM)
     {
         var config = new ProductionConfigData();
 
-        // La configuración 2c es más compleja con detección MMS y preservación BBU
-        // Por ahora implementamos la versión básica
+        // 2c configuration is more complex with MMS detection and BBU preservation
+        // For now we implement the basic version
         string configPayload;
 
         if (ndev >= 2.0)
         {
-            // Configuración para 2c v2+
+            // Configuration for 2c v2+
             configPayload = "C000000914003C000CB09C5518EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A3E3FD5302A300FD5302A3D8FD5302A3000";
         }
         else
         {
-            // Configuración para 2c v1.x
+            // Configuration for 2c v1.x
             configPayload = "C000000914003C000CB09C5518E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3";
         }
 
@@ -3662,7 +3662,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando J
+        // J Command
         config.Commands.Add(new ProductionCommand
         {
             Payload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB083F003F007F7F0808000808040000000000804050504058484848224148500001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  ",
@@ -3671,7 +3671,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O
+        // Command O
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -3695,7 +3695,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 2dr/2dr2.
+    /// Production configuration for 2dr/2dr2 device.
     /// </summary>
     private ProductionConfigData GetProductionConfig_2DR(short nchannels, short mode, bool clearROM)
     {
@@ -3709,7 +3709,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando J para 2dr
+        // Command J for 2dr
         config.Commands.Add(new ProductionCommand
         {
             Payload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB0878CF20005D7C080800080804080800000000405050405848484822414850080858080201580000015100000151000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              External Input 4              EC02EC02550214021402",
@@ -3718,7 +3718,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O
+        // Command O
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -3742,7 +3742,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 4dm/4dm2/4dm3.
+    /// Production configuration for 4dm/4dm2/4dm3 device.
     /// </summary>
     private ProductionConfigData GetProductionConfig_4DM(short nchannels, short mode, bool clearROM)
     {
@@ -3756,7 +3756,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando J para 4dm
+        // Command J for 4dm
         config.Commands.Add(new ProductionCommand
         {
             Payload = "J0000103E803E8000A03E803E8000A057E7F0000031F1F0C000003AB0848FF30007F7F080800080804080800000080405050405848484822414850080858080201580000015100000151000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  EC02EC02550214021402",
@@ -3765,7 +3765,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O
+        // Command O
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -3789,7 +3789,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 2dr1.
+    /// Production configuration for 2dr1 device.
     /// </summary>
     private ProductionConfigData GetProductionConfig_2DR1(short nchannels, short mode, bool clearROM)
     {
@@ -3803,7 +3803,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando J para 2dr1
+        // Command J for 2dr1
         config.Commands.Add(new ProductionCommand
         {
             Payload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003ABAB48CF30007F7F080800080804080800000080405050405848484822414850080858080201580008045100000151000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              External Input 4              EC02EC02550214021402",
@@ -3812,7 +3812,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O
+        // Command O
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -3836,16 +3836,16 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 3dr.
+    /// Production configuration for 3dr device.
     /// </summary>
     /// <remarks>
-    /// Versión simplificada sin detección de commonUl en tiempo real.
+    /// Simplified version without real-time commonUl detection.
     /// </remarks>
     private ProductionConfigData GetProductionConfig_3DR(double ndev, short nchannels, short mode, bool clearROM)
     {
         var config = new ProductionConfigData();
 
-        // Configuración por defecto (commonUl = false)
+        // Default configuration (commonUl = false)
         string configPayload = "C000000914003C000CB09C5518EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3000914003C0001B09C5518EF00800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0E0005521EF00800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFF00000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000000000000000000";
 
         config.Commands.Add(new ProductionCommand
@@ -3856,7 +3856,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando J para 3dr
+        // Command J for 3dr
         config.Commands.Add(new ProductionCommand
         {
             Payload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB0878CF20005D7C080800080804080800000000405050405848484822414850080858080201580000015100000151000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              External Input 4              EC02EC02550214021402",
@@ -3865,7 +3865,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O
+        // Command O
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -3889,7 +3889,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 4dm1.
+    /// Production configuration for 4dm1 device.
     /// </summary>
     private ProductionConfigData GetProductionConfig_4DM1(short nchannels, short mode, bool clearROM)
     {
@@ -3903,7 +3903,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando J para 4dm1
+        // Command J for 4dm1
         config.Commands.Add(new ProductionCommand
         {
             Payload = "J0000103E803E8000A03E803E8000A057E7F0000031F1F0C000003ABAB48F33000027F080800080804080800000080405050405848484822414850080858080201580008045100000151000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  EC02EC02550214021402",
@@ -3912,7 +3912,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O
+        // Command O
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -3936,7 +3936,7 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 4dm4.
+    /// Production configuration for 4dm4 device.
     /// </summary>
     private ProductionConfigData GetProductionConfig_4DM4(short nchannels, short mode, bool clearROM)
     {
@@ -3950,7 +3950,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando J para 4dm4
+        // Command J for 4dm4
         config.Commands.Add(new ProductionCommand
         {
             Payload = "J0000103E803E8000A03E803E8000A057E7F0000031F1F0C000003ABAB48FF30007F7F080800080804080800000080405050405848484822414850080858080201580008045100000151000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  EC02EC02550214021402",
@@ -3959,7 +3959,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O
+        // Command O
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -3983,28 +3983,28 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 5dm.
+    /// Production configuration for 5dm device.
     /// </summary>
     /// <remarks>
-    /// Versión simplificada sin detección de commonUl/MMS en tiempo real.
+    /// Simplified version without real-time commonUl/MMS detection.
     /// </remarks>
     private ProductionConfigData GetProductionConfig_5DM(double ndev, short nchannels, short mode, bool clearROM)
     {
         var config = new ProductionConfigData();
 
-        // Configuración por defecto (commonUl = false, MMS = false)
+        // Default configuration (commonUl = false, MMS = false)
         string configPayload;
         string jPayload;
 
         if (ndev < 1)
         {
-            // Versión sin commonUl
+            // Version without commonUl
             configPayload = "C0000100000914003C000CB09C5518EF00810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002800FD5302A300FD5302A300FD5302A300FD5302A3E0005518EF00810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002800FCEA032A00FCEA032A00FCEA032A00FCEA032A000914003C0001B09C5518EF008100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD800FD3002D000FD3002D000FD3002D000FD3002D0E000551EEF008100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD800FCD6031600FCD6031600FCD6031600FCD60316B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFFFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFFFFFFFFF000000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800003FF000000000000";
             jPayload = "J0000103E803E8000A03E803E8000A057E7F0000031F1F0C000003ABAB08F320FF227F080800080804080800000080000000000808080808080808080808080201080008045100000151000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF/Remote Ext.Input EC02EC02EC02EC02EC02EC02EC02EC025502";
         }
         else
         {
-            // Versión >= 1 sin commonUl, sin MMS
+            // Version >= 1 without commonUl, without MMS
             configPayload = "C0000100000914003C000CB09C5518EF00810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002800FD5302A300FD5302A300FD5302A300FD5302A3E0005525EF00810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002800FCEA032A00FCEA032A00FCEA032A00FCEA032A000914003C0001909C5518EF008100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD800FD3002D000FD3002D000FD3002D000FD3002D0E0005525EF008100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD800FCD6031600FCD6031600FCD6031600FCD60316B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFFFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFFFFFFFFF000000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800003D7000000000000010";
             jPayload = "J0000103E803E8000A03E803E8000A057E7F0000031F1F0C000003ABAB00F300FF2203080800080804080880808080000000000808080808080808080808080201080008040000000000000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF/Remote Ext.Input EC02EC02EC02EC02EC02EC02EC02EC0255020100F0FF0F00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000151800000000000000000000000000000000151800001518000015180000151800001518000015180Annunciator 1                 Annunciator 2                 Annunciator 3                 Annunciator 4                 ";
         }
@@ -4025,7 +4025,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O - 5dm usa O000 para clear log individual
+        // Command O - 5dm usa O000 para clear log individual
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O000",
@@ -4049,13 +4049,13 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivos 2dm/2dm1.
+    /// Production configuration for 2dm/2dm1 devices.
     /// </summary>
     private ProductionConfigData GetProductionConfig_2DM(string tdev, short nchannels, short mode, bool clearROM)
     {
         var config = new ProductionConfigData();
 
-        // Comando C para 2dm/2dm1
+        // Command C for 2dm/2dm1
         config.Commands.Add(new ProductionCommand
         {
             Payload = "C000000914003C000CB09C5518E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3000914003C000CB09C5518E3008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0E0005521E3008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFF0000000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000\tF001EC21EC210000000F-F001ED21ED210000000F-F001EE21EE210000000F-F001EF21EF210000000F-F001F021F0210000000F-F001F121F1210000000F-F001F221F2210000000F-F001F321F3210000000F",
@@ -4064,7 +4064,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando J - diferente para 2dm vs 2dm1
+        // Command J - different for 2dm vs 2dm1
         string jPayload = tdev == "2dm"
             ? "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003ABAB387F7D3F0000000808000208020400080008485151005C48484828484850800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180Laser Fail                    Photodiode Fail               Door Open                     Force RF OFF                  02680852000828200800200070201845External Input 1              External Input 2              External Input 3              External Input 4              \t6F4500-6F4500-6F4500-6F4500-6F4500-6F4500-6F4500-6F4500"
             : "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003ABAB387F7D0F0F00000808000208020400080008485151005048484828C0C0D08008080808000000000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  02680852000828000800200070201800External Input 1              External Input 2              External Input 3              External Input 4              \t6F8500-6F8500-6F8500-6F8500-6F8500-6F8500-6F8500-6F8500";
@@ -4077,7 +4077,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O
+        // Command O
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -4086,7 +4086,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 5
         });
 
-        // Comando !0 para 2dm - clear EEPROM
+        // Command !0 for 2dm - clear EEPROM
         config.Commands.Add(new ProductionCommand
         {
             Payload = "!0" + new string(' ', 700),
@@ -4110,10 +4110,10 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 3c.
+    /// Production configuration for 3c device.
     /// </summary>
     /// <remarks>
-    /// Versión simplificada sin detección MMS en tiempo real.
+    /// Simplified version without real-time MMS detection.
     /// </remarks>
     private ProductionConfigData GetProductionConfig_3C(double ndev, short nchannels, short mode, bool clearROM)
     {
@@ -4124,13 +4124,13 @@ public partial class frmMain : Form
 
         if (ndev < 1)
         {
-            // Versión 0.x
+            // Version 0.x
             configPayload = "C000000914003C000CB09C5518E3008000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002800FCEA032A00FCEA032A00FE7AFFBA00000A014AE0005518E3008000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002800FCEA032A00FCEA032A00FE7AFFBA00000A014A000914003C0001B09C5518E3008000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD800FCD6031600FCD6031600FD26FE6600FEB6FFF6E0005521E3008000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD800FCD6031600FCD6031600FD26FE6600FEB6FFF6B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B09292B0B0A6A6FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B09292B0B0A6A6FFFFFFFF00000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180";
             jPayload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003ABAB38FF30FFFF00000808000C08000404000000C05050405C48484828424158480001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  ";
         }
         else
         {
-            // Versión 1.x+ (sin MMS por defecto)
+            // Version 1.x+ (without MMS by default)
             configPayload = "C000000914003C000CB09C5518EF00810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002800FCEA032A00FCEA032A00FCEA032A00FCEA032AE0005518EF00810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002881000028810000288100002800FCEA032A00FCEA032A00FCEA032A00FCEA032A000148100F358B09C5518EF008100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD800FCD6031600F9B6FFF600F9B6FFF600F9B6FFF6E000551EEF008100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD88100FFD800FCD6031600FCD6031600FCD6031600FCD60316B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFF00000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180";
             jPayload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003ABAB00FF30FFFFFFFFFF0F08080000080004040000000000000000080808080201080801020408808080800480808080808080000000000000000000000F00000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  Annunciator 1                 Annunciator 2                 Annunciator 3                 Annunciator 4                 ";
         }
@@ -4151,7 +4151,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O
+        // Command O
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -4160,7 +4160,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 5
         });
 
-        // Comando !0 para 3c
+        // Command !0 for 3c
         config.Commands.Add(new ProductionCommand
         {
             Payload = "!0" + new string(' ', 700),
@@ -4184,13 +4184,13 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivos 3dm/3dm1.
+    /// Production configuration for 3dm/3dm1 devices.
     /// </summary>
     private ProductionConfigData GetProductionConfig_3DM(string tdev, short nchannels, short mode, bool clearROM)
     {
         var config = new ProductionConfigData();
 
-        // Comando C para 3dm/3dm1
+        // Command C for 3dm/3dm1
         config.Commands.Add(new ProductionCommand
         {
             Payload = "C000000914003C000CB09C5518E3008000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002800FCEA032A00FCEA032A00FE7AFFBA00000A014AE0005518E3008000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002880000028800000288000002800FCEA032A00FCEA032A00FE7AFFBA00000A014A000914003C0001B09C5518E3008000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD800FCD6031600FCD6031600FD26FE6600FEB6FFF6E0005521E3008000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD88000FFD800FCD6031600FCD6031600FD26FE6600FEB6FFF6B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFF0000000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000\tF001EC21EC210000000F-F001ED21ED210000000F-F001EE21EE210000000F-F001EF21EF210000000F-F001F021F0210000000F-F001F121F1210000000F-F001F221F2210000000F-F001F321F3210000000F",
@@ -4199,7 +4199,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando J - diferente para 3dm vs 3dm1
+        // Command J - different for 3dm vs 3dm1
         string jPayload = tdev == "3dm"
             ? "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003ABAB38FF7F3F0000000808000208020404080808485151005C48484828484850C80001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180Laser Fail                    Photodiode Fail               Door Open                     Force RF OFF                  6208680258080800280800100060587FExternal Input 1              External Input 2              External Input 3              External Input 4              \t7F4700-7F4700-7F4700-7F4700-7F4700-7F4700-7F4700-7F4700"
             : "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003ABAB38FF7F0F0F00000808000208020404080808485151005048484828C0C0D0C008080808000000000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  6208680258080800280800100060587FExternal Input 1              External Input 2              External Input 3              External Input 4              \t7F4700-7F4700-7F4700-7F4700-7F4700-7F4700-7F4700-7F4700";
@@ -4212,7 +4212,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 10
         });
 
-        // Comando O
+        // Command O
         config.Commands.Add(new ProductionCommand
         {
             Payload = "O001",
@@ -4221,7 +4221,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 5
         });
 
-        // Comando !0 para 3dm
+        // Command !0 for 3dm
         config.Commands.Add(new ProductionCommand
         {
             Payload = "!0" + new string(' ', 700),
@@ -4245,22 +4245,22 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Configuración de producción para dispositivo 1de (Expansor).
-    /// Solo envía comando T para tag reset.
+    /// Production configuration for 1de device (Expander).
+    /// Only sends T command for tag reset.
     /// </summary>
     private ProductionConfigData GetProductionConfig_1DE(double ndev, short nchannels, short mode, bool clearROM)
     {
         var config = new ProductionConfigData();
 
-        // Para 1de, solo se usa clearROM que envía el tag
-        // Si no es clearROM, no hay configuración disponible para expansor
+        // For 1de, only clearROM is used which sends the tag
+        // If not clearROM, no configuration available for expander
         if (!clearROM)
         {
             _logger.LogDebug("1de (Expansor) only supports clearROM operation");
             return config;
         }
 
-        // Tag para 1de según versión
+        // Tag for 1de based on version
         string tagPayload = (int)ndev == 1
             ? "T0EXPANS FIPLEX  0.0 0.0        "
             : "T0EXPANSION FIPLEX              ";
@@ -4273,7 +4273,7 @@ public partial class frmMain : Form
             TimeoutSeconds = 5
         });
 
-        // Para 1de v1, hay umbral adicional
+        // For 1de v1, there is an additional threshold
         if ((int)ndev == 1)
         {
             config.Commands.Add(new ProductionCommand
@@ -4313,3 +4313,4 @@ public partial class frmMain : Form
         }
     }
 }
+

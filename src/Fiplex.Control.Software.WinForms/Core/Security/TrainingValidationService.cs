@@ -7,10 +7,10 @@ using System.Text.Json;
 namespace Fiplex.Control.Software.WinForms.Core.Security;
 
 /// <summary>
-/// Implementación de validación de entrenamiento Fiplex.
-/// Lee información desde archivo de licencia local o configuración.
+/// Fiplex training validation implementation.
+/// Reads information from local license file or configuration.
 /// </summary>
-public class TrainingValidationService : ITrainingValidationService
+ public class TrainingValidationService : ITrainingValidationService
 {
     private readonly ILogger<TrainingValidationService> _logger;
     private readonly IConfiguration _configuration;
@@ -26,11 +26,11 @@ public class TrainingValidationService : ITrainingValidationService
     private LicenseInfo? _licenseInfo;
     private bool _tokenLoaded;
     
-    // Nombre del archivo de licencia
+    // License file name
     private const string LicenseFileName = "fiplex.license";
     private const string LicenseFileNameAlt = "clss.dat";
     
-    // Nombre del software para buscar en UsersTrainingExpiryDate
+    // Software name for UsersTrainingExpiryDate lookup
     private const string FiplexSoftwareName = "FCS";
 
     public TrainingValidationService(
@@ -74,7 +74,7 @@ public class TrainingValidationService : ITrainingValidationService
 
     /// <inheritdoc />
     /// <remarks>
-    /// ExpireDate = remainingDays.ToString() donde remainingDays viene del JWT Exp
+    /// ExpireDate = remainingDays.ToString() where remainingDays comes from JWT Exp
     /// </remarks>
     public int LoginDaysRemaining
     {
@@ -93,10 +93,10 @@ public class TrainingValidationService : ITrainingValidationService
         get
         {
 #if DEBUG
-            // En DEBUG siempre permitir conexión 
+            // In DEBUG always allow connection 
             return true;
 #else
-            // En Release validar fecha de expiración
+            // In Release validate expiry date
             if (_trainingExpiryDate == null)
             {
                 _logger.LogWarning("Training expiry date not loaded");
@@ -110,9 +110,9 @@ public class TrainingValidationService : ITrainingValidationService
 
     /// <inheritdoc />
     /// <remarks>
-    /// Prioridad: 
-    /// - UserName/Organization: SIEMPRE del JWT (es el login real)
-    /// - TrainingExpiryDate: 1) JWT UsersTrainingExpiryDate, 2) Archivo de licencia
+    /// Priority: 
+    /// - UserName/Organization: ALWAYS from JWT (this is the real login)
+    /// - TrainingExpiryDate: 1) JWT UsersTrainingExpiryDate, 2) License file
     /// </remarks>
     public async Task ReadTokenInformationAsync(CancellationToken ct = default)
     {
@@ -126,11 +126,11 @@ public class TrainingValidationService : ITrainingValidationService
         {
             _logger.LogInformation("Reading CLSS token information...");
             
-            // PASO 1: Extraer información del usuario del JWT (siempre)
-            // El usuario autenticado viene del JWT, no del archivo de licencia
+            // STEP 1: Extract user information from JWT (always)
+            // The authenticated user comes from JWT, not from license file
             var jwtUserLoaded = await TryLoadUserFromJwtTokenAsync(ct);
             
-            // PASO 2: Intentar obtener TrainingExpiryDate del JWT
+            // STEP 2: Try to get TrainingExpiryDate from JWT
             var trainingFromJwt = await TryLoadTrainingFromJwtTokenAsync(ct);
             
             if (trainingFromJwt)
@@ -145,8 +145,8 @@ public class TrainingValidationService : ITrainingValidationService
                 return;
             }
             
-            // PASO 3: Fallback - cargar solo fecha de training desde archivo
-            // (Mantener el usuario del JWT si ya se cargó)
+            // STEP 3: Fallback - load only training date from file
+            // (Keep user from JWT if already loaded)
             _licenseInfo = await LoadLicenseFromFileAsync(ct)
                         ?? await LoadLicenseFromConfigurationAsync(ct)
                         ?? CreateDevelopmentLicense();
@@ -158,15 +158,15 @@ public class TrainingValidationService : ITrainingValidationService
                 _subscriptionExpiryDate = _licenseInfo.SubscriptionExpiryDate;
                 _updatedOnDate = _licenseInfo.UpdatedOnDate ?? DateTime.Now;
                 
-                // IMPORTANTE: Solo asignar UserName/Organization del archivo si NO vienen del JWT
-                // El usuario real es el del JWT (login), no el del archivo de licencia de desarrollo
-                // No sobrescribir _userName y _organization si ya vienen del JWT
+                // IMPORTANT: Only assign UserName/Organization from file if NOT from JWT
+                // The real user is from JWT (login), not from development license file
+                // Don't overwrite _userName and _organization if already from JWT
                 
                 _tokenLoaded = true;
                 
                 _logger.LogInformation(
                     "Training date loaded from file. User: {User}, Org: {Org}, Training valid until: {ExpiryDate}, {Days} days remaining",
-                    UserName ?? "Unknown",  // Usa la propiedad que prioriza JWT sobre archivo
+                    UserName ?? "Unknown",  // Use property that prioritizes JWT over file
                     Organization ?? "Unknown",
                     _trainingExpiryDate?.ToString("yyyy-MM-dd") ?? "N/A",
                     DaysRemaining);
@@ -175,7 +175,7 @@ public class TrainingValidationService : ITrainingValidationService
             {
                 _logger.LogWarning("Failed to load license: {Error}", _licenseInfo.ErrorMessage);
                 
-                // En desarrollo, usar licencia temporal
+                // In development, use temporary license
 #if DEBUG
                 _trainingExpiryDate = DateTime.Now.AddYears(1);
                 _tokenLoaded = true;
@@ -197,10 +197,10 @@ public class TrainingValidationService : ITrainingValidationService
     }
     
     /// <summary>
-    /// Carga información del usuario desde el token JWT offline.
-    /// SIEMPRE debe ejecutarse primero, ya que el usuario real es el del JWT (login).
+    /// Loads user information from offline JWT token.
+    /// ALWAYS must be executed first, since the real user is from JWT (login).
     /// </summary>
-    /// <returns>true si se cargó información del usuario del JWT</returns>
+    /// <returns>true if user information was loaded from JWT</returns>
     private async Task<bool> TryLoadUserFromJwtTokenAsync(CancellationToken ct)
     {
         try
@@ -221,7 +221,7 @@ public class TrainingValidationService : ITrainingValidationService
                 return false;
             }
             
-            // Asignar datos del usuario del JWT (esto es el login real)
+            // Assign user data from JWT (this is the real login)
             _userName = claims.UniqueName;
             _organization = claims.AccountCompanyName;
             _loginExpiryDate = claims.ExpiresAt;
@@ -240,10 +240,10 @@ public class TrainingValidationService : ITrainingValidationService
     }
     
     /// <summary>
-    /// Intenta cargar la fecha de training desde el token JWT offline.
-    /// Busca en UsersTrainingExpiryDate el software "FCS".
+    /// Tries to load training date from offline JWT token.
+    /// Searches UsersTrainingExpiryDate for "FCS" software.
     /// </summary>
-    /// <returns>true si se encontró fecha de training en el JWT</returns>
+    /// <returns>true if training date was found in JWT</returns>
     private async Task<bool> TryLoadTrainingFromJwtTokenAsync(CancellationToken ct)
     {
         try
@@ -273,7 +273,7 @@ public class TrainingValidationService : ITrainingValidationService
                 return false;
             }
             
-            // Asignar fecha de suscripción desde LicenseExpiryDetails
+            // Assign subscription date from LicenseExpiryDetails
             AssignLicenseExpiryDate(claims);
             
             _logger.LogDebug("JWT training date loaded: {ExpiryDate}", 
@@ -289,8 +289,8 @@ public class TrainingValidationService : ITrainingValidationService
     }
     
     /// <summary>
-    /// Asigna la fecha de expiración del entrenamiento Fiplex desde los claims del token.
-    /// Busca en UsersTrainingExpiryDate el software "FCS".
+    /// Assigns Fiplex training expiry date from token claims.
+    /// Searches UsersTrainingExpiryDate for "FCS" software.
     /// </summary>
     private void AssignFiplexTrainingExpiryDate(TokenClaims claims)
     {
@@ -350,13 +350,13 @@ public class TrainingValidationService : ITrainingValidationService
     }
     
     /// <summary>
-    /// Asigna la fecha de expiración de suscripción desde los claims del token.
+    /// Assigns subscription expiry date from token claims.
     /// </summary>
     private void AssignLicenseExpiryDate(TokenClaims claims)
     {
         _subscriptionExpiryDate = null;
         
-        // Buscar en LicenseExpiryDetails 
+        // Look in LicenseExpiryDetails
         var licenseDetails = claims.LicenseExpiryDetails?.FirstOrDefault();
         
         if (licenseDetails?.ExpiryDate != null)
@@ -371,8 +371,8 @@ public class TrainingValidationService : ITrainingValidationService
     }
 
     /// <summary>
-    /// Intenta cargar licencia desde archivo local.
-    /// Busca: fiplex.license, clss.dat
+    /// Attempts to load license from local file.
+    /// Searches: fiplex.license, clss.dat
     /// </summary>
     private async Task<LicenseInfo?> LoadLicenseFromFileAsync(CancellationToken ct)
     {
@@ -407,14 +407,14 @@ public class TrainingValidationService : ITrainingValidationService
     }
 
     /// <summary>
-    /// Parsea archivo de licencia.
-    /// Soporta formato JSON y formato legacy texto plano.
+    /// Parses license file.
+    /// Supports JSON format and legacy plain text format.
     /// </summary>
     private async Task<LicenseInfo> ParseLicenseFileAsync(string path, CancellationToken ct)
     {
         var content = await File.ReadAllTextAsync(path, ct);
         
-        // Intentar JSON primero
+        // Try JSON first
         if (content.TrimStart().StartsWith("{"))
         {
             try
@@ -436,13 +436,13 @@ public class TrainingValidationService : ITrainingValidationService
             }
         }
         
-        // Formato legacy: líneas key=value
+        // Legacy format: key=value lines
         return ParseLegacyLicenseFormat(content);
     }
 
     /// <summary>
-    /// Parsea formato legacy de archivo de licencia.
-    /// Formato: key=value por línea
+    /// Parses legacy license file format.
+    /// Format: key=value per line
     /// </summary>
     private LicenseInfo ParseLegacyLicenseFormat(string content)
     {
@@ -521,7 +521,7 @@ public class TrainingValidationService : ITrainingValidationService
     }
 
     /// <summary>
-    /// Carga licencia desde appsettings.json sección "License".
+    /// Loads license from appsettings.json "License" section.
     /// </summary>
     private Task<LicenseInfo?> LoadLicenseFromConfigurationAsync(CancellationToken ct)
     {
@@ -562,8 +562,8 @@ public class TrainingValidationService : ITrainingValidationService
     }
 
     /// <summary>
-    /// Crea una licencia de desarrollo válida por 1 año.
-    /// Solo se usa si no se encuentra ninguna otra fuente.
+    /// Creates a development license valid for 1 year.
+    /// Only used if no other source is found.
     /// </summary>
     private LicenseInfo CreateDevelopmentLicense()
     {
@@ -589,7 +589,7 @@ public class TrainingValidationService : ITrainingValidationService
             return "CLSS login status unknown";
         }
 
-        // Usar LoginDaysRemaining para calcular días restantes de login
+        // Use LoginDaysRemaining to calculate remaining login days
         var loginDays = LoginDaysRemaining;
         
         if (loginDays > 0)
@@ -613,7 +613,7 @@ public class TrainingValidationService : ITrainingValidationService
     {
         _logger.LogInformation("Clearing license data (logout)");
         
-        // Limpia estado interno
+        // Clear internal state
         _trainingExpiryDate = null;
         _loginExpiryDate = null;
         _subscriptionExpiryDate = null;
@@ -621,7 +621,7 @@ public class TrainingValidationService : ITrainingValidationService
         _licenseInfo = null;
         _tokenLoaded = false;
         
-        // CRÍTICO: Limpiar tokens OIDC para que el siguiente inicio requiera login
+        // CRITICAL: Clear OIDC tokens so next startup requires login
         try
         {
             _tokenManager.ClearAllTokens();
@@ -632,17 +632,17 @@ public class TrainingValidationService : ITrainingValidationService
             _logger.LogWarning(ex, "Could not clear OIDC tokens during logout");
         }
         
-        // Intentar eliminar archivo de licencia local si existe
+        // Try to delete local license file if it exists
         try
         {
             var basePath = AppDomain.CurrentDomain.BaseDirectory;
             var licensePath = Path.Combine(basePath, LicenseFileName);
             var licensePathAlt = Path.Combine(basePath, LicenseFileNameAlt);
             
-            // No eliminamos el archivo, solo lo vaciamos para logout temporal
+            // We don't delete the file, just clear it for temporary logout
             if (File.Exists(licensePath))
             {
-                // Crear backup antes de invalidar
+                // Create backup before invalidating
                 var backupPath = licensePath + ".bak";
                 File.Copy(licensePath, backupPath, overwrite: true);
                 _logger.LogDebug("License backup created: {Path}", backupPath);

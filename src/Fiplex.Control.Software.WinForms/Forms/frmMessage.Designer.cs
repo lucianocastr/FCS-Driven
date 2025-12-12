@@ -26,14 +26,14 @@ partial class frmMessage
     /// Required method for Designer support - do not modify
     /// the contents of this method with the code editor.
     /// 
-    /// NOTA: Los estilos Fiplex se aplican mediante valores literales en tiempo de diseño.
-    /// Los colores corresponden a FiplexTheme:
+    /// NOTE: Fiplex styles are applied using literal values at design time.
+    /// Colors correspond to FiplexTheme:
     /// - PrimaryColor: RGB(0, 88, 155) = #00589B
     /// - BackgroundMain: RGB(255, 255, 255) = White
     /// - TextPrimary: RGB(34, 34, 34) = #222222
     /// - BorderSoft: RGB(221, 221, 221) = #DDDDDD
     /// 
-    /// NO usar ControlStyleExtensions, ApplyFiplexStyles ni ApplyFiplexFormStyle.
+    /// DO NOT use ControlStyleExtensions, ApplyFiplexStyles or ApplyFiplexFormStyle.
     /// </summary>
     private void InitializeComponent()
     {
@@ -107,27 +107,27 @@ partial class frmMessage
     #endregion
 
     /// <summary>
-    /// Label para mensaje principal.
+    /// Label for main message.
     /// </summary>
     private Label lblMessage;
     
     /// <summary>
-    /// Label para indicador de progreso animado.
+    /// Label for animated progress indicator.
     /// </summary>
     private Label lblProgress;
     
     /// <summary>
-    /// Botón de cancelación (oculto por defecto).
+    /// Cancel button (hidden by default).
     /// </summary>
     private Button cmdCancel;
     
     /// <summary>
-    /// Timer para animación de progreso (100ms).
+    /// Timer for progress animation (100ms).
     /// </summary>
     private System.Windows.Forms.Timer tmrProgress;
     
     /// <summary>
-    /// ToolTip auxiliar.
+    /// Auxiliary ToolTip.
     /// </summary>
     private ToolTip toolTip1;
 }

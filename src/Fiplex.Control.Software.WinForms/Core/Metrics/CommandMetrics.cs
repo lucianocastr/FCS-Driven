@@ -3,8 +3,8 @@ using System.Diagnostics.Metrics;
 namespace Fiplex.Control.Software.WinForms.Core.Metrics;
 
 /// <summary>
-/// Métricas de comandos seriales usando System.Diagnostics.Metrics.
-/// Compatible con OpenTelemetry y exportadores estándar.
+/// Serial command metrics using System.Diagnostics.Metrics.
+/// Compatible with OpenTelemetry and standard exporters.
 /// </summary>
 public class CommandMetrics : IDisposable
 {
@@ -40,12 +40,12 @@ public class CommandMetrics : IDisposable
     }
 
     /// <summary>
-    /// Registra la ejecución de un comando con sus métricas.
+    /// Records command execution with its metrics.
     /// </summary>
-    /// <param name="command">Nombre del comando (ej: /test, /version)</param>
-    /// <param name="status">Estado del resultado (success, timeout, error)</param>
-    /// <param name="durationSeconds">Duración en segundos</param>
-    /// <param name="retries">Número de reintentos realizados</param>
+    /// <param name="command">Command name (e.g., /test, /version)</param>
+    /// <param name="status">Result status (success, timeout, error)</param>
+    /// <param name="durationSeconds">Duration in seconds</param>
+    /// <param name="retries">Number of retries performed</param>
     public void RecordCommand(string command, string status, double durationSeconds, int retries)
     {
         _commandCounter.Add(1, 
@@ -74,3 +74,4 @@ public class CommandMetrics : IDisposable
         _meter?.Dispose();
     }
 }
+

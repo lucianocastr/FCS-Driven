@@ -3,37 +3,37 @@ using Fiplex.Control.Software.WinForms.Core.Serial.Models;
 namespace Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 
 /// <summary>
-/// Parser del protocolo serial Fiplex.
+/// Fiplex serial protocol parser.
 /// </summary>
 public interface ISerialProtocolParser
 {
     /// <summary>
-    /// Procesa datos entrantes y retorna tokens parseados.
+    /// Processes incoming data and returns parsed tokens.
     /// </summary>
     IEnumerable<ProtocolToken> ProcessIncomingData(ReadOnlySpan<byte> data);
     
     /// <summary>
-    /// Reinicia el estado del parser.
+    /// Resets the parser state.
     /// </summary>
     void Reset();
     
     /// <summary>
-    /// Indica si hay datos parciales en el buffer.
+    /// Indicates whether there is partial data in the buffer.
     /// </summary>
     bool HasPartialData();
     
     /// <summary>
-    /// Obtiene datos parciales si el timeout expiró.
+    /// Gets partial data if timeout expired.
     /// </summary>
     ProtocolToken? GetPartialDataIfTimeout();
     
     /// <summary>
-    /// Indica si el parser está esperando LF (fin de trama).
+    /// Indicates whether the parser is waiting for LF (end of frame).
     /// </summary>
     bool IsWaitingLF { get; }
     
     /// <summary>
-    /// Longitud actual del buffer de recepción.
+    /// Current length of the receive buffer.
     /// </summary>
     int BufferLength { get; }
 }

@@ -3,53 +3,53 @@
 using System.ComponentModel;
 
 /// <summary>
-/// Diálogo de progreso para operaciones seriales prolongadas.
+/// Progress dialog for long-running serial operations.
 /// </summary>
 /// <remarks>
-/// <para>Se muestra durante:</para>
+/// <para>Displayed during:</para>
 /// <list type="bullet">
-///   <item><description>Guardado/Carga de calibración (.calr)</description></item>
-///   <item><description>Guardado/Carga de configuración (.cfgr)</description></item>
-///   <item><description>Aplicación de configuraciones al dispositivo</description></item>
+///   <item><description>Saving/Loading calibration (.calr)</description></item>
+///   <item><description>Saving/Loading configuration (.cfgr)</description></item>
+///   <item><description>Applying configurations to the device</description></item>
 /// </list>
-/// <para>Características:</para>
+/// <para>Features:</para>
 /// <list type="bullet">
-///   <item><description>Animación de puntos progresivos (timer 100ms)</description></item>
-///   <item><description>TopMost forzado para visibilidad</description></item>
-///   <item><description>Prevención de cierre manual por usuario</description></item>
-///   <item><description>Bandera de cancelación consultable externamente</description></item>
+///   <item><description>Progressive dots animation (100ms timer)</description></item>
+///   <item><description>Forced TopMost for visibility</description></item>
+///   <item><description>Prevention of manual close by user</description></item>
+///   <item><description>Externally queryable cancellation flag</description></item>
 /// </list>
-/// <para>Patrón de uso:</para>
+/// <para>Usage pattern:</para>
 /// <code>
 /// using var progress = new frmMessage();
 /// progress.SetMessage("Applying Configuration");
 /// progress.Show();
-/// try { /* operación */ }
+/// try { /* operation */ }
 /// finally { progress.TryUnload(); }
 /// </code>
 /// </remarks>
 public partial class frmMessage : Form
 {
-    #region Campos privados
+    #region Private Fields
 
     /// <summary>
-    /// Indica si el cierre fue solicitado programáticamente.
+    /// Indicates if the close was requested programmatically.
     /// </summary>
     private bool _programmaticClose;
 
     #endregion
 
-    #region Propiedades públicas
+    #region Public Properties
 
     /// <summary>
-    /// Bandera de cancelación consultable externamente.
+    /// Externally queryable cancellation flag.
     /// </summary>
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool CancelRequested { get; private set; }
 
     /// <summary>
-    /// Obtiene o establece el texto del mensaje principal.
+    /// Gets or sets the main message text.
     /// </summary>
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -60,7 +60,7 @@ public partial class frmMessage : Form
     }
 
     /// <summary>
-    /// Obtiene o establece el texto del indicador de progreso.
+    /// Gets or sets the progress indicator text.
     /// </summary>
     [Browsable(false)]
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
@@ -81,13 +81,13 @@ public partial class frmMessage : Form
 
     #endregion
 
-    #region Métodos públicos
+    #region Public Methods
 
     /// <summary>
-    /// Actualiza el mensaje principal mostrado y resetea el progreso.
+    /// Updates the main message displayed and resets progress.
     /// Thread-safe.
     /// </summary>
-    /// <param name="message">Mensaje a mostrar.</param>
+    /// <param name="message">Message to display.</param>
     public void SetMessage(string message)
     {
         if (IsDisposed) return;
@@ -105,19 +105,19 @@ public partial class frmMessage : Form
         }
         catch (ObjectDisposedException)
         {
-            // Formulario ya dispuesto - ignorar
+            // Form already disposed - ignore
         }
         catch (InvalidOperationException)
         {
-            // Handle no válido - ignorar
+            // Invalid handle - ignore
         }
     }
 
     /// <summary>
-    /// Muestra u oculta el botón de cancelación.
-    /// Ajusta automáticamente la altura del formulario.
+    /// Shows or hides the cancel button.
+    /// Automatically adjusts form height.
     /// </summary>
-    /// <param name="show">True para mostrar.</param>
+    /// <param name="show">True to show.</param>
     public void ShowCancelButton(bool show = true)
     {
         if (IsDisposed) return;
@@ -137,12 +137,12 @@ public partial class frmMessage : Form
         }
         catch (ObjectDisposedException)
         {
-            // Formulario ya dispuesto - ignorar
+            // Form already disposed - ignore
         }
     }
 
     /// <summary>
-    /// Resetea el estado del formulario para reutilización.
+    /// Resets form state for reuse.
     /// </summary>
     public void Reset()
     {
@@ -164,12 +164,12 @@ public partial class frmMessage : Form
         }
         catch (ObjectDisposedException)
         {
-            // Formulario ya dispuesto - ignorar
+            // Form already disposed - ignore
         }
     }
 
     /// <summary>
-    /// Cierra el formulario programáticamente, evitando el bloqueo de FormClosing.
+    /// Closes the form programmatically, bypassing FormClosing blocking.
     /// </summary>
     public void CloseProgress()
     {
@@ -189,20 +189,20 @@ public partial class frmMessage : Form
         }
         catch (ObjectDisposedException)
         {
-            // Ya dispuesto
+            // Already disposed
         }
         catch (InvalidOperationException)
         {
-            // Handle no válido
+            // Invalid handle
         }
     }
 
     #endregion
 
-    #region Eventos del formulario
+    #region Form Events
 
     /// <summary>
-    /// Inicializa estado visual y bandera de cancelación.
+    /// Initializes visual state and cancellation flag.
     /// </summary>
     protected override void OnLoad(EventArgs e)
     {
@@ -216,7 +216,7 @@ public partial class frmMessage : Form
     }
 
     /// <summary>
-    /// Fuerza ventana como TopMost y centra en pantalla.
+    /// Forces window as TopMost and centers on screen.
     /// </summary>
     protected override void OnActivated(EventArgs e)
     {
@@ -226,15 +226,15 @@ public partial class frmMessage : Form
     }
 
     /// <summary>
-    /// Impide cierre manual por el usuario.
+    /// Prevents manual close by user.
     /// </summary>
     /// <remarks>
-    /// Solo CloseProgress(), TryUnload() o cierre programático puede cerrar este formulario.
-    /// El cierre manual por el usuario (botón X) es bloqueado.
+    /// Only CloseProgress(), TryUnload() or programmatic close can close this form.
+    /// Manual close by user (X button) is blocked.
     /// </remarks>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        // Permitir cierre programático
+        // Allow programmatic close
         if (_programmaticClose || e.CloseReason != CloseReason.UserClosing)
         {
             tmrProgress.Enabled = false;
@@ -242,12 +242,12 @@ public partial class frmMessage : Form
             return;
         }
 
-        // Bloquear cierre manual por usuario
+        // Block manual close by user
         e.Cancel = true;
     }
 
     /// <summary>
-    /// Re-aplica colores si se redimensiona.
+    /// Re-applies colors if resized.
     /// </summary>
     protected override void OnResize(EventArgs e)
     {
@@ -260,7 +260,7 @@ public partial class frmMessage : Form
     #region Event Handlers
 
     /// <summary>
-    /// Animación de puntos progresivos (máx 33 caracteres).
+    /// Progressive dots animation (max 33 characters).
     /// </summary>
     private void tmrProgress_Tick(object sender, EventArgs e)
     {
@@ -275,13 +275,13 @@ public partial class frmMessage : Form
         }
         catch (ObjectDisposedException)
         {
-            // Control dispuesto durante tick - detener timer
+            // Control disposed during tick - stop timer
             tmrProgress.Enabled = false;
         }
     }
 
     /// <summary>
-    /// Activa bandera de cancelación.
+    /// Activates cancellation flag.
     /// </summary>
     private void cmdCancel_Click(object sender, EventArgs e)
     {
@@ -290,10 +290,10 @@ public partial class frmMessage : Form
 
     #endregion
 
-    #region Métodos privados auxiliares
+    #region Private Helper Methods
 
     /// <summary>
-    /// Aplica fondo blanco a controles principales.
+    /// Applies white background to main controls.
     /// </summary>
     private void ApplyWhiteBackground()
     {
@@ -309,7 +309,7 @@ public partial class frmMessage : Form
     }
 
     /// <summary>
-    /// Obtiene texto de un control de forma thread-safe.
+    /// Gets text from a control in a thread-safe manner.
     /// </summary>
     private string SafeGetText(System.Windows.Forms.Control? control)
     {
@@ -334,7 +334,7 @@ public partial class frmMessage : Form
     }
 
     /// <summary>
-    /// Establece texto de un control de forma thread-safe.
+    /// Sets text on a control in a thread-safe manner.
     /// </summary>
     private void SafeSetText(System.Windows.Forms.Control? control, string value)
     {
@@ -353,11 +353,11 @@ public partial class frmMessage : Form
         }
         catch (ObjectDisposedException)
         {
-            // Control ya dispuesto - ignorar
+            // Control already disposed - ignore
         }
         catch (InvalidOperationException)
         {
-            // Handle no válido - ignorar
+            // Invalid handle - ignore
         }
     }
 

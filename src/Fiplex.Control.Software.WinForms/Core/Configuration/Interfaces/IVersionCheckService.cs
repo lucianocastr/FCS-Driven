@@ -1,13 +1,13 @@
 namespace Fiplex.Control.Software.WinForms.Core.Configuration.Interfaces;
 
 /// <summary>
-/// Resultado de la verificación de versiones.
+/// Version check result.
 /// </summary>
-/// <param name="UpdateAvailable">Indica si hay una versión más reciente disponible</param>
-/// <param name="CurrentVersion">Versión actual del software (local)</param>
-/// <param name="LatestVersion">Versión más reciente disponible (remota), null si no se pudo obtener</param>
-/// <param name="DownloadUrl">URL de descarga del instalador/ZIP, null si no disponible</param>
-/// <param name="ErrorMessage">Mensaje de error si la verificación falló, null si exitosa</param>
+/// <param name="UpdateAvailable">Indicates if a newer version is available</param>
+/// <param name="CurrentVersion">Current software version (local)</param>
+/// <param name="LatestVersion">Latest available version (remote), null if it couldn't be obtained</param>
+/// <param name="DownloadUrl">Installer/ZIP download URL, null if not available</param>
+/// <param name="ErrorMessage">Error message if the check failed, null if successful</param>
 public record VersionCheckResult(
     bool UpdateAvailable,
     string CurrentVersion,
@@ -16,47 +16,47 @@ public record VersionCheckResult(
     string? ErrorMessage = null);
 
 /// <summary>
-/// Servicio para verificar actualizaciones de software.
+/// Service for checking software updates.
 /// 
-/// 1. CheckNewVersion() navega a urlUpd (lastversions.txt)
-/// 2. WebBrowser1_DocumentCompleted captura el contenido
-/// 3. detectNewVersion() parsea y compara versiones
-/// 4. Si hay nueva versión → lblHyperLink.Visible = True
+/// 1. CheckNewVersion() navigates to urlUpd (lastversions.txt)
+/// 2. WebBrowser1_DocumentCompleted captures the content
+/// 3. detectNewVersion() parses and compares versions
+/// 4. If there's a new version → lblHyperLink.Visible = True
 /// 
-/// En C# moderno usamos HttpClient async en lugar de WebBrowser.
+/// In modern C# we use async HttpClient instead of WebBrowser.
 /// </summary>
 public interface IVersionCheckService
 {
     /// <summary>
-    /// Versión actual del software.
+    /// Current software version.
     /// </summary>
     string CurrentVersion { get; }
 
     /// <summary>
-    /// Última versión disponible conocida (después de verificar).
+    /// Latest available version known (after checking).
     /// </summary>
     string? LatestVersion { get; }
 
     /// <summary>
-    /// URL de descarga de la última versión.
+    /// Download URL for the latest version.
     /// </summary>
     string? DownloadUrl { get; }
 
     /// <summary>
-    /// Indica si hay una actualización disponible (después de verificar).
+    /// Indicates if an update is available (after checking).
     /// </summary>
     bool UpdateAvailable { get; }
 
     /// <summary>
-    /// Verifica si hay actualizaciones disponibles.
+    /// Checks if updates are available.
     /// </summary>
-    /// <param name="cancellationToken">Token de cancelación</param>
-    /// <returns>Resultado de la verificación con todos los detalles</returns>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>Check result with all details</returns>
     Task<VersionCheckResult> CheckForUpdatesAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
     /// Abre la URL de descarga en el navegador predeterminado.
     /// </summary>
-    /// <returns>True si se pudo abrir el navegador, false en caso de error</returns>
+    /// <returns>True if the browser could be opened, false on error</returns>
     bool OpenDownloadUrl();
 }

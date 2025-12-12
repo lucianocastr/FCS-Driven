@@ -1,84 +1,84 @@
 namespace Fiplex.Control.Software.WinForms.Models;
 
 /// <summary>
-/// Información de licencia CLSS del usuario y dispositivo.
+/// CLSS license information for user and device.
 /// </summary>
 /// <remarks>
-/// Centraliza toda la información relacionada con licencias incluyendo:
+/// Centralizes all license-related information including:
 /// <list type="bullet">
-///   <item>Licencia del software (suscripción)</item>
-///   <item>Entrenamiento CLSS (training)</item>
-///   <item>Datos del usuario licenciado</item>
+///   <item>Software license (subscription)</item>
+///   <item>CLSS training</item>
+///   <item>Licensed user data</item>
 /// </list>
 /// </remarks>
 public class LicenseInfo
 {
     /// <summary>
-    /// Clave de licencia del dispositivo.
+    /// Device license key.
     /// </summary>
-    /// <remarks>Utilizada para identificación y validación de licencia.</remarks>
+    /// <remarks>Used for license identification and validation.</remarks>
     public string? Key { get; set; }
     
     /// <summary>
-    /// Indica si la licencia es válida y está vigente.
+    /// Indicates whether the license is valid and current.
     /// </summary>
     public bool IsValid { get; set; }
     
     /// <summary>
-    /// Fecha de expiración de la licencia del dispositivo.
+    /// Device license expiration date.
     /// </summary>
     public DateTime ExpirationDate { get; set; } = DateTime.MaxValue;
     
     /// <summary>
-    /// Fecha de expiración del login CLSS.
+    /// CLSS login expiration date.
     /// </summary>
     public DateTime? LoginExpiryDate { get; set; }
     
     /// <summary>
-    /// Fecha de expiración del entrenamiento Fiplex (CLSS Training).
+    /// Fiplex training expiration date (CLSS Training).
     /// </summary>
     /// <remarks>
-    /// El training debe estar vigente para poder conectar con dispositivos.
+    /// Training must be current to connect with devices.
     /// </remarks>
     public DateTime? TrainingExpiryDate { get; set; }
     
     /// <summary>
-    /// Nombre del usuario licenciado.
+    /// Licensed user name.
     /// </summary>
     public string? UserName { get; set; }
     
     /// <summary>
-    /// Organización del usuario.
+    /// User organization.
     /// </summary>
     public string? Organization { get; set; }
     
     /// <summary>
-    /// Identificador único de la licencia.
+    /// Unique license identifier.
     /// </summary>
     public string? LicenseId { get; set; }
     
     /// <summary>
-    /// Versión del formato del archivo de licencia.
+    /// License file format version.
     /// </summary>
     public int Version { get; set; } = 1;
     
     /// <summary>
-    /// Indica si la licencia fue cargada correctamente desde el archivo.
+    /// Indicates whether the license was loaded successfully from file.
     /// </summary>
     public bool IsLoaded { get; set; }
     
     /// <summary>
-    /// Mensaje de error si la carga de licencia falló.
+    /// Error message if license loading failed.
     /// </summary>
     public string? ErrorMessage { get; set; }
     
     /// <summary>
-    /// Fecha de expiración de la suscripción del software.
+    /// Software subscription expiration date.
     /// </summary>
     public DateTime? SubscriptionExpiryDate { get; set; }
     
     /// <summary>
-    /// Fecha de última actualización del login.
+    /// Last login update date.
     /// </summary>
     public DateTime? UpdatedOnDate { get; set; }
 }

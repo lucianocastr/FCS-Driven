@@ -6,8 +6,8 @@ using Microsoft.Web.WebView2.WinForms;
 namespace Fiplex.Control.Software.WinForms.Core.Security;
 
 /// <summary>
-/// Browser embebido WebView2 para autenticación OIDC.
-/// Implementa IBrowser de Duende.IdentityModel.OidcClient
+/// Embedded WebView2 browser for OIDC authentication.
+/// Implements IBrowser from Duende.IdentityModel.OidcClient
 /// </summary>
 public class WinFormsWebView2Browser : IBrowser
 {
@@ -21,13 +21,13 @@ public class WinFormsWebView2Browser : IBrowser
     }
 
     /// <summary>
-    /// Invoca el browser para autenticación OIDC.
+    /// Invokes the browser for OIDC authentication.
     /// </summary>
     public async Task<BrowserResult> InvokeAsync(BrowserOptions options, CancellationToken ct = default)
     {
         var tcs = new TaskCompletionSource<BrowserResult>();
 
-        // Crear formulario de autenticación
+        // Create authentication form
         var form = _formFactory?.Invoke() ?? CreateDefaultForm();
         var webView = new WebView2
         {
@@ -36,7 +36,7 @@ public class WinFormsWebView2Browser : IBrowser
 
         form.Controls.Add(webView);
 
-        // Registrar cancelación
+        // Register cancellation
         ct.Register(() =>
         {
             if (!tcs.Task.IsCompleted)
@@ -54,7 +54,7 @@ public class WinFormsWebView2Browser : IBrowser
             }
         });
 
-        // Evento de cierre del formulario
+        // Form close event
         form.FormClosed += (s, e) =>
         {
             if (!tcs.Task.IsCompleted)
@@ -69,26 +69,26 @@ public class WinFormsWebView2Browser : IBrowser
 
         try
         {
-            // Inicializar WebView2
+            // Initialize WebView2
             await webView.EnsureCoreWebView2Async();
 
-            // Configurar WebView2
+            // Configure WebView2
             webView.CoreWebView2.Settings.AreDefaultContextMenusEnabled = false;
             webView.CoreWebView2.Settings.AreDevToolsEnabled = false;
             webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
 
-            _logger?.LogDebug("WebView2 inicializado. Navegando a: {Url}", 
+            _logger?.LogDebug("WebView2 initialized. Navigating to: {Url}", 
                 options.StartUrl?.Substring(0, Math.Min(100, options.StartUrl?.Length ?? 0)) + "...");
 
-            // Manejar navegación
+            // Handle navigation
             webView.CoreWebView2.NavigationStarting += (s, e) =>
             {
-                _logger?.LogDebug("Navegando a: {Url}", e.Uri);
+                _logger?.LogDebug("Navigating to: {Url}", e.Uri);
 
-                // Detectar redirect URI
+                // Detect redirect URI
                 if (e.Uri.StartsWith(options.EndUrl, StringComparison.OrdinalIgnoreCase))
                 {
-                    _logger?.LogInformation("Redirect URI detectado");
+                    _logger?.LogInformation("Redirect URI detected");
                     
                     e.Cancel = true;
                     
@@ -105,14 +105,14 @@ public class WinFormsWebView2Browser : IBrowser
                 }
             };
 
-            // Manejar errores de navegación
+            // Handle navigation errors
             webView.CoreWebView2.NavigationCompleted += (s, e) =>
             {
                 if (!e.IsSuccess && e.WebErrorStatus != CoreWebView2WebErrorStatus.OperationCanceled)
                 {
-                    _logger?.LogWarning("Error de navegación: {Status}", e.WebErrorStatus);
+                    _logger?.LogWarning("Navigation error: {Status}", e.WebErrorStatus);
                     
-                    // Solo fallar si es un error crítico
+                    // Only fail on critical errors
                     if (e.WebErrorStatus == CoreWebView2WebErrorStatus.HostNameNotResolved ||
                         e.WebErrorStatus == CoreWebView2WebErrorStatus.ConnectionAborted)
                     {
@@ -130,10 +130,10 @@ public class WinFormsWebView2Browser : IBrowser
                 }
             };
 
-            // Navegar a URL de inicio
+            // Navigate to start URL
             webView.CoreWebView2.Navigate(options.StartUrl);
 
-            // Mostrar formulario
+            // Show form
             form.Show();
 
             // Timeout
@@ -143,7 +143,7 @@ public class WinFormsWebView2Browser : IBrowser
                 {
                     if (!t.IsCanceled && !tcs.Task.IsCompleted)
                     {
-                        _logger?.LogWarning("Browser timeout alcanzado");
+                        _logger?.LogWarning("Browser timeout reached");
                         tcs.TrySetResult(new BrowserResult
                         {
                             ResultType = BrowserResultType.Timeout,
@@ -162,7 +162,7 @@ public class WinFormsWebView2Browser : IBrowser
         }
         catch (Exception ex)
         {
-            _logger?.LogError(ex, "Error en browser OIDC");
+            _logger?.LogError(ex, "Error in OIDC browser");
             return new BrowserResult
             {
                 ResultType = BrowserResultType.UnknownError,
@@ -178,7 +178,7 @@ public class WinFormsWebView2Browser : IBrowser
     }
 
     /// <summary>
-    /// Crea el formulario por defecto para autenticación.
+    /// Creates the default form for authentication.
     /// </summary>
     private static Form CreateDefaultForm()
     {

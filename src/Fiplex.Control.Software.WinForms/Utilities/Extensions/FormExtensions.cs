@@ -3,20 +3,20 @@ namespace Fiplex.Control.Software.WinForms.Utilities.Extensions;
 using Fiplex.Control.Software.WinForms.Forms;
 
 /// <summary>
-/// Extensiones para formularios WinForms.
+/// Extensions for WinForms forms.
 /// </summary>
 public static class FormExtensions
 {
     /// <summary>
-    /// Cierra y dispone el formulario de forma segura.
+    /// Closes and disposes the form safely.
     /// </summary>
     /// <remarks>
-    /// Este método es thread-safe y maneja casos donde el formulario
-    /// ya fue cerrado o dispuesto.
+    /// This method is thread-safe and handles cases where the form
+    /// was already closed or disposed.
     /// 
-    /// Para frmMessage, usa CloseProgress() que permite el cierre programático.
+    /// For frmMessage, uses CloseProgress() which allows programmatic closing.
     /// </remarks>
-    /// <param name="form">El formulario a cerrar y disponer.</param>
+    /// <param name="form">The form to close and dispose.</param>
     public static void TryUnload(this Form? form)
     {
         if (form == null || form.IsDisposed)
@@ -30,7 +30,7 @@ public static class FormExtensions
                 return;
             }
 
-            // Manejo especial para frmMessage que bloquea cierre de usuario
+            // Special handling for frmMessage which blocks user closing
             if (form is frmMessage messageForm)
             {
                 messageForm.CloseProgress();
@@ -42,19 +42,19 @@ public static class FormExtensions
         }
         catch (ObjectDisposedException)
         {
-            // Formulario ya dispuesto - ignorar
+            // Form already disposed - ignore
         }
         catch (InvalidOperationException)
         {
-            // Handle no válido - ignorar
+            // Invalid handle - ignore
         }
     }
 
     /// <summary>
-    /// Intenta cerrar el formulario sin disparar evento FormClosing.
-    /// Útil para formularios que bloquean cierre por usuario.
+    /// Attempts to close the form without triggering FormClosing event.
+    /// Useful for forms that block user closing.
     /// </summary>
-    /// <param name="form">El formulario a forzar cierre.</param>
+    /// <param name="form">The form to force close.</param>
     public static void ForceClose(this Form? form)
     {
         if (form == null || form.IsDisposed)
@@ -68,24 +68,24 @@ public static class FormExtensions
                 return;
             }
 
-            // Usar Hide + Dispose en lugar de Close para evitar FormClosing
+            // Use Hide + Dispose instead of Close to avoid FormClosing
             form.Hide();
             form.Dispose();
         }
         catch (ObjectDisposedException)
         {
-            // Ya dispuesto
+            // Already disposed
         }
         catch (InvalidOperationException)
         {
-            // Handle no válido
+            // Invalid handle
         }
     }
 
     /// <summary>
-    /// Muestra el formulario de forma thread-safe.
+    /// Shows the form in a thread-safe manner.
     /// </summary>
-    /// <param name="form">El formulario a mostrar.</param>
+    /// <param name="form">The form to show.</param>
     public static void SafeShow(this Form? form)
     {
         if (form == null || form.IsDisposed)
@@ -103,18 +103,18 @@ public static class FormExtensions
         }
         catch (ObjectDisposedException)
         {
-            // Ya dispuesto
+            // Already disposed
         }
         catch (InvalidOperationException)
         {
-            // Handle no válido
+            // Invalid handle
         }
     }
 
     /// <summary>
-    /// Oculta el formulario de forma thread-safe.
+    /// Hides the form in a thread-safe manner.
     /// </summary>
-    /// <param name="form">El formulario a ocultar.</param>
+    /// <param name="form">The form to hide.</param>
     public static void SafeHide(this Form? form)
     {
         if (form == null || form.IsDisposed)
@@ -132,11 +132,11 @@ public static class FormExtensions
         }
         catch (ObjectDisposedException)
         {
-            // Ya dispuesto
+            // Already disposed
         }
         catch (InvalidOperationException)
         {
-            // Handle no válido
+            // Invalid handle
         }
     }
 }

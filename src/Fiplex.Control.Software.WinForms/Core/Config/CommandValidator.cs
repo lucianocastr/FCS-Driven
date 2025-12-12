@@ -24,7 +24,7 @@ public class CommandValidator
             return false;
         }
 
-        // Validar longitud seg�n LengthValidation
+        // Validate length according to LengthValidation
         if (!string.IsNullOrEmpty(definition.LengthValidation))
         {
             if (!ValidateLength(response, definition.LengthValidation))

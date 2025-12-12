@@ -1,35 +1,35 @@
 namespace Fiplex.Control.Software.WinForms.Models;
 
 /// <summary>
-/// Configuración de URLs de endpoints de API para autenticación y servicios cloud.
+/// API endpoint URL configuration for authentication and cloud services.
 /// </summary>
 /// <remarks>
-/// Los valores se cargan desde la sección "ApiEndpoints" de appsettings.json.
+/// Values are loaded from the "ApiEndpoints" section of appsettings.json.
 /// </remarks>
 public class ApiEndpoints
 {
     /// <summary>
-    /// URL del endpoint para obtener token offline.
+    /// Endpoint URL for obtaining offline token.
     /// </summary>
     public string OfflineApi { get; set; } = string.Empty;
 
     /// <summary>
-    /// URL del endpoint para obtener la clave pública de validación JWT.
+    /// Endpoint URL for obtaining JWT validation public key.
     /// </summary>
     public string PublicKeyUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// URL del endpoint para obtener token de llamadas a servicios cloud.
+    /// Endpoint URL for obtaining cloud service call token.
     /// </summary>
     public string ClssCloudTokenUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// URL base del endpoint de token OAuth.
+    /// Base URL of the OAuth token endpoint.
     /// </summary>
     public string TokenUrl { get; set; } = string.Empty;
 
     /// <summary>
-    /// Indica si la configuración es válida.
+    /// Indicates whether the configuration is valid.
     /// </summary>
     public bool IsValid =>
         !string.IsNullOrWhiteSpace(OfflineApi) &&

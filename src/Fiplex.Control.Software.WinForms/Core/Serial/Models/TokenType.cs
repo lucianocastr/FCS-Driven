@@ -10,24 +10,24 @@ namespace Fiplex.Control.Software.WinForms.Core.Serial.Models;
 /// <seealso cref="SerialProtocolParser"/>
 public enum TokenType
 {
-    /// <summary>ACK - Comando recibido correctamente</summary>
+    /// <summary>ACK - Command received successfully</summary>
     Ack,
     
-    /// <summary>NACK - Error en comando</summary>
+    /// <summary>NACK - Command error</summary>
     Nack,
     
-    /// <summary>DataFrame - Respuesta con datos</summary>
+    /// <summary>DataFrame - Response with data</summary>
     DataFrame,
     
-    /// <summary>Error de credenciales - Requiere autenticación</summary>
+    /// <summary>Invalid credentials - Authentication required</summary>
     InvalidCredentials,
     
-    /// <summary>Timeout - Sin respuesta del dispositivo</summary>
+    /// <summary>Timeout - No response from device</summary>
     Timeout,
     
-    /// <summary>Error de checksum o formato</summary>
+    /// <summary>Checksum or format error</summary>
     ProtocolError,
     
-    /// <summary>Respuesta parcial - Esperando más datos</summary>
+    /// <summary>Partial response - Waiting for more data</summary>
     PartialResponse
 }

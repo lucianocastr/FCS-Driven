@@ -1,69 +1,69 @@
 namespace Fiplex.Control.Software.WinForms.Core.Security.Interfaces;
 
 /// <summary>
-/// Servicio para validar estado de entrenamiento/licencia Fiplex.
+/// Service to validate Fiplex training/license status.
 /// </summary>
 public interface ITrainingValidationService
 {
     /// <summary>
-    /// Fecha de expiración del entrenamiento Fiplex.
+    /// Fiplex training expiration date.
     /// </summary>
     DateTime? TrainingExpiryDate { get; }
     
     /// <summary>
-    /// Días restantes hasta expiración. Negativo si ya expiró.
-    /// Nota: Usa TrainingExpiryDate para cmdConnect.Enabled
+    /// Days remaining until expiration. Negative if already expired.
+    /// Note: Uses TrainingExpiryDate for cmdConnect.Enabled
     /// </summary>
     int DaysRemaining { get; }
     
     /// <summary>
-    /// Días restantes hasta expiración del login/token.
-    /// Se calcula desde LoginExpiryDate (token JWT Exp), NO TrainingExpiryDate.
+    /// Days remaining until login/token expiration.
+    /// Calculated from LoginExpiryDate (JWT Exp token), NOT TrainingExpiryDate.
     /// </summary>
     int LoginDaysRemaining { get; }
     
     /// <summary>
-    /// Indica si el entrenamiento está vigente (no expirado).
+    /// Indicates if the training is valid (not expired).
     /// </summary>
     bool IsTrainingValid { get; }
     
     /// <summary>
-    /// Lee la información de token/licencia desde CLSS o archivo local.
+    /// Reads token/license information from CLSS or local file.
     /// </summary>
     Task ReadTokenInformationAsync(CancellationToken ct = default);
     
     /// <summary>
-    /// Obtiene mensaje descriptivo del estado del entrenamiento.
+    /// Gets descriptive message of training status.
     /// </summary>
     string GetStatusMessage();
     
     /// <summary>
-    /// Obtiene tooltip para mostrar si el entrenamiento expiró.
+    /// Gets tooltip to show if training expired.
     /// </summary>
     string GetExpiredTooltip();
     
     /// <summary>
-    /// Fecha de expiración de suscripción (diferente a training).
+    /// Subscription expiration date (different from training).
     /// </summary>
     DateTime? SubscriptionExpiryDate { get; }
     
     /// <summary>
-    /// Fecha de última actualización de login.
+    /// Last login update date.
     /// </summary>
     DateTime? UpdatedOnDate { get; }
     
     /// <summary>
-    /// Nombre del usuario autenticado.
+    /// Authenticated user name.
     /// </summary>
     string? UserName { get; }
     
     /// <summary>
-    /// Organización del usuario.
+    /// User organization.
     /// </summary>
     string? Organization { get; }
     
     /// <summary>
-    /// Limpia datos de licencia para logout.
+    /// Clears license data for logout.
     /// </summary>
     void ClearLicenseData();
 }

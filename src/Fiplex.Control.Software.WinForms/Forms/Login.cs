@@ -9,12 +9,12 @@ using System.Diagnostics;
 namespace Fiplex.Control.Software.WinForms.Forms;
 
 /// <summary>
-/// Formulario de login con autenticación OIDC.
+/// Login form with OIDC authentication.
 /// </summary>
 /// <remarks>
-/// Gestiona la autenticación de usuarios mediante OpenID Connect (OIDC) con Firebase.
-/// Valida tokens offline existentes al cargar y permite login interactivo mediante
-/// el navegador web. Muestra enlaces a términos/condiciones y solicitud de acceso.
+/// Manages user authentication via OpenID Connect (OIDC) with Firebase.
+/// Validates existing offline tokens on load and allows interactive login via
+/// web browser. Displays links to terms/conditions and access requests.
 /// </remarks>
 public partial class Login : Form
 {
@@ -23,19 +23,19 @@ public partial class Login : Form
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<Login> _logger;
     
-    // CancellationTokenSource para operaciones async
+    // CancellationTokenSource for async operations
     private CancellationTokenSource? _cts;
     
-    // Flag para evitar operaciones múltiples
+    // Flag to prevent multiple operations
     private bool _isLoggingIn;
 
     /// <summary>
-    /// Indica si el login fue exitoso.
+    /// Indicates if login was successful.
     /// </summary>
     public bool LoginSuccessful { get; private set; }
 
     /// <summary>
-    /// Token obtenido tras login exitoso.
+    /// Token obtained after successful login.
     /// </summary>
     public FireAccessToken? Token => _oidcService.CurrentToken;
 
@@ -52,71 +52,71 @@ public partial class Login : Form
         _serviceProvider = serviceProvider;
         _logger = logger;
 
-        // Configurar cursor por defecto
+        // Configure default cursor
         Cursor.Current = Cursors.Default;
         Application.UseWaitCursor = false;
     }
 
     /// <summary>
-    /// Evento Load del formulario.
+    /// Form Load event.
     /// </summary>
     /// <remarks>
-    /// Valida si existe un token offline válido. Si es válido, cierra el formulario
-    /// con <see cref="DialogResult.OK"/> y redirige a la aplicación principal.
+    /// Validates if a valid offline token exists. If valid, closes the form
+    /// with <see cref="DialogResult.OK"/> and redirects to main application.
     /// </remarks>
     protected override async void OnLoad(EventArgs e)
     {
         base.OnLoad(e);
         
-        // Inicializar CancellationTokenSource
+        // Initialize CancellationTokenSource
         _cts = new CancellationTokenSource();
 
         try
         {
-            _logger.LogInformation("Iniciando validación de token offline");
+            _logger.LogInformation("Starting offline token validation");
 
-            // Verificar si existe token offline válido
+            // Check if valid offline token exists
             if (await _oidcService.ValidateOfflineTokenAsync())
             {
-                // Verificar cancelación antes de actualizar estado
+                // Verify cancellation before updating state
                 if (_cts.Token.IsCancellationRequested || IsDisposed)
                     return;
                     
-                _logger.LogInformation("Token offline válido. Redirigiendo a aplicación principal.");
+                _logger.LogInformation("Valid offline token. Redirecting to main application.");
                 LoginSuccessful = true;
                 DialogResult = DialogResult.OK;
                 Close();
                 return;
             }
 
-            _logger.LogDebug("No hay token offline válido. Mostrando formulario de login.");
+            _logger.LogDebug("No valid offline token. Showing login form.");
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("Validación de token cancelada");
+            _logger.LogDebug("Token validation cancelled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error validando token offline");
+            _logger.LogError(ex, "Error validating offline token");
         }
     }
 
     /// <summary>
-    /// Inicia el proceso de autenticación OIDC al hacer click en login.
+    /// Starts OIDC authentication process when login button is clicked.
     /// </summary>
     private async void BtnLogin_Click(object sender, EventArgs e)
     {
-        // Evitar login múltiple
+        // Prevent multiple login
         if (_isLoggingIn)
         {
-            _logger.LogDebug("Login ya en progreso, ignorando click");
+            _logger.LogDebug("Login already in progress, ignoring click");
             return;
         }
         
-        // Verificar que no hay otro login abierto
+        // Check that there's no other login window open
         if (Application.OpenForms.Cast<Form>().Any(x => x.Name == "WebAuthentication"))
         {
-            _logger.LogWarning("Ya hay una ventana de autenticación abierta");
+            _logger.LogWarning("Authentication window already open");
             return;
         }
 
@@ -124,14 +124,14 @@ public partial class Login : Form
         
         try
         {
-            // Deshabilitar UI durante login
+            // Disable UI during login
             BtnLogin.Enabled = false;
 
-            // Mostrar barra de progreso
+            // Show progress bar
             progLoginInProcess.Visible = true;
             progLoginInProcess.Value = 0;
 
-            // Crear reporte de progreso
+            // Create progress reporter
             var progress = new Progress<int>(percent =>
             {
                 if (!IsDisposed && !progLoginInProcess.IsDisposed)
@@ -140,20 +140,20 @@ public partial class Login : Form
                 }
             });
 
-            _logger.LogInformation("Iniciando proceso de login OIDC");
+            _logger.LogInformation("Starting OIDC login process");
 
-            // Ejecutar login
+            // Execute login
             var result = await _oidcService.LoginAsync(progress);
             
-            // Verificar cancelación
+            // Check cancellation
             if (_cts?.Token.IsCancellationRequested == true || IsDisposed)
                 return;
 
             if (result.Success)
             {
-                _logger.LogInformation("Login exitoso para usuario: {UserName}", result.UserName);
+                _logger.LogInformation("Login successful for user: {UserName}", result.UserName);
 
-                // Leer información de tokens almacenados
+                // Read stored token information
                 await _oidcService.ReadTokenInformationAsync();
 
                 LoginSuccessful = true;
@@ -162,27 +162,27 @@ public partial class Login : Form
             }
             else
             {
-                _logger.LogWarning("Login fallido: {Error} (Code: {ErrorCode})",
+                _logger.LogWarning("Login failed: {Error} (Code: {ErrorCode})",
                     result.ErrorMessage, result.ErrorCode);
 
-                // Mostrar mensaje de error apropiado
+                // Show appropriate error message
                 ShowLoginError(result);
             }
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("Login cancelado por el usuario");
+            _logger.LogDebug("Login cancelled by user");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error durante login");
+            _logger.LogError(ex, "Error during login");
             HandleLoginException(ex);
         }
         finally
         {
             _isLoggingIn = false;
             
-            // Rehabilitar UI solo si el form no está disposed
+            // Re-enable UI only if form is not disposed
             if (!IsDisposed)
             {
                 BtnLogin.Enabled = true;
@@ -192,9 +192,9 @@ public partial class Login : Form
     }
 
     /// <summary>
-    /// Muestra mensaje de error de login según el código de error.
+    /// Shows login error message based on error code.
     /// </summary>
-    /// <param name="result">Resultado del intento de login con información del error.</param>
+    /// <param name="result">Login attempt result with error information.</param>
     private void ShowLoginError(OidcLoginResult result)
     {
         var message = result.ErrorCode switch
@@ -218,18 +218,18 @@ public partial class Login : Form
     }
 
     /// <summary>
-    /// Maneja excepciones de login mostrando mensajes apropiados.
+    /// Handles login exceptions showing appropriate messages.
     /// </summary>
-    /// <param name="ex">Excepción capturada durante el proceso de login.</param>
+    /// <param name="ex">Exception caught during login process.</param>
     /// <remarks>
-    /// El HResult -2146233079 indica error de conexión a internet.
-    /// Otros errores inesperados pueden resultar en cierre de la aplicación.
+    /// HResult -2146233079 indicates internet connection error.
+    /// Other unexpected errors may result in application closure.
     /// </remarks>
     private void HandleLoginException(Exception ex)
     {
         var message = ex.HResult switch
         {
-            // HResult -2146233079 = Error de conexión
+            // HResult -2146233079 = Connection error
             -2146233079 =>
                 "Login Error: Please make sure you connect to internet when you are attempting to login.",
 
@@ -239,20 +239,20 @@ public partial class Login : Form
 
         MessageBox.Show(message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
 
-        // Si es error inesperado, cerrar aplicación
+        // If unexpected error, close application
         if (ex.HResult != -2146233079)
         {
-            _logger.LogCritical(ex, "Error crítico en login. Cerrando aplicación.");
-            // Descomentar si se desea cerrar la app en error crítico
+            _logger.LogCritical(ex, "Critical error in login. Closing application.");
+            // Uncomment if you want to close app on critical error
             // Application.Exit();
         }
     }
 
     /// <summary>
-    /// Abre el formulario de términos y condiciones de licencia.
+    /// Opens the license terms and conditions form.
     /// </summary>
     /// <remarks>
-    /// Si el usuario cancela el formulario de licencia, la aplicación se cierra.
+    /// If user cancels the license form, the application closes.
     /// </remarks>
     private void LinkLabelTermsConditions_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
     {
@@ -271,7 +271,7 @@ public partial class Login : Form
         
         if (result == DialogResult.Cancel)
         {
-            _logger.LogInformation("Usuario canceló el formulario de licencia. Cerrando aplicación.");
+            _logger.LogInformation("User cancelled license form. Closing application.");
             Close();
             Application.Exit();
         }
@@ -279,18 +279,18 @@ public partial class Login : Form
 
 
     /// <summary>
-    /// Abre la página de solicitud de acceso en el navegador.
+    /// Opens the access request page in browser.
     /// </summary>
     /// <remarks>
-    /// Abre https://fire.honeywell.com/#/signup en el navegador predeterminado.
+    /// Opens https://fire.honeywell.com/#/signup in default browser.
     /// </remarks>
     private void linkLabelRequestAccess_LinkClicked(object sender, LinkLabelLinkClickedEventArgs e)
     {
         try
         {
-            _logger.LogDebug("Usuario solicitó acceso");
+            _logger.LogDebug("User requested access");
 
-            // Abrir URL de registro en navegador por defecto
+            // Open registration URL in default browser
             var psi = new ProcessStartInfo
             {
                 FileName = "https://fire.honeywell.com/#/signup",
@@ -300,15 +300,15 @@ public partial class Login : Form
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error abriendo URL de registro");
+            _logger.LogError(ex, "Error opening registration URL");
             MessageBox.Show("Could not open the registration page. Please visit https://fire.honeywell.com/#/signup manually.",
                 "Error", MessageBoxButtons.OK, MessageBoxIcon.Warning);
         }
     }
 
     /// <summary>
-    /// Evento FormClosing del formulario.
-    /// Cancela operaciones pendientes antes de cerrar.
+    /// Form FormClosing event.
+    /// Cancels pending operations before closing.
     /// </summary>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
@@ -317,7 +317,7 @@ public partial class Login : Form
     }
 
     /// <summary>
-    /// Cancela cualquier operación async pendiente.
+    /// Cancels any pending async operation.
     /// </summary>
     private void CancelPendingOperations()
     {
@@ -330,12 +330,12 @@ public partial class Login : Form
         }
         catch (ObjectDisposedException)
         {
-            // CTS ya fue disposed, ignorar
+            // CTS was already disposed, ignore
         }
     }
 
     /// <summary>
-    /// Dispose del formulario - libera CancellationTokenSource.
+    /// Form Dispose - releases CancellationTokenSource.
     /// </summary>
     protected override void Dispose(bool disposing)
     {

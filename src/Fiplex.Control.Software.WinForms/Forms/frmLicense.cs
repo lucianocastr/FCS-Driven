@@ -6,26 +6,26 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Forms;
 
 /// <summary>
-/// Formulario para configurar opciones de licencia de hardware (dispositivos de 2 bandas).
+/// Form for configuring hardware license options (2-band devices).
 /// </summary>
 /// <remarks>
-/// Comandos serial:
-///   M1 - Lectura de opciones actuales (respuesta: 6 caracteres hex)
-///   M0 - Escritura de nuevas opciones (envío: M0 + 6 caracteres hex)
+/// Serial commands:
+///   M1 - Read current options (response: 6 hex characters)
+///   M0 - Write new options (send: M0 + 6 hex characters)
 /// 
-/// Formato hex de 6 caracteres (dispositivos 2 bandas):
+/// 6 hex character format (2-band devices):
 ///   [1-2] mask:     bit0=chEnabled[0], bit1=adjEnabled[0], bit2=chEnabled[1], 
 ///                   bit3=adjEnabled[1], bit4=singleEnabled[0], bit5=singleEnabled[1]
 ///   [3-4] powerDL[0]: Signed byte (-128..127)
 ///   [5-6] powerDL[1]: Signed byte (-128..127)
 /// 
-/// Bandas:
+/// Bands:
 ///   0 = BAND0
 ///   1 = BAND1
 /// </remarks>
 public partial class frmLicense : Form
 {
-    // Constantes de configuración
+    // Configuration constants
     private const int ExpectedHexLength = 6;
     private const int FeedbackDelayMs = 2000;
     private const int CommandTimeoutMs = 5000;
@@ -33,24 +33,24 @@ public partial class frmLicense : Form
     private readonly ISerialCommandPipeline _pipeline;
     private readonly ILogger<frmLicense> _logger;
 
-    // Flag para evitar carga múltiple
+    // Flag to prevent multiple loads
     private bool _isLoading;
     private bool _isLoaded;
 
-    // CancellationTokenSource para operaciones async
+    // CancellationTokenSource for async operations
     private CancellationTokenSource? _cts;
 
     private LicenseOptions _currentOptions = new();
 
-    // Arrays de controles para acceso indexado (equivalente VB6 control arrays)
+    // Control arrays for indexed access (VB6 control arrays equivalent)
     private CheckBox[] _chkNarrow = null!;
     private CheckBox[] _chkAdjBw = null!;
     private CheckBox[] _chkSingle = null!;
     private TextBox[] _txtPowerDL = null!;
 
     /// <summary>
-    /// Evento disparado cuando se aplican cambios exitosamente.
-    /// Permite a frmMain ejecutar WebRefresh(True).
+    /// Event fired when changes are applied successfully.
+    /// Allows frmMain to execute WebRefresh(True).
     /// </summary>
     public event EventHandler? ChangesApplied;
 
@@ -67,7 +67,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Configura validación de entrada para los TextBox de Power.
+    /// Configures input validation for Power TextBoxes.
     /// </summary>
     private void SetupInputValidation()
     {
@@ -79,16 +79,16 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Valida que solo se ingresen dígitos y signo negativo.
+    /// Validates that only digits and negative sign are entered.
     /// </summary>
     private void TxtPowerDL_KeyPress(object? sender, KeyPressEventArgs e)
     {
-        // Permitir: dígitos, backspace, signo negativo al inicio
+        // Allow: digits, backspace, negative sign at start
         if (!char.IsDigit(e.KeyChar) && e.KeyChar != '\b')
         {
             if (e.KeyChar == '-' && sender is TextBox txt && txt.SelectionStart == 0)
             {
-                // Permitir signo negativo solo al inicio
+                // Allow negative sign only at start
                 return;
             }
             e.Handled = true;
@@ -96,7 +96,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Valida rango al perder foco (-128 a 127).
+    /// Validates range on focus lost (-128 to 127).
     /// </summary>
     private void TxtPowerDL_Validating(object? sender, System.ComponentModel.CancelEventArgs e)
     {
@@ -110,7 +110,7 @@ public partial class frmLicense : Form
 
         if (short.TryParse(txt.Text, out short value))
         {
-            // Clamp al rango válido de signed byte
+            // Clamp to valid signed byte range
             value = Math.Clamp(value, (short)-128, (short)127);
             txt.Text = value.ToString();
         }
@@ -121,11 +121,11 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Inicializa arrays de controles para acceso indexado.
+    /// Initializes control arrays for indexed access.
     /// </summary>
     private void InitializeControlArrays()
     {
-        // Solo 2 bandas para este formulario (BAND0, BAND1)
+        // Only 2 bands for this form (BAND0, BAND1)
         _chkNarrow = [chkNbEn0, chkNbEn1];
         _chkAdjBw = [chkAdjEn0, chkAdjEn1];
         _chkSingle = [chkSingEn0, chkSingEn1];
@@ -133,13 +133,13 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Carga opciones actuales del dispositivo al activar el formulario.
+    /// Loads current options from the device when the form is activated.
     /// </summary>
     protected override async void OnActivated(EventArgs e)
     {
         base.OnActivated(e);
 
-        // Evitar carga múltiple (patrón consistente con otros diálogos)
+        // Prevent multiple loads (consistent pattern with other dialogs)
         if (_isLoading || _isLoaded)
             return;
 
@@ -156,7 +156,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Limpia recursos al cerrar el formulario.
+    /// Cleans up resources when closing the form.
     /// </summary>
     protected override void OnFormClosing(FormClosingEventArgs e)
     {
@@ -164,7 +164,7 @@ public partial class frmLicense : Form
         _cts?.Dispose();
         _cts = null;
 
-        // Desuscribir eventos de validación
+        // Unsubscribe from validation events
         foreach (var txt in _txtPowerDL)
         {
             txt.KeyPress -= TxtPowerDL_KeyPress;
@@ -175,7 +175,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Carga las opciones de licencia desde el dispositivo.
+    /// Loads license options from the device.
     /// </summary>
     private async Task LoadLicenseOptionsAsync()
     {
@@ -189,7 +189,7 @@ public partial class frmLicense : Form
             cmdApply.Enabled = false;
             SetControlsEnabled(false);
 
-            _logger.LogDebug("Cargando opciones de licencia (M1)");
+            _logger.LogDebug("Loading license options (M1)");
 
             var command = new SerialCommand
             {
@@ -206,34 +206,34 @@ public partial class frmLicense : Form
 
             if (!result.Success || string.IsNullOrEmpty(result.Data))
             {
-                _logger.LogWarning("Respuesta vacía o fallida del comando M1: {Status}", result.Status);
+                _logger.LogWarning("Empty or failed response from M1 command: {Status}", result.Status);
                 ShowErrorFeedback("Could not read license options from device.");
                 return;
             }
             
-            // Validar formato hex de respuesta
+            // Validate hex format of response
             if (!IsValidHexResponse(result.Data))
             {
-                _logger.LogWarning("Respuesta M1 con formato hex inválido: {Data}", result.Data);
+                _logger.LogWarning("M1 response with invalid hex format: {Data}", result.Data);
                 ShowErrorFeedback("Invalid response format from device.");
                 return;
             }
 
-            _logger.LogDebug("Respuesta M1: {Response}", result.Data);
+            _logger.LogDebug("M1 Response: {Response}", result.Data);
 
             _currentOptions = ParseFor2Bands(result.Data);
 
             DisplayOptions(_currentOptions);
 
-            _logger.LogInformation("Opciones de licencia cargadas exitosamente");
+            _logger.LogInformation("License options loaded successfully");
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("Operación de carga cancelada");
+            _logger.LogDebug("Load operation cancelled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error cargando opciones de licencia");
+            _logger.LogError(ex, "Error loading license options");
             ShowErrorFeedback($"Error reading license options: {ex.Message}");
         }
         finally
@@ -245,7 +245,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Habilita/deshabilita controles de entrada.
+    /// Enables/disables input controls.
     /// </summary>
     private void SetControlsEnabled(bool enabled)
     {
@@ -256,7 +256,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Muestra feedback visual de error.
+    /// Shows visual error feedback.
     /// </summary>
     private void ShowErrorFeedback(string message)
     {
@@ -268,7 +268,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Muestra opciones en controles UI.
+    /// Displays options in UI controls.
     /// </summary>
     private void DisplayOptions(LicenseOptions options)
     {
@@ -282,7 +282,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Lee opciones desde controles UI.
+    /// Reads options from UI controls.
     /// </summary>
     private LicenseOptions ReadOptionsFromUI()
     {
@@ -294,7 +294,7 @@ public partial class frmLicense : Form
             options.AdjBwFiltersEnabled[i] = _chkAdjBw[i].Checked;
             options.SingleBandEnabled[i] = _chkSingle[i].Checked;
 
-            // Parsear Power DL con validación de rango (ya validado en TxtPowerDL_Validating)
+            // Parse Power DL with range validation (already validated in TxtPowerDL_Validating)
             options.PowerLimitDownlink[i] = ParsePowerValue(_txtPowerDL[i].Text);
         }
 
@@ -302,7 +302,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Parsea valor de potencia con validación de rango (-128 a 127).
+    /// Parses power value with range validation (-128 to 127).
     /// </summary>
     private static short ParsePowerValue(string text)
     {
@@ -316,7 +316,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Aplica cambios al dispositivo.
+    /// Applies changes to the device.
     /// </summary>
     private async void cmdApply_Click(object sender, EventArgs e)
     {
@@ -333,47 +333,47 @@ public partial class frmLicense : Form
 
             var optionsToSend = ReadOptionsFromUI();
 
-            _logger.LogDebug("Aplicando opciones de licencia (M0)");
+            _logger.LogDebug("Applying license options (M0)");
 
             var hexData = ToHexFor2Bands(optionsToSend);
 
             if (string.IsNullOrEmpty(hexData) || hexData.Length != ExpectedHexLength)
             {
-                _logger.LogError("Error codificando opciones: longitud inválida ({Length}), esperada {Expected}", 
+                _logger.LogError("Error encoding options: invalid length ({Length}), expected {Expected}", 
                     hexData?.Length ?? 0, ExpectedHexLength);
                 ShowErrorFeedback("Error encoding license options.");
                 return;
             }
 
-            _logger.LogDebug("Datos a enviar: M0{Hex}", hexData);
+            _logger.LogDebug("Data to send: M0{Hex}", hexData);
 
             var command = new SerialCommand
             {
                 Payload = $"M0{hexData}",
                 ExpectsAck = true,
-                ExpectsData = false,  // M0 solo espera ACK
+                ExpectsData = false,  // M0 only expects ACK
                 DataTimeout = TimeSpan.FromMilliseconds(CommandTimeoutMs),
-                MaxRetries = 1,  // Solo 1 reintento para escritura
+                MaxRetries = 1,  // Only 1 retry for write
                 CancellationToken = ct
             };
             var result = await _pipeline.EnqueueCommandAsync(command);
 
             ct.ThrowIfCancellationRequested();
 
-            _logger.LogDebug("Respuesta M0: {Status} - {Data}", result.Status, result.Data);
+            _logger.LogDebug("M0 Response: {Status} - {Data}", result.Status, result.Data);
 
             if (result.Success)
             {
                 ShowSuccessFeedback();
-                _logger.LogInformation("Opciones de licencia aplicadas exitosamente");
+                _logger.LogInformation("License options applied successfully");
 
-                // Actualizar opciones actuales
+                // Update current options
                 _currentOptions = optionsToSend;
             }
             else
             {
                 ShowFailureFeedback();
-                _logger.LogWarning("Error aplicando opciones. Status: {Status}", result.Status);
+                _logger.LogWarning("Error applying options. Status: {Status}", result.Status);
             }
 
             await Task.Delay(FeedbackDelayMs, ct);
@@ -387,12 +387,12 @@ public partial class frmLicense : Form
         }
         catch (OperationCanceledException)
         {
-            _logger.LogDebug("Operación de aplicación cancelada");
+            _logger.LogDebug("Apply operation cancelled");
             HideFeedback();
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error aplicando opciones de licencia");
+            _logger.LogError(ex, "Error applying license options");
             ShowFailureFeedback();
 
             ShowErrorFeedback($"Error applying changes: {ex.Message}");
@@ -413,19 +413,19 @@ public partial class frmLicense : Form
         }
     }
 
-    #region Validación y Parsing para dispositivos de 2 bandas
+    #region Validation and Parsing for 2-band devices
 
     /// <summary>
-    /// Valida si una cadena es un hex válido para respuesta M1 (2 bandas).
+    /// Validates if a string is valid hex for M1 response (2 bands).
     /// </summary>
-    /// <param name="hexResponse">Respuesta a validar</param>
-    /// <returns>True si es válido</returns>
+    /// <param name="hexResponse">Response to validate</param>
+    /// <returns>True if valid</returns>
     private bool IsValidHexResponse(string? hexResponse)
     {
         if (string.IsNullOrEmpty(hexResponse) || hexResponse.Length < ExpectedHexLength)
             return false;
         
-        // Verificar que los primeros 6 caracteres sean hex válidos
+        // Verify that the first 6 characters are valid hex
         return hexResponse.Take(ExpectedHexLength).All(c =>
             (c >= '0' && c <= '9') ||
             (c >= 'A' && c <= 'F') ||
@@ -433,7 +433,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Decodifica respuesta hex del comando M1 para formato de 2 bandas (6 caracteres).
+    /// Decodes hex response from M1 command for 2-band format (6 characters).
     /// </summary>
     /// <remarks>
     /// Formato:
@@ -448,13 +448,13 @@ public partial class frmLicense : Form
 
         if (!IsValidHexResponse(hexResponse))
         {
-            _logger.LogWarning("ParseFor2Bands: respuesta hex inválida: '{Response}'", hexResponse ?? "null");
+            _logger.LogWarning("ParseFor2Bands: invalid hex response: '{Response}'", hexResponse ?? "null");
             return result;
         }
 
         try
         {
-            // [1-2] Máscara de opciones
+            // [1-2] Options mask
             int mask = Convert.ToInt32(hexResponse.Substring(0, 2), 16);
 
             result.NarrowFiltersEnabled[0] = (mask & 0x01) != 0;
@@ -481,20 +481,20 @@ public partial class frmLicense : Form
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error parseando opciones hex: {Hex}", hexResponse);
+            _logger.LogError(ex, "Error parsing hex options: {Hex}", hexResponse);
         }
 
         return result;
     }
 
     /// <summary>
-    /// Codifica opciones a string hex para comando M0 (formato 2 bandas, 6 caracteres).
+    /// Encodes options to hex string for M0 command (2-band format, 6 characters).
     /// </summary>
     private string ToHexFor2Bands(LicenseOptions options)
     {
         try
         {
-            // Construir máscara de opciones
+            // Build options mask
             int mask = 0;
             if (options.NarrowFiltersEnabled[0]) mask |= 0x01;
             if (options.AdjBwFiltersEnabled[0]) mask |= 0x02;
@@ -503,7 +503,7 @@ public partial class frmLicense : Form
             if (options.SingleBandEnabled[0]) mask |= 0x10;
             if (options.SingleBandEnabled[1]) mask |= 0x20;
 
-            // Power DL como unsigned bytes
+            // Power DL as unsigned bytes
             int p0 = options.PowerLimitDownlink[0];
             if (p0 < 0) p0 += 256;
 
@@ -516,17 +516,17 @@ public partial class frmLicense : Form
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error codificando opciones");
+            _logger.LogError(ex, "Error encoding options");
             return string.Empty;
         }
     }
 
     #endregion
 
-    #region Feedback Visual
+    #region Visual Feedback
 
     /// <summary>
-    /// Muestra indicador visual de éxito.
+    /// Shows visual success indicator.
     /// </summary>
     private void ShowSuccessFeedback()
     {
@@ -535,7 +535,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Muestra indicador visual de fallo.
+    /// Shows visual failure indicator.
     /// </summary>
     private void ShowFailureFeedback()
     {
@@ -544,7 +544,7 @@ public partial class frmLicense : Form
     }
 
     /// <summary>
-    /// Oculta indicadores visuales de feedback.
+    /// Hides visual feedback indicators.
     /// </summary>
     private void HideFeedback()
     {

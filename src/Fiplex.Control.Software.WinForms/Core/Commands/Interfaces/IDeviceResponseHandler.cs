@@ -1,28 +1,28 @@
 namespace Fiplex.Control.Software.WinForms.Core.Commands.Interfaces;
 
 /// <summary>
-/// Strategy pattern para procesamiento de respuestas específicas por dispositivo.
+/// Strategy pattern for device-specific response processing.
 /// </summary>
 public interface IDeviceResponseHandler
 {
     /// <summary>
-    /// Determina si este handler puede procesar respuestas del dispositivo especificado.
+    /// Determines if this handler can process responses from the specified device.
     /// </summary>
-    /// <param name="deviceType">Tipo de dispositivo (1c, 2c, 5dm, etc.)</param>
-    /// <param name="version">Versión del dispositivo</param>
-    /// <returns>True si este handler es aplicable</returns>
+    /// <param name="deviceType">Device type (1c, 2c, 5dm, etc.)</param>
+    /// <param name="version">Device version</param>
+    /// <returns>True if this handler is applicable</returns>
     bool CanHandle(string deviceType, double version);
     
     /// <summary>
-    /// Procesa la respuesta de un comando, aplicando transformaciones específicas.
+    /// Processes a command response, applying specific transformations.
     /// </summary>
-    /// <param name="command">Comando enviado (C1, F1, U1, etc.)</param>
-    /// <param name="rawResponse">Respuesta raw del dispositivo</param>
-    /// <returns>Respuesta procesada</returns>
+    /// <param name="command">Command sent (C1, F1, U1, etc.)</param>
+    /// <param name="rawResponse">Raw response from device</param>
+    /// <returns>Processed response</returns>
     string ProcessResponse(string command, string rawResponse);
     
     /// <summary>
-    /// Prioridad del handler (mayor = se evalúa primero).
+    /// Handler priority (higher = evaluated first).
     /// </summary>
     int Priority => 0;
 }

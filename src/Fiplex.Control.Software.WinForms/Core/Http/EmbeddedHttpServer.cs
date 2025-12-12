@@ -18,12 +18,12 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
     {
         { ".html", "text/html" },
         { ".htm", "text/html" },
-        { ".zhtml", "text/html" },  // Archivo HTML especial de dispositivo Fiplex
-        { ".shtml", "text/html" },  // Server-Side Include HTML - procesado dinámicamente
+        { ".zhtml", "text/html" },  // Special Fiplex device HTML file
+        { ".shtml", "text/html" },  // Server-Side Include HTML - dynamically processed
         { ".js", "application/javascript" },
-        { ".jsm", "application/javascript" },  // Archivo JS minificado
+        { ".jsm", "application/javascript" },  // Minified JS file
         { ".css", "text/css" },
-        { ".cssm", "text/css" },  // Archivo CSS minificado
+        { ".cssm", "text/css" },  // Minified CSS file
         { ".json", "application/json" },
         { ".png", "image/png" },
         { ".jpg", "image/jpeg" },
@@ -43,7 +43,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
     public event EventHandler<HttpCommandEventArgs>? CommandReceived;
     
     /// <summary>
-    /// Evento disparado cuando se carga base.js o base.jsm.
+    /// Event fired when base.js or base.jsm is loaded.
     /// </summary>
     public event EventHandler? BaseJsLoaded;
 
@@ -60,7 +60,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             throw new InvalidOperationException("Server already running");
         }
 
-        // 1. Validar par�metros
+        // 1. Validate parameters
         if (port <= 0 || port > 65535)
         {
             throw new ArgumentOutOfRangeException(nameof(port), "Port must be between 1 and 65535");
@@ -92,11 +92,11 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             throw;
         }
 
-        // 4. Crear task de escucha as�ncrono
+        // 4. Create async listener task
         _cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
         _listenerTask = ListenAsync(_cts.Token);
 
-        // 5. Logging de inicio exitoso
+        // 5. Log successful startup
         _logger.LogInformation("HTTP server started successfully on port {Port}", port);
         await Task.CompletedTask;
     }
@@ -138,7 +138,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
         _listenerTask = null;
         CurrentPort = null;
 
-        // 5. Logging de detenci�n
+        // 5. Shutdown logging
         _logger.LogInformation("HTTP server stopped");
     }
 
@@ -154,7 +154,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             {
                 var context = await _listener.GetContextAsync().WaitAsync(ct);
                 
-                // Procesar en task separado para no bloquear el loop
+                // Process in separate task to avoid blocking the loop
                 _ = Task.Run(async () =>
                 {
                     try
@@ -164,23 +164,23 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
                         
                         _logger.LogDebug("HTTP {Method} {Url}", request.HttpMethod, request.Url);
                         
-                        // Distinguir rutas de comandos vs archivos estáticos
-                        // Soporta /api/*.html y /command/*
+                        // Distinguish command routes vs static files
+                        // Supports /api/*.html and /command/*
                         var path = request.Url?.AbsolutePath ?? "";
                         if (IsCommandRoute(path))
                         {
-                            // Disparar evento CommandReceived para comandos
+                            // Fire CommandReceived event for commands
                             await HandleCommandRequestAsync(context, ct);
                         }
                         else
                         {
-                            // Llamar ServeStaticFileAsync para archivos
+                            // Call ServeStaticFileAsync for files
                             await ServeStaticFileAsync(context);
                         }
                     }
                     catch (Exception ex)
                     {
-                        _logger.LogError(ex, "Error procesando request");
+                        _logger.LogError(ex, "Error processing request");
                         try
                         {
                             context.Response.StatusCode = 500;
@@ -200,14 +200,14 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error en loop de escucha HTTP");
+                _logger.LogError(ex, "Error in HTTP listen loop");
             }
         }
     }
 
     /// <summary>
-    /// Determina si una ruta HTTP corresponde a un comando de dispositivo.
-    /// También reconoce archivos .shtml que requieren procesamiento Server-Side Include.
+    /// Determines if an HTTP route corresponds to a device command.
+    /// Also recognizes .shtml files that require Server-Side Include processing.
     /// </summary>
     private static bool IsCommandRoute(string path)
     {
@@ -218,9 +218,9 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             path.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
             return true;
         
-        // Archivos .shtml: Server-Side Include que requieren comandos seriales
-        // Peticiones a /global_conf.shtml ejecutan comando U1
-        // settings.cfg define: /global_conf.shtml → U1
+        // .shtml files: Server-Side Include that require serial commands
+        // Requests to /global_conf.shtml execute U1 command
+        // settings.cfg defines: /global_conf.shtml → U1
         if (path.EndsWith(".shtml", StringComparison.OrdinalIgnoreCase))
             return true;
         
@@ -228,9 +228,9 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
     }
 
     /// <summary>
-    /// Extrae el nombre del comando de la ruta HTTP.
-    /// Normaliza tanto /command/version como /api/version.html a "version".
-    /// Para archivos .shtml, retorna el path completo ya que settings.cfg usa /global_conf.shtml.
+    /// Extracts the command name from the HTTP route.
+    /// Normalizes both /command/version and /api/version.html to "version".
+    /// For .shtml files, returns the full path since settings.cfg uses /global_conf.shtml.
     /// </summary>
     private static string ExtractCommandName(string path)
     {
@@ -240,7 +240,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             return path.Substring("/command/".Length).Trim('/');
         }
         
-        // Formato legacy: /api/{action}.html -> extraer {action}
+        // Legacy format: /api/{action}.html -> extract {action}
         if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase) && 
             path.EndsWith(".html", StringComparison.OrdinalIgnoreCase))
         {
@@ -249,14 +249,14 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             return withoutSuffix;
         }
         
-        // Archivos .shtml: Retornar path completo con / inicial
-        // settings.cfg define comandos como: /global_conf.shtml → U1
+        // .shtml files: Return full path with leading /
+        // settings.cfg defines commands as: /global_conf.shtml → U1
         if (path.EndsWith(".shtml", StringComparison.OrdinalIgnoreCase))
         {
             return path.StartsWith("/") ? path : $"/{path}";
         }
         
-        // Fallback: usar el path completo normalizado
+        // Fallback: use the full normalized path
         return path.Trim('/').Replace("/", "_");
     }
 
@@ -265,12 +265,12 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
         var request = context.Request;
         var response = context.Response;
         
-        // Extraer nombre del comando usando método normalizado
-        // Soporta tanto /command/version como /api/version.html
+        // Extract command name using normalized method
+        // Supports both /command/version and /api/version.html
         var path = request.Url!.AbsolutePath;
         var commandName = ExtractCommandName(path);
         
-        // Parsear parámetros de query string
+        // Parse query string parameters
         var parameters = new Dictionary<string, string?>();
         if (!string.IsNullOrEmpty(request.Url.Query))
         {
@@ -282,7 +282,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             }
         }
         
-        // Para POST requests, leer el body y agregarlo a parámetros
+        // For POST requests, read the body and add it to parameters
         if (request.HttpMethod.Equals("POST", StringComparison.OrdinalIgnoreCase) && 
             request.HasEntityBody)
         {
@@ -290,7 +290,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             var body = await reader.ReadToEndAsync();
             if (!string.IsNullOrWhiteSpace(body))
             {
-                // Parsear body como form data o JSON
+                // Parse body as form data or JSON
                 if (request.ContentType?.Contains("application/x-www-form-urlencoded") == true)
                 {
                     var formData = HttpUtility.ParseQueryString(body);
@@ -302,7 +302,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
                 }
                 else
                 {
-                    // Body raw como parámetro "data"
+                    // Raw body as "data" parameter
                     parameters["data"] = body;
                 }
             }
@@ -311,13 +311,13 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
         _logger.LogDebug("Processing command: {Command} (path={Path}, method={Method}) with {ParamCount} parameters", 
             commandName, path, request.HttpMethod, parameters.Count);
         
-        // Crear HttpCommandEventArgs con datos
+        // Create HttpCommandEventArgs with data
         var eventArgs = new HttpCommandEventArgs(commandName, parameters);
         
-        // Disparar evento
+        // Fire event
         CommandReceived?.Invoke(this, eventArgs);
         
-        // Esperar respuesta del handler del evento con timeout
+        // Wait for response from event handler with timeout
         string responseText;
         try
         {
@@ -326,17 +326,17 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
         catch (TimeoutException)
         {
             responseText = "ERROR: Command timeout";
-            _logger.LogWarning("Timeout esperando respuesta del comando {Command}", commandName);
+            _logger.LogWarning("Timeout waiting for command response {Command}", commandName);
         }
         
-        // Retornar respuesta al cliente
-        // Para archivos .shtml, usar text/html como content-type
+        // Return response to client
+        // For .shtml files, use text/html as content-type
         response.ContentType = path.EndsWith(".shtml", StringComparison.OrdinalIgnoreCase) 
             ? "text/html; charset=utf-8" 
             : "text/plain; charset=utf-8";
         response.StatusCode = 200;
         
-        // Agregar headers necesarios para AJAX
+        // Add required headers for AJAX
         response.AddHeader("Cache-Control", "no-cache, no-store, must-revalidate");
         response.AddHeader("Pragma", "no-cache");
         response.AddHeader("Expires", "0");
@@ -346,7 +346,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
         await response.OutputStream.WriteAsync(buffer, ct);
         response.Close();
         
-        _logger.LogDebug("Respuesta enviada ({Size} bytes, ContentType={ContentType}): {Preview}", 
+        _logger.LogDebug("Response sent ({Size} bytes, ContentType={ContentType}): {Preview}", 
             buffer.Length, response.ContentType, 
             responseText.Length > 100 ? responseText.Substring(0, 100) + "..." : responseText);
     }
@@ -356,20 +356,20 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
         var request = context.Request;
         var response = context.Response;
         
-        // 1. Obtener ruta del request
+        // 1. Get request path
         var path = request.Url?.AbsolutePath.TrimStart('/') ?? string.Empty;
         
-        // 3. Manejar index.html por defecto para directorios
+        // 3. Handle default index.html for directories
         if (string.IsNullOrEmpty(path) || path.EndsWith("/"))
         {
             path = Path.Combine(path, "index.html");
         }
         
-        // 2. Mapear a archivo en rootPath
+        // 2. Map to file in rootPath
         var filePath = Path.Combine(_rootPath, path);
         
-        // NUEVO: Fallback a archivos minificados (.jsm, .cssm)
-        // Busca .jsm antes de .js
+        // NEW: Fallback to minified files (.jsm, .cssm)
+        // Search for .jsm before .js
         if (!File.Exists(filePath))
         {
             var extension = Path.GetExtension(filePath).ToLowerInvariant();
@@ -383,11 +383,11 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             if (minifiedPath != null && File.Exists(minifiedPath))
             {
                 filePath = minifiedPath;
-                _logger.LogDebug("Usando archivo minificado: {Original} -> {Minified}", path, minifiedPath);
+                _logger.LogDebug("Using minified file: {Original} -> {Minified}", path, minifiedPath);
             }
         }
         
-        // 5. Retornar 404 si no existe
+        // 5. Return 404 if not found
         if (!File.Exists(filePath))
         {
             _logger.LogWarning("File not found: {FilePath}", filePath);
@@ -401,13 +401,13 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
 
         try
         {
-            // 4. Detectar MIME type por extensi�n
+            // 4. Detect MIME type by extension
             var extension = Path.GetExtension(filePath).ToLowerInvariant();
             response.ContentType = MimeTypes.TryGetValue(extension, out var mimeType) 
                 ? mimeType 
                 : "application/octet-stream";
             
-            // 6. Streaming del archivo con response.OutputStream
+            // 6. Stream the file with response.OutputStream
             var fileData = await File.ReadAllBytesAsync(filePath);
             response.ContentLength64 = fileData.Length;
             await response.OutputStream.WriteAsync(fileData);
@@ -415,8 +415,8 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             _logger.LogDebug("Served file: {FilePath} ({Size} bytes, {MimeType})", 
                 filePath, fileData.Length, response.ContentType);
             
-            // NUEVO: Disparar evento cuando se carga base.js o base.jsm
-            // CancelCommands(True) al cargar base.js
+            // NEW: Fire event when base.js or base.jsm is loaded
+            // CancelCommands(True) when loading base.js
             var fileName = Path.GetFileName(filePath).ToLowerInvariant();
             if (fileName == "base.js" || fileName == "base.jsm")
             {
@@ -435,3 +435,4 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
         }
     }
 }
+

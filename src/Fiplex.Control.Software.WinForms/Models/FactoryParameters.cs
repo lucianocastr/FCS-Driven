@@ -1,112 +1,112 @@
 namespace Fiplex.Control.Software.WinForms.Models;
 
 /// <summary>
-/// Parámetros de frecuencia de fábrica para una banda (Uplink o Downlink).
+/// Factory frequency parameters for a band (Uplink or Downlink).
 /// </summary>
 public record FreqFactoryParameters
 {
-    /// <summary>Frecuencia de inicio en Hz.</summary>
+    /// <summary>Start frequency in Hz.</summary>
     public double FStart { get; init; }
     
-    /// <summary>Frecuencia de parada en Hz.</summary>
+    /// <summary>Stop frequency in Hz.</summary>
     public double FStop { get; init; }
     
-    /// <summary>Frecuencia de referencia en Hz.</summary>
+    /// <summary>Reference frequency in Hz.</summary>
     public double FRef { get; init; }
     
-    /// <summary>Paso de frecuencia en Hz.</summary>
+    /// <summary>Frequency step in Hz.</summary>
     public double FStep { get; init; }
     
-    /// <summary>Módulo de frecuencia.</summary>
+    /// <summary>Frequency modulus.</summary>
     public double Modulo { get; init; }
     
-    /// <summary>Paso de frecuencia para ancho de banda ajustable (ADJ BW).</summary>
+    /// <summary>Frequency step for adjustable bandwidth (ADJ BW).</summary>
     public double FStepAdj { get; init; }
     
-    /// <summary>Módulo para ancho de banda ajustable.</summary>
+    /// <summary>Modulus for adjustable bandwidth.</summary>
     public double ModuloAdj { get; init; }
     
-    /// <summary>Límite de ganancia en dB.</summary>
+    /// <summary>Gain limit in dB.</summary>
     public double GainLimit { get; init; }
     
-    /// <summary>Límite de potencia en dBm.</summary>
+    /// <summary>Power limit in dBm.</summary>
     public double PowerLimit { get; init; }
 }
 
 /// <summary>
-/// Parámetros de fábrica específicos por tipo de dispositivo.
+/// Device-specific factory parameters by device type.
 /// </summary>
 /// <remarks>
-/// Contiene la configuración de fábrica del dispositivo incluyendo
-/// límites de frecuencia, canales y capacidades soportadas.
+/// Contains the device's factory configuration including
+/// frequency limits, channels, and supported capabilities.
 /// </remarks>
 public record FactoryParameters
 {
-    /// <summary>Identificador único del dispositivo.</summary>
+    /// <summary>Unique device identifier.</summary>
     public string DeviceId { get; init; } = string.Empty;
     
-    /// <summary>Configuraciones adicionales del dispositivo.</summary>
+    /// <summary>Additional device settings.</summary>
     public Dictionary<string, string> Settings { get; init; } = new();
     
-    /// <summary>Datos de calibración del dispositivo.</summary>
+    /// <summary>Device calibration data.</summary>
     public Dictionary<string, double> Calibration { get; init; } = new();
     
     /// <summary>
-    /// Tipo de dispositivo (ej: "1c", "2c", "5dm").
+    /// Device type (e.g., "1c", "2c", "5dm").
     /// </summary>
     public string TDev { get; init; } = string.Empty;
     
     /// <summary>
-    /// Versión del firmware del dispositivo.
+    /// Device firmware version.
     /// </summary>
     public double NDev { get; init; }
     
     /// <summary>
-    /// Indica si el dispositivo soporta ancho de banda ajustable (ADJ BW).
+    /// Indicates whether the device supports adjustable bandwidth (ADJ BW).
     /// </summary>
     public bool IsAdjBW { get; init; }
     
     /// <summary>
-    /// Ancho de banda del dispositivo en Hz.
+    /// Device bandwidth in Hz.
     /// </summary>
     /// <remarks>
-    /// Valores típicos: 12.5 MHz, 25 MHz, 50 MHz.
+    /// Typical values: 12.5 MHz, 25 MHz, 50 MHz.
     /// </remarks>
     public double BandWidth { get; init; }
     
     /// <summary>
-    /// Indica si el dispositivo soporta múltiples canales.
+    /// Indicates whether the device supports multiple channels.
     /// </summary>
     public bool SupportsMultiChannel { get; init; }
     
     /// <summary>
-    /// Indica si el dispositivo requiere comandos multipart (O1+U1).
+    /// Indicates whether the device requires multipart commands (O1+U1).
     /// </summary>
-    /// <remarks>Específico para dispositivos DAS (tipo 5dm).</remarks>
+    /// <remarks>Specific to DAS devices (type 5dm).</remarks>
     public bool RequiresMultipartCommand { get; init; }
     
     /// <summary>
-    /// Parámetros de la banda 0 (Uplink).
+    /// Band 0 parameters (Uplink).
     /// </summary>
     public FreqFactoryParameters Band0 { get; init; } = new();
     
     /// <summary>
-    /// Parámetros de la banda 1 (Downlink).
+    /// Band 1 parameters (Downlink).
     /// </summary>
     public FreqFactoryParameters Band1 { get; init; } = new();
     
     /// <summary>
-    /// Número máximo de canales soportados.
+    /// Maximum number of supported channels.
     /// </summary>
     public short MaxChannels { get; init; } = 24;
     
     /// <summary>
-    /// Número máximo de canales para modo ADJ BW.
+    /// Maximum number of channels for ADJ BW mode.
     /// </summary>
     public short MaxChannelsAdj { get; init; }
     
     /// <summary>
-    /// Indica si las frecuencias UL/DL están enlazadas (tracking).
+    /// Indicates whether UL/DL frequencies are linked (tracking).
     /// </summary>
     public bool LinkedFreq { get; init; }
 }

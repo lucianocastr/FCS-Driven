@@ -3,45 +3,45 @@ namespace Fiplex.Control.Software.WinForms.Core.Security.Interfaces;
 using Fiplex.Control.Software.WinForms.Models;
 
 /// <summary>
-/// Validador de tokens offline JWT.
+/// Offline JWT token validator.
 /// </summary>
 public interface IOfflineTokenValidator
 {
     /// <summary>
-    /// Valida un token almacenado en archivo.
+    /// Validates a token stored in a file.
     /// </summary>
-    /// <param name="filename">Nombre del archivo de token a validar.</param>
-    /// <param name="ct">Token de cancelación.</param>
-    /// <returns>True si el token es válido, False en caso contrario.</returns>
+    /// <param name="filename">Name of the token file to validate.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>True if the token is valid, False otherwise.</returns>
     Task<bool> ValidateTokenAsync(string filename, CancellationToken ct = default);
 
     /// <summary>
-    /// Valida un token JWT con una clave pública proporcionada.
+    /// Validates a JWT token with a provided public key.
     /// </summary>
-    /// <param name="token">Token JWT a validar.</param>
-    /// <param name="publicKey">Clave pública Base64 para validar firma.</param>
-    /// <returns>Resultado de validación con claims extraídos.</returns>
+    /// <param name="token">JWT token to validate.</param>
+    /// <param name="publicKey">Base64 public key for signature validation.</param>
+    /// <returns>Validation result with extracted claims.</returns>
     OfflineTokenValidationResult ValidateToken(string token, string publicKey);
 
     /// <summary>
-    /// Valida la firma de un token JWT.
+    /// Validates the signature of a JWT token.
     /// </summary>
-    /// <param name="token">Token JWT a validar.</param>
-    /// <param name="ct">Token de cancelación.</param>
-    /// <returns>True si la firma es válida.</returns>
+    /// <param name="token">JWT token to validate.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>True if the signature is valid.</returns>
     Task<bool> ValidateSignatureAsync(string token, CancellationToken ct = default);
 
     /// <summary>
-    /// Verifica si un token ha expirado.
+    /// Checks if a token has expired.
     /// </summary>
-    /// <param name="token">Token JWT a verificar.</param>
-    /// <returns>True si el token NO ha expirado (aún es válido).</returns>
+    /// <param name="token">JWT token to verify.</param>
+    /// <returns>True if the token has NOT expired (still valid).</returns>
     bool IsTokenNotExpired(string token);
 
     /// <summary>
-    /// Extrae los claims de un token JWT.
+    /// Extracts claims from a JWT token.
     /// </summary>
-    /// <param name="token">Token JWT del cual extraer claims.</param>
-    /// <returns>TokenClaims con la información extraída, o null si hay error.</returns>
+    /// <param name="token">JWT token to extract claims from.</param>
+    /// <returns>TokenClaims with extracted information, or null if error.</returns>
     TokenClaims? ExtractClaims(string token);
 }

@@ -7,13 +7,13 @@ using Fiplex.Control.Software.WinForms.Models;
 namespace Fiplex.Control.Software.WinForms.Core.Config;
 
 /// <summary>
-/// Servicio para gestión del módulo Ethernet Rabbit.
+/// Service for managing the Ethernet Rabbit module.
 /// 
-/// El módulo Ethernet se controla mediante el bit 7 de la posición 93-94 del factory string:
-/// - Bit 7 = 0: Ethernet INSTALADO
-/// - Bit 7 = 1: Ethernet NO INSTALADO (desactivado)
+/// The Ethernet module is controlled via bit 7 of position 93-94 in the factory string:
+/// - Bit 7 = 0: Ethernet INSTALLED
+/// - Bit 7 = 1: Ethernet NOT INSTALLED (disabled)
 /// 
-/// Para dispositivos PSC Master (5dm), se requiere doble escritura con headers alternos.
+/// For PSC Master devices (5dm), double writing with alternate headers is required.
 /// </summary>
 public class EthernetModuleService : IEthernetModuleService
 {
@@ -21,24 +21,24 @@ public class EthernetModuleService : IEthernetModuleService
     private readonly ILogger<EthernetModuleService> _logger;
     
     /// <summary>
-    /// Longitud mínima requerida del factory string.
+    /// Minimum required factory string length.
     /// </summary>
     private const int MinFactoryStringLength = 482;
     
     /// <summary>
-    /// Posición del byte de máscara Ethernet .
-    /// En C# (0-indexed) = 92.
+    /// Ethernet mask byte position.
+    /// In C# (0-indexed) = 92.
     /// </summary>
     private const int EthernetMaskPosition = 92;
     
     /// <summary>
-    /// Posición del byte commonUl .
-    /// En C# (0-indexed) = 2.
+    /// CommonUl byte position.
+    /// In C# (0-indexed) = 2.
     /// </summary>
     private const int CommonUlPosition = 2;
     
     /// <summary>
-    /// Bit que indica Ethernet desactivado (0x80 = bit 7).
+    /// Bit indicating Ethernet disabled (0x80 = bit 7).
     /// </summary>
     private const byte EthernetDisabledBit = 0x80;
     
@@ -55,11 +55,11 @@ public class EthernetModuleService : IEthernetModuleService
         string? header = null, 
         CancellationToken ct = default)
     {
-        _logger.LogDebug("Leyendo factory string, header={Header}", header ?? "ninguno");
+        _logger.LogDebug("Reading factory string, header={Header}", header ?? "none");
         
         try
         {
-            // Construir comando F1 con header opcional
+            // Build F1 command with optional header
             var payload = string.IsNullOrEmpty(header) ? "F1" : $"F1{header}";
             
             var command = new SerialCommand
@@ -77,44 +77,44 @@ public class EthernetModuleService : IEthernetModuleService
             
             if (!result.Success)
             {
-                _logger.LogError("Comando F1 falló: {Status}", result.Status);
+                _logger.LogError("F1 command failed: {Status}", result.Status);
                 return EthernetModuleResult.Failed($"Command failed: {result.Status}");
             }
             
             if (string.IsNullOrEmpty(result.Data))
             {
-                _logger.LogError("Respuesta F1 vacía");
+                _logger.LogError("Empty F1 response");
                 return EthernetModuleResult.Failed("Empty response");
             }
             
-            // Validar longitud mínima
+            // Validate minimum length
             if (result.Data.Length < MinFactoryStringLength)
             {
                 _logger.LogError(
-                    "Factory string muy corto: {Length} caracteres (mínimo {Min})",
+                    "Factory string too short: {Length} characters (minimum {Min})",
                     result.Data.Length, MinFactoryStringLength);
                 return EthernetModuleResult.Failed(
                     $"Response too short: {result.Data.Length} chars (min {MinFactoryStringLength})");
             }
             
-            // Extraer flags
+            // Extract flags
             var ethernetInstalled = IsEthernetInstalled(result.Data);
             var commonUl = IsCommonUl(result.Data);
             
             _logger.LogInformation(
-                "Factory string leído: {Length} chars, Ethernet={Eth}, CommonUl={Cul}",
+                "Factory string read: {Length} chars, Ethernet={Eth}, CommonUl={Cul}",
                 result.Data.Length, ethernetInstalled, commonUl);
             
             return EthernetModuleResult.Success(result.Data, ethernetInstalled, commonUl);
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Lectura factory string cancelada");
+            _logger.LogWarning("Factory string read cancelled");
             return EthernetModuleResult.Failed("Operation cancelled");
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error leyendo factory string");
+            _logger.LogError(ex, "Error reading factory string");
             return EthernetModuleResult.Failed($"Error: {ex.Message}");
         }
     }
@@ -126,12 +126,12 @@ public class EthernetModuleService : IEthernetModuleService
         CancellationToken ct = default)
     {
         _logger.LogDebug(
-            "Escribiendo factory string ({Length} chars), header={Header}",
-            factoryString.Length, header ?? "ninguno");
+            "Writing factory string ({Length} chars), header={Header}",
+            factoryString.Length, header ?? "none");
         
         try
         {
-            // Construir comando F0 con header opcional
+            // Build F0 command with optional header
             var payload = string.IsNullOrEmpty(header) 
                 ? $"F0{factoryString}" 
                 : $"F0{header}{factoryString}";
@@ -152,12 +152,12 @@ public class EthernetModuleService : IEthernetModuleService
             
             if (isAck)
             {
-                _logger.LogInformation("Factory string escrito exitosamente");
+                _logger.LogInformation("Factory string written successfully");
             }
             else
             {
                 _logger.LogError(
-                    "Error escribiendo factory string: {Status}, Response={Data}",
+                    "Error writing factory string: {Status}, Response={Data}",
                     result.Status, result.Data);
             }
             
@@ -165,12 +165,12 @@ public class EthernetModuleService : IEthernetModuleService
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Escritura factory string cancelada");
+            _logger.LogWarning("Factory string write cancelled");
             return false;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error escribiendo factory string");
+            _logger.LogError(ex, "Error writing factory string");
             return false;
         }
     }
@@ -181,7 +181,7 @@ public class EthernetModuleService : IEthernetModuleService
         if (factoryString.Length < EthernetMaskPosition + 2)
         {
             _logger.LogWarning(
-                "Factory string muy corto para extraer máscara Ethernet: {Length}",
+                "Factory string too short to extract Ethernet mask: {Length}",
                 factoryString.Length);
             return false;
         }
@@ -191,18 +191,18 @@ public class EthernetModuleService : IEthernetModuleService
             var maskHex = factoryString.Substring(EthernetMaskPosition, 2);
             var mask = Convert.ToByte(maskHex, 16);
             
-            // Bit 7 = 0 significa Ethernet instalado
+            // Bit 7 = 0 means Ethernet installed
             var installed = (mask & EthernetDisabledBit) == 0;
             
             _logger.LogDebug(
-                "Máscara Ethernet: 0x{Mask:X2}, Instalado={Installed}",
+                "Ethernet mask: 0x{Mask:X2}, Installed={Installed}",
                 mask, installed);
             
             return installed;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error parseando máscara Ethernet");
+            _logger.LogError(ex, "Error parsing Ethernet mask");
             return false;
         }
     }
@@ -213,7 +213,7 @@ public class EthernetModuleService : IEthernetModuleService
         if (factoryString.Length < CommonUlPosition + 2)
         {
             _logger.LogWarning(
-                "Factory string muy corto para extraer commonUl: {Length}",
+                "Factory string too short to extract commonUl: {Length}",
                 factoryString.Length);
             return false;
         }
@@ -223,18 +223,18 @@ public class EthernetModuleService : IEthernetModuleService
             var commonUlHex = factoryString.Substring(CommonUlPosition, 2);
             var commonUlByte = Convert.ToByte(commonUlHex, 16);
             
-            // Bit 7 = 1 significa commonUl activo
+            // Bit 7 = 1 means commonUl active
             var isCommon = (commonUlByte & 0x80) != 0;
             
             _logger.LogDebug(
-                "Byte commonUl: 0x{Byte:X2}, Activo={Active}",
+                "Byte commonUl: 0x{Byte:X2}, Active={Active}",
                 commonUlByte, isCommon);
             
             return isCommon;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error parseando commonUl");
+            _logger.LogError(ex, "Error parsing commonUl");
             return false;
         }
     }
@@ -249,7 +249,7 @@ public class EthernetModuleService : IEthernetModuleService
         if (factoryString.Length < EthernetMaskPosition + 2)
         {
             _logger.LogError(
-                "Factory string muy corto para modificar: {Length}",
+                "Factory string too short to modify: {Length}",
                 factoryString.Length);
             return factoryString;
         }
@@ -259,10 +259,10 @@ public class EthernetModuleService : IEthernetModuleService
             var maskHex = factoryString.Substring(EthernetMaskPosition, 2);
             var mask = Convert.ToByte(maskHex, 16);
             
-            // Limpiar bit 7 primero (And &H7F)
+            // Clear bit 7 first (And &H7F)
             mask = (byte)(mask & 0x7F);
             
-            // Si NO instalado, setear bit 7 (Or &H80)
+            // If NOT installed, set bit 7 (Or &H80)
             if (!installed)
             {
                 mask = (byte)(mask | EthernetDisabledBit);
@@ -275,14 +275,14 @@ public class EthernetModuleService : IEthernetModuleService
                        + factoryString.Substring(EthernetMaskPosition + 2);
             
             _logger.LogInformation(
-                "Máscara Ethernet modificada: 0x{OldMask} → 0x{NewMask:X2}, Instalado={Installed}",
+                "Ethernet mask modified: 0x{OldMask} → 0x{NewMask:X2}, Installed={Installed}",
                 maskHex, mask, installed);
             
             return result;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error modificando máscara Ethernet");
+            _logger.LogError(ex, "Error modifying Ethernet mask");
             return factoryString;
         }
     }

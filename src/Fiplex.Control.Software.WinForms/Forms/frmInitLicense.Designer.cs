@@ -7,8 +7,8 @@
         /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        // Nota: El método Dispose está implementado en frmInitLicense.cs
-        // para manejar la liberación de CancellationTokenSource
+        // Note: The Dispose method is implemented in frmInitLicense.cs
+        // to handle the release of CancellationTokenSource
 
         #region Windows Form Designer generated code
 

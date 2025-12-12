@@ -1,8 +1,8 @@
 namespace Fiplex.Control.Software.WinForms.Core.Serial.Models;
 
 /// <summary>
-/// Configuración centralizada de timeouts seriales.
-/// Soporta perfiles específicos por tipo de dispositivo.
+/// Centralized serial timeout configuration.
+/// Supports device type-specific profiles.
 /// </summary>
 public class SerialTimeouts
 {
@@ -15,7 +15,7 @@ public class SerialTimeouts
     public static SerialTimeouts Default => new();
     
     /// <summary>
-    /// Retorna timeouts optimizados según tipo de dispositivo.
+    /// Returns optimized timeouts for the device type.
     /// </summary>
     public static SerialTimeouts ForDevice(string deviceType) => deviceType switch
     {

@@ -1,37 +1,37 @@
 namespace Fiplex.Control.Software.WinForms.Models;
 
 /// <summary>
-/// Resultado de una operación de login OIDC.
+/// Result of an OIDC login operation.
 /// </summary>
 public class OidcLoginResult
 {
     /// <summary>
-    /// Indica si el login fue exitoso.
+    /// Indicates whether the login was successful.
     /// </summary>
     public bool Success { get; init; }
 
     /// <summary>
-    /// Mensaje de error si el login falló.
+    /// Error message if the login failed.
     /// </summary>
     public string? ErrorMessage { get; init; }
 
     /// <summary>
-    /// Código de error específico.
+    /// Specific error code.
     /// </summary>
     public OidcLoginErrorCode ErrorCode { get; init; } = OidcLoginErrorCode.None;
 
     /// <summary>
-    /// Tokens obtenidos si el login fue exitoso.
+    /// Tokens obtained if the login was successful.
     /// </summary>
     public FireAccessToken? Token { get; init; }
 
     /// <summary>
-    /// Nombre del usuario autenticado.
+    /// Authenticated user name.
     /// </summary>
     public string? UserName { get; init; }
 
     /// <summary>
-    /// Crea un resultado exitoso.
+    /// Creates a successful result.
     /// </summary>
     public static OidcLoginResult Succeeded(FireAccessToken token, string? userName = null)
         => new()
@@ -42,7 +42,7 @@ public class OidcLoginResult
         };
 
     /// <summary>
-    /// Crea un resultado de fallo.
+    /// Creates a failure result.
     /// </summary>
     public static OidcLoginResult Failed(string message, OidcLoginErrorCode errorCode = OidcLoginErrorCode.Unknown)
         => new()
@@ -53,7 +53,7 @@ public class OidcLoginResult
         };
 
     /// <summary>
-    /// Resultado de cancelación por usuario.
+    /// User cancellation result.
     /// </summary>
     public static OidcLoginResult Cancelled()
         => new()
@@ -65,28 +65,28 @@ public class OidcLoginResult
 }
 
 /// <summary>
-/// Códigos de error para login OIDC.
+/// Error codes for OIDC login.
 /// </summary>
 public enum OidcLoginErrorCode
 {
-    /// <summary>Sin error.</summary>
+    /// <summary>No error.</summary>
     None = 0,
 
-    /// <summary>Usuario canceló el login.</summary>
+    /// <summary>User cancelled the login.</summary>
     UserCancelled = 1,
 
-    /// <summary>Token expirado o fecha/hora incorrecta.</summary>
+    /// <summary>Token expired or incorrect date/time.</summary>
     TokenExpired = 2,
 
-    /// <summary>Sin conexión a internet.</summary>
+    /// <summary>No internet connection.</summary>
     NoInternet = 3,
 
-    /// <summary>Error de configuración OIDC.</summary>
+    /// <summary>OIDC configuration error.</summary>
     ConfigurationError = 4,
 
-    /// <summary>Error del servidor de autenticación.</summary>
+    /// <summary>Authentication server error.</summary>
     ServerError = 5,
 
-    /// <summary>Error desconocido.</summary>
+    /// <summary>Unknown error.</summary>
     Unknown = 99
 }

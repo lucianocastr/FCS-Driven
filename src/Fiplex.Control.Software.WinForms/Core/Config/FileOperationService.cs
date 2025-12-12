@@ -8,12 +8,12 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Config;
 
 /// <summary>
-/// Implementación del servicio de operaciones de archivo.
-/// Ejecuta secuencias de comandos para SaveCFG, LoadCFG, SaveCAL, LoadCAL.
+/// Implementation of the file operations service.
+/// Executes command sequences for SaveCFG, LoadCFG, SaveCAL, LoadCAL.
 ///
-/// - Uso de saveCfgCommands[], loadCfgCommands[], saveCalCommands[], loadCalCommands[]
-/// - Funciones mnuSaveConfig_Click, mnuLoadConfig_Click, mnuSaveCal_Click, mnuLoadCal_Click
-/// - Función LoadCal(fname As String) para carga de calibración
+/// - Uses saveCfgCommands[], loadCfgCommands[], saveCalCommands[], loadCalCommands[]
+/// - Functions mnuSaveConfig_Click, mnuLoadConfig_Click, mnuSaveCal_Click, mnuLoadCal_Click
+/// - Function LoadCal(fname As String) for calibration loading
 /// </summary>
 public class FileOperationService : IFileOperationService
 {
@@ -24,22 +24,22 @@ public class FileOperationService : IFileOperationService
     private const string AckResponse = "ACK";
     private const string NackResponse = "NACK";
     
-    // Delimitador de 3 tabs consecutivos para splitwith3tabs 
+    // Delimiter of 3 consecutive tabs for splitwith3tabs
     private static readonly string ThreeTabsDelimiter = "\t\t\t";
-    private const string ModeSplitTabCfg = "splittabcfg";     // 24 dispositivos remotos
-    private const string ModeSplitTabTag = "splittabtag";     // 3 expansiones + 24 remotos (tags)
-    private const string ModeSplitTabThr = "splittabthr";     // Umbrales con valores por defecto
+    private const string ModeSplitTabCfg = "splittabcfg";     // 24 remote devices
+    private const string ModeSplitTabTag = "splittabtag";     // 3 expansions + 24 remotes (tags)
+    private const string ModeSplitTabThr = "splittabthr";     // Thresholds with default values
     
-    // Número de dispositivos remotos y expansiones 
+    // Number of remote devices and expansions
     private const int NumRemoteDevices = 24;
     private const int NumExpansionDevices = 3;
     private const int TagLength = 30;
     
-    // Valores umbral por defecto 
+    // Default threshold values
     private const string DefaultExpansionThreshold = "E702E702E702E702E702E702E702E702500A";
     private const string DefaultRemoteThreshold = "2202500AE702E702CE02CE02";
     
-    // Padding de ceros para remotos ausentes en splittabcfg (162 caracteres)
+    // Zero padding for absent remotes in splittabcfg (162 characters)
     private static readonly string ZeroPadding = new('0', 162);
 
     public FileOperationService(
@@ -109,18 +109,18 @@ public class FileOperationService : IFileOperationService
 
         try
         {
-            // Validar que haya comandos
+            // Validate that there are commands
             if (!commandList.Any())
             {
                 _logger.LogWarning("No commands provided for {OperationType}", operationType);
                 return FileOperationResult.Failed("No commands defined for this operation", 0, 0);
             }
 
-            // Calcular total de comandos individuales
+            // Calculate total individual commands
             var totalIndividualCommands = commandList.Sum(c => c.Commands.Length);
             var currentCommandIndex = 0;
 
-            // Para operaciones de carga, leer y validar archivo primero
+            // For load operations, read and validate file first
             string[]? fileDataLines = null;
             if (operationType == FileOperationType.LoadConfig || 
                 operationType == FileOperationType.LoadCalibration)
@@ -135,7 +135,7 @@ public class FileOperationService : IFileOperationService
                 _logger.LogDebug("Loaded file content: {Length} bytes", fileContent.Length);
                 var normalizedContent = fileContent.Replace("\r\n", "\n").Replace("\r", "\n");
                 fileDataLines = normalizedContent.Split('\n', StringSplitOptions.RemoveEmptyEntries);
-                // El número de líneas en el archivo debe coincidir con el número de comandos
+                // The number of lines in the file must match the number of commands
                 if (operationType == FileOperationType.LoadCalibration)
                 {
                     if (fileDataLines.Length != commandList.Count)
@@ -158,7 +158,7 @@ public class FileOperationService : IFileOperationService
                 }
             }
 
-            // Preparar StringBuilder para operaciones de guardado
+            // Prepare StringBuilder for save operations
             StringBuilder? saveContent = null;
             if (operationType == FileOperationType.SaveConfig || 
                 operationType == FileOperationType.SaveCalibration)
@@ -166,14 +166,14 @@ public class FileOperationService : IFileOperationService
                 saveContent = new StringBuilder();
             }
             
-            // Para LoadCAL: Cancelar comandos pendientes antes de empezar
+            // For LoadCAL: Cancel pending commands before starting
             if (operationType == FileOperationType.LoadCalibration)
             {
                 _serialPipeline.CancelPendingCommands();
                 _logger.LogDebug("Cleared pending commands before LoadCalibration");
             }
 
-            // Ejecutar cada grupo de comandos
+            // Execute each command group
             var commandIndex = 0;
             foreach (var cmdGroup in commandList)
             {
@@ -183,7 +183,7 @@ public class FileOperationService : IFileOperationService
                     "Executing command group {Index}: {Commands}, Message: {Message}",
                     commandIndex, string.Join(",", cmdGroup.Commands), cmdGroup.Message);
 
-                // Reportar progreso con mensaje del grupo
+                // Report progress with group message
                 progress?.Report(new FileOperationProgress
                 {
                     CurrentCommand = currentCommandIndex,
@@ -210,7 +210,7 @@ public class FileOperationService : IFileOperationService
                     continue;
                 }
                 
-                // Para operaciones de carga de configuración, usar lógica específica con retry
+                // For configuration load operations, use specific logic with retry
                 if (operationType == FileOperationType.LoadConfig && fileDataLines != null)
                 {
                     var loadResult = await ExecuteLoadConfigurationCommandAsync(
@@ -230,7 +230,7 @@ public class FileOperationService : IFileOperationService
                     continue;
                 }
 
-                // Para SaveCAL, usar lógica específica con retry NACK
+                // For SaveCAL, use specific logic with NACK retry
                 if (operationType == FileOperationType.SaveCalibration)
                 {
                     var saveResult = await ExecuteSaveCalibrationCommandAsync(cmdGroup, ct);
@@ -244,7 +244,7 @@ public class FileOperationService : IFileOperationService
                             totalIndividualCommands);
                     }
                     
-                    // Agregar respuesta al archivo 
+                    // Add response to file
                     if (saveContent != null && !string.IsNullOrEmpty(saveResult.Data))
                     {
                         saveContent.Append(saveResult.Data);
@@ -257,7 +257,7 @@ public class FileOperationService : IFileOperationService
                     continue;
                 }
                 
-                // Para SaveConfig con modos especiales (splittabcfg, splittabtag, splittabthr)
+                // For SaveConfig with special modes (splittabcfg, splittabtag, splittabthr)
                 if (operationType == FileOperationType.SaveConfig)
                 {
                     var saveResult = await ExecuteSaveConfigurationCommandAsync(
@@ -272,7 +272,7 @@ public class FileOperationService : IFileOperationService
                             totalIndividualCommands);
                     }
                     
-                    // Las líneas ya fueron agregadas por el método específico
+                    // Lines were already added by the specific method
                     if (saveResult.ResponseLines != null)
                     {
                         foreach (var line in saveResult.ResponseLines)
@@ -286,7 +286,7 @@ public class FileOperationService : IFileOperationService
                     continue;
                 }
 
-                // Ejecutar cada comando individual del grupo (lógica genérica fallback)
+                // Execute each individual command in the group (generic fallback logic)
                 foreach (var serialCommand in cmdGroup.Commands)
                 {
                     ct.ThrowIfCancellationRequested();
@@ -297,7 +297,7 @@ public class FileOperationService : IFileOperationService
 
                     var commandToSend = serialCommand.Trim();
 
-                    // Para operaciones de carga de configuración, agregar datos del archivo
+                    // For configuration load operations, add data from file
                     if (fileDataLines != null && operationType == FileOperationType.LoadConfig)
                     {
                         var dataLine = ExtractDataForConfigCommand(fileDataLines, commandToSend);
@@ -309,7 +309,7 @@ public class FileOperationService : IFileOperationService
 
                     _logger.LogDebug("Sending command: {Command}", commandToSend);
 
-                    // Ejecutar comando serial
+                    // Execute serial command
                     var result = await ExecuteSerialCommandAsync(commandToSend, cmdGroup.LengthValidation, ct);
 
                     if (!result.Success)
@@ -325,11 +325,11 @@ public class FileOperationService : IFileOperationService
                             totalIndividualCommands);
                     }
 
-                    // Guardar respuesta
+                    // Save response
                     responses[serialCommand] = result.Data;
                     executedCount++;
 
-                    // Para SaveConfig, agregar respuesta con formato COMMAND=DATA
+                    // For SaveConfig, add response with COMMAND=DATA format
                     if (saveContent != null && !string.IsNullOrEmpty(result.Data))
                     {
                         saveContent.AppendLine($"{serialCommand}={result.Data}");
@@ -339,14 +339,14 @@ public class FileOperationService : IFileOperationService
                         "Command {Command} succeeded: {ResponseLength} chars",
                         serialCommand, result.Data?.Length ?? 0);
 
-                    // Pequeño delay entre comandos 
+                    // Small delay between commands 
                     await Task.Delay(50, ct);
                 }
                 
                 commandIndex++;
             }
 
-            // Guardar archivo si es operación de guardado
+            // Save file if it's a save operation
             if (saveContent != null)
             {
                 var directory = Path.GetDirectoryName(filePath);
@@ -354,7 +354,7 @@ public class FileOperationService : IFileOperationService
                 {
                     Directory.CreateDirectory(directory);
                 }
-                // Para compatibilidad, guardamos sin BOM
+                // For compatibility, save without BOM
                 await File.WriteAllTextAsync(filePath, saveContent.ToString(), new UTF8Encoding(false), ct);
                 _logger.LogInformation("Saved file to {FilePath}", filePath);
             }
@@ -386,7 +386,7 @@ public class FileOperationService : IFileOperationService
     }
     
     /// <summary>
-    /// Ejecuta un comando de carga de calibración.
+    /// Executes a load calibration command.
     /// </summary>
     private async Task<CalibrationCommandResult> ExecuteLoadCalibrationCommandAsync(
         FileOperationCommand cmdGroup,
@@ -394,7 +394,7 @@ public class FileOperationService : IFileOperationService
         int frameIndex,
         CancellationToken ct)
     {
-        // Validar longitud del frame antes de enviar
+        // Validate frame length before sending
         if (!string.IsNullOrEmpty(cmdGroup.LengthValidation) && 
             !ValidateResponseLength(fileDataLine, cmdGroup.LengthValidation))
         {
@@ -403,10 +403,10 @@ public class FileOperationService : IFileOperationService
             return new CalibrationCommandResult(false, null, errorMsg);
         }
         
-        // Cancelar comandos pendientes antes de cada envío
+        // Cancel pending commands before each send
         _serialPipeline.CancelPendingCommands();
         
-        // Concatenar comando + datos del archivo
+        // Concatenate command + data from file
         var primaryCommand = cmdGroup.Commands.FirstOrDefault();
         if (string.IsNullOrEmpty(primaryCommand))
         {
@@ -429,7 +429,7 @@ public class FileOperationService : IFileOperationService
         
         var result = await _serialPipeline.EnqueueCommandAsync(serialCmd);
         
-        // Verificar respuesta ACK
+        // Verify ACK response
         if (!result.Success || !result.Data.Equals(AckResponse, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogError("LoadCal frame {Index} failed: expected ACK, got {Response}", 
@@ -442,7 +442,7 @@ public class FileOperationService : IFileOperationService
     }
     
     /// <summary>
-    /// Ejecuta un comando de guardado de calibración con retry para NACK.
+    /// Executes a save calibration command with NACK retry.
     /// </summary>
     private async Task<CalibrationCommandResult> ExecuteSaveCalibrationCommandAsync(
         FileOperationCommand cmdGroup,
@@ -478,10 +478,10 @@ public class FileOperationService : IFileOperationService
             var result = await _serialPipeline.EnqueueCommandAsync(serialCmd);
             lastResponse = result.Data;
             
-            // Si no es NACK, salir del loop (éxito o error diferente)
+            // If not NACK, exit the loop (success or different error)
             if (!result.Data.Equals(NackResponse, StringComparison.OrdinalIgnoreCase))
             {
-                // Validar longitud de respuesta
+                // Validate response length
                 if (!string.IsNullOrEmpty(cmdGroup.LengthValidation) &&
                     !ValidateResponseLength(result.Data, cmdGroup.LengthValidation))
                 {
@@ -496,13 +496,13 @@ public class FileOperationService : IFileOperationService
             _logger.LogWarning("SaveCal got NACK for command {Command}, trying next variant", command);
         }
         
-        // Si llegamos aquí, todos los comandos dieron NACK
+        // If we reach here, all commands returned NACK
         _logger.LogError("SaveCal all command variants returned NACK");
         return new CalibrationCommandResult(false, lastResponse, "Error saving - all commands returned NACK");
     }
 
     /// <summary>
-    /// Ejecuta un comando serial individual con reintentos.
+    /// Executes an individual serial command with retries.
     /// </summary>
     private async Task<SerialResult> ExecuteSerialCommandAsync(
         string command,
@@ -529,7 +529,7 @@ public class FileOperationService : IFileOperationService
 
             if (lastResult.Success)
             {
-                // Validar longitud si está especificada
+                // Validate length if specified
                 if (!string.IsNullOrEmpty(lengthValidation) && !ValidateResponseLength(lastResult.Data, lengthValidation))
                 {
                     _logger.LogWarning(
@@ -565,21 +565,21 @@ public class FileOperationService : IFileOperationService
     }
 
     /// <summary>
-    /// Valida la longitud de la respuesta según el formato de validación.
+    /// Validates the response length according to the validation format.
     /// 
-    /// donde vbTab & vbTab & vbTab = 3 tabs consecutivos como delimitador, NO cuenta tabs individuales.
+    /// where vbTab & vbTab & vbTab = 3 consecutive tabs as delimiter, does NOT count individual tabs.
     /// </summary>
     private bool ValidateResponseLength(string response, string lengthValidation)
     {
         if (string.IsNullOrEmpty(response) || string.IsNullOrEmpty(lengthValidation))
-            return true; // Sin validación
+            return true; // No validation
 
         try
         {
             var lens = lengthValidation;
             string[] strToChecks;
 
-            // splitwith3tabs:N - Dividir respuesta por 3 tabs consecutivos
+            // splitwith3tabs:N - Split response by 3 consecutive tabs
             // If InStr(1, lengths, "splitwith3tabs:") > 0 Then
             //     lens = Replace(lens, "splitwith3tabs:", "")
             //     strToChecks = Split(strToCheck, (vbTab & vbTab & vbTab))
@@ -590,11 +590,11 @@ public class FileOperationService : IFileOperationService
             }
             else
             {
-                // Para otros casos, validar la cadena completa
+                // For other cases, validate the complete string
                 strToChecks = new[] { response };
             }
 
-            // Parsear longitudes aceptables (separadas por coma)
+            // Parse acceptable lengths (comma-separated)
             var acceptableLengths = lens.Split(',')
                 .Select(s => s.Trim())
                 .Where(s => !string.IsNullOrEmpty(s))
@@ -603,9 +603,9 @@ public class FileOperationService : IFileOperationService
                 .ToArray();
 
             if (acceptableLengths.Length == 0)
-                return true; // Sin longitudes definidas
+                return true; // No lengths defined
 
-            // Validar cada segmento
+            // Validate each segment
             // For j = 0 To UBound(strToChecks)
             //     lencomp = Len(strToChecks(j))
             //     While i <= UBound(buff) And Not aux
@@ -637,12 +637,12 @@ public class FileOperationService : IFileOperationService
     }
 
     /// <summary>
-    /// Extrae datos del archivo para un comando de configuración.
-    /// Busca líneas en formato "COMMAND=DATA" o formato legacy (solo datos).
+    /// Extracts data from file for a configuration command.
+    /// Searches for lines in "COMMAND=DATA" format or legacy format (data only).
     /// </summary>
     private static string? ExtractDataForConfigCommand(string[] fileLines, string command)
     {
-        // Buscar línea que empiece con el comando
+        // Search for line that starts with the command
         var commandPrefix = command.Length >= 2 ? command.Substring(0, 2) : command;
 
         foreach (var line in fileLines)
@@ -661,12 +661,12 @@ public class FileOperationService : IFileOperationService
     }
     
     /// <summary>
-    /// Ejecuta un comando de carga de configuración con retry para non-ACK.
+    /// Executes a configuration load command with retry for non-ACK.
     /// 
-    /// 1. Validar longitud del frame (CheckLenCommand)
-    /// 2. Enviar comando + datos
-    /// 3. Si no es ACK, reintentar UNA vez
-    /// 4. Si aún no es ACK, error
+    /// 1. Validate frame length (CheckLenCommand)
+    /// 2. Send command + data
+    /// 3. If not ACK, retry ONCE
+    /// 4. If still not ACK, error
     /// </summary>
     private async Task<ConfigCommandResult> ExecuteLoadConfigurationCommandAsync(
         FileOperationCommand cmdGroup,
@@ -674,7 +674,7 @@ public class FileOperationService : IFileOperationService
         int frameIndex,
         CancellationToken ct)
     {
-        // Validar longitud del frame antes de enviar
+        // Validate frame length before sending
         if (!string.IsNullOrEmpty(cmdGroup.LengthValidation) && 
             !ValidateResponseLength(fileDataLine, cmdGroup.LengthValidation))
         {
@@ -683,14 +683,14 @@ public class FileOperationService : IFileOperationService
             return new ConfigCommandResult(false, null, null, errorMsg);
         }
         
-        // Obtener comando principal
+        // Get primary command
         var primaryCommand = cmdGroup.Commands.FirstOrDefault();
         if (string.IsNullOrEmpty(primaryCommand))
         {
             return new ConfigCommandResult(false, null, null, "No command defined for configuration frame");
         }
         
-        // Concatenar comando + datos del archivo
+        // Concatenate command + data from file
         var fullCommand = $"{primaryCommand}{fileDataLine}";
         _logger.LogDebug("LoadConfig sending frame {Index}: {Command}", frameIndex, fullCommand);
         
@@ -707,14 +707,14 @@ public class FileOperationService : IFileOperationService
         
         var result = await _serialPipeline.EnqueueCommandAsync(serialCmd);
         
-        // RETRY si no es ACK
+        // RETRY if not ACK
         if (!result.Data.Equals(AckResponse, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogWarning("LoadConfig frame {Index} got {Response}, retrying...", frameIndex, result.Data);
             result = await _serialPipeline.EnqueueCommandAsync(serialCmd);
         }
         
-        // Verificar ACK final
+        // Verify final ACK
         if (!result.Data.Equals(AckResponse, StringComparison.OrdinalIgnoreCase))
         {
             _logger.LogError("LoadConfig frame {Index} failed: expected ACK, got {Response}", 
@@ -727,13 +727,13 @@ public class FileOperationService : IFileOperationService
     }
     
     /// <summary>
-    /// Ejecuta un comando de guardado de configuración con modos especiales.
+    /// Executes a save configuration command with special modes.
     /// 
-    /// Modos soportados:
-    /// - splittabcfg: Split por Tab, expande a 24 remotos con padding
-    /// - splittabtag: 3 expansiones + 24 remotos con tags (Space(30))
-    /// - splittabthr: Umbrales con valores por defecto para dispositivos ausentes
-    /// - (vacío): Modo normal, solo guarda respuesta
+    /// Supported modes:
+    /// - splittabcfg: Split by Tab, expands to 24 remotes with padding
+    /// - splittabtag: 3 expansions + 24 remotes with tags (Space(30))
+    /// - splittabthr: Thresholds with default values for absent devices
+    /// - (empty): Normal mode, only saves response
     /// </summary>
     private async Task<SaveConfigResult> ExecuteSaveConfigurationCommandAsync(
         FileOperationCommand cmdGroup,
@@ -747,7 +747,7 @@ public class FileOperationService : IFileOperationService
             return new SaveConfigResult(false, null, null, "No command defined");
         }
         
-        // Ejecutar comando y obtener respuesta
+        // Execute command and get response
         var serialCmd = new SerialCommand
         {
             Payload = primaryCommand.Trim(),
@@ -761,7 +761,7 @@ public class FileOperationService : IFileOperationService
         
         var result = await _serialPipeline.EnqueueCommandAsync(serialCmd);
         
-        // Validar longitud con retry
+        // Validate length with retry
         if (!string.IsNullOrEmpty(cmdGroup.LengthValidation) && 
             !ValidateResponseLength(result.Data, cmdGroup.LengthValidation))
         {
@@ -778,7 +778,7 @@ public class FileOperationService : IFileOperationService
         var responseLines = new List<string>();
         var isLegacyFormat = IsLegacyConfigFormat(filePath);
         
-        // Procesar según el modo
+        // Process according to mode
         switch (cmdGroup.Mode.ToLowerInvariant())
         {
             case ModeSplitTabCfg:
@@ -809,12 +809,12 @@ public class FileOperationService : IFileOperationService
                 break;
                 
             default:
-                // Modo normal: solo agregar la respuesta
+                // Normal mode: only add the response
                 responseLines.Add(result.Data);
                 break;
         }
         
-        // Agregar líneas al contenido de guardado
+        // Add lines to save content
         foreach (var line in responseLines)
         {
             if (isLegacyFormat)
@@ -824,7 +824,7 @@ public class FileOperationService : IFileOperationService
             }
             else
             {
-                // Formato nuevo: datos + CRLF (sin prefijo de comando para compatibilidad)
+                // New format: data + CRLF (without command prefix for compatibility)
                 saveContent.Append(line);
                 saveContent.Append('\n');
             }
@@ -837,42 +837,42 @@ public class FileOperationService : IFileOperationService
     }
     
     /// <summary>
-    /// Procesa modo splittabcfg: Split por Tab, expande a 25 líneas (1 master + 24 remotos).
+    /// Processes splittabcfg mode: Split by Tab, expands to 25 lines (1 master + 24 remotes).
     /// </summary>
     private List<string>? ProcessSplitTabCfgMode(string response)
     {
         var lines = new List<string>();
         
-        // Split por Tab individual
+        // Split by single Tab
         var buff = response.Split('\t');
         
-        // Validar prefijo "0000" del primer elemento
+        // Validate '0000' prefix of first element
         if (buff.Length == 0 || !buff[0].StartsWith("0000"))
         {
             _logger.LogError("SaveConfig splittabcfg: Invalid prefix, expected '0000'");
             return null;
         }
         
-        // Agregar primer elemento (master)
+        // Add first element (master)
         lines.Add(buff[0]);
         
         int buffIndex = 1;
         
-        // Procesar 24 remotos
+        // Process 24 remote devices
         for (int j = 1; j <= NumRemoteDevices; j++)
         {
-            // Generar prefijo esperado: "XX01" donde XX es el hex de j
+            // Generate expected prefix: "XX01" where XX is the hex of j
             var expectedPrefix = $"{j:X2}01";
             
             if (buffIndex < buff.Length && buff[buffIndex].StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase))
             {
-                // Remoto presente
+                // Remote device present
                 lines.Add(buff[buffIndex]);
                 buffIndex++;
             }
             else
             {
-                // Remoto ausente: agregar padding de ceros
+                // Remote device absent: add zero padding
                 lines.Add($"{expectedPrefix}{ZeroPadding}");
             }
         }
@@ -882,32 +882,32 @@ public class FileOperationService : IFileOperationService
     }
     
     /// <summary>
-    /// Procesa modo splittabtag: Split por Tab, 28 líneas (1 master + 3 expansiones + 24 remotos).
+    /// Processes splittabtag mode: Split by Tab, 28 lines (1 master + 3 expansions + 24 remotes).
     /// </summary>
     private List<string>? ProcessSplitTabTagMode(string response)
     {
         var lines = new List<string>();
         var tagPadding = new string(' ', TagLength);
         
-        // Split por Tab individual
+        // Split by single Tab
         var buff = response.Split('\t');
         
-        // Validar prefijo "0000" del primer elemento
+        // Validate "0000" prefix of first element
         if (buff.Length == 0 || !buff[0].StartsWith("0000"))
         {
             _logger.LogError("SaveConfig splittabtag: Invalid prefix, expected '0000'");
             return null;
         }
         
-        // Agregar primer elemento (master)
+        // Add first element (master)
         lines.Add(buff[0]);
         
         int buffIndex = 1;
         
-        // Procesar 3 expansiones
+        // Process 3 expansion devices
         for (int j = 1; j <= NumExpansionDevices; j++)
         {
-            // Generar prefijo esperado: "00XX" donde XX es el hex de j
+            // Generate expected prefix: "00XX" where XX is the hex of j
             var expectedPrefix = $"00{j:X2}";
             
             if (buffIndex < buff.Length && buff[buffIndex].StartsWith(expectedPrefix, StringComparison.OrdinalIgnoreCase))
@@ -917,12 +917,12 @@ public class FileOperationService : IFileOperationService
             }
             else
             {
-                // Expansión ausente: agregar tag con espacios
+                // Expansion device absent: add tag with spaces
                 lines.Add($"{expectedPrefix}{tagPadding}");
             }
         }
         
-        // Procesar 24 remotos
+        // Process 24 remote devices
         for (int j = 1; j <= NumRemoteDevices; j++)
         {
             var expectedPrefix = $"{j:X2}01";
@@ -934,7 +934,7 @@ public class FileOperationService : IFileOperationService
             }
             else
             {
-                // Remoto ausente: agregar tag con espacios
+                // Remote device absent: add tag with spaces
                 lines.Add($"{expectedPrefix}{tagPadding}");
             }
         }
@@ -944,28 +944,28 @@ public class FileOperationService : IFileOperationService
     }
     
     /// <summary>
-    /// Procesa modo splittabthr: Split por Tab, 28 líneas con umbrales por defecto.
+    /// Processes splittabthr mode: Split by Tab, 28 lines with default thresholds.
     /// </summary>
     private List<string>? ProcessSplitTabThrMode(string response)
     {
         var lines = new List<string>();
         
-        // Split por Tab individual
+        // Split by single Tab
         var buff = response.Split('\t');
         
-        // Validar prefijo "0000" del primer elemento
+        // Validate "0000" prefix of first element
         if (buff.Length == 0 || !buff[0].StartsWith("0000"))
         {
             _logger.LogError("SaveConfig splittabthr: Invalid prefix, expected '0000'");
             return null;
         }
         
-        // Agregar primer elemento (master)
+        // Add first element (master)
         lines.Add(buff[0]);
         
         int buffIndex = 1;
         
-        // Procesar 3 expansiones con umbral por defecto
+        // Process 3 expansion devices with default threshold
         for (int j = 1; j <= NumExpansionDevices; j++)
         {
             var expectedPrefix = $"00{j:X2}";
@@ -977,12 +977,12 @@ public class FileOperationService : IFileOperationService
             }
             else
             {
-                // Expansión ausente: umbral por defecto
+                // Expansion device absent: use default threshold
                 lines.Add($"{expectedPrefix}{DefaultExpansionThreshold}");
             }
         }
         
-        // Procesar 24 remotos con umbral por defecto
+        // Process 24 remote devices with default threshold
         for (int j = 1; j <= NumRemoteDevices; j++)
         {
             var expectedPrefix = $"{j:X2}01";
@@ -994,7 +994,7 @@ public class FileOperationService : IFileOperationService
             }
             else
             {
-                // Remoto ausente: umbral por defecto
+                // Remote device absent: use default threshold
                 lines.Add($"{expectedPrefix}{DefaultRemoteThreshold}");
             }
         }
@@ -1004,7 +1004,7 @@ public class FileOperationService : IFileOperationService
     }
     
     /// <summary>
-    /// Determina si el archivo usa formato legacy (.cfgr).
+    /// Determines if the file uses legacy format (.cfgr).
     /// </summary>
     private static bool IsLegacyConfigFormat(string filePath)
     {
@@ -1013,16 +1013,16 @@ public class FileOperationService : IFileOperationService
 }
 
 /// <summary>
-/// Resultado interno para operaciones de calibración.
+/// Internal result for calibration operations.
 /// </summary>
 internal record CalibrationCommandResult(bool Success, string? Data, string? ErrorMessage);
 
 /// <summary>
-/// Resultado interno para operaciones de carga de configuración.
+/// Internal result for load configuration operations.
 /// </summary>
 internal record ConfigCommandResult(bool Success, string? Data, string[]? ResponseLines, string? ErrorMessage);
 
 /// <summary>
-/// Resultado interno para operaciones de guardado de configuración.
+/// Internal result for save configuration operations.
 /// </summary>
 internal record SaveConfigResult(bool Success, string? Data, string[]? ResponseLines, string? ErrorMessage);

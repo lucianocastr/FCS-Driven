@@ -3,20 +3,20 @@ using Fiplex.Control.Software.WinForms.Core.Configuration;
 namespace Fiplex.Control.Software.WinForms.Utilities.Extensions;
 
 /// <summary>
-/// Extensiones para aplicar estilos Fiplex a controles WinForms.
+/// Extensions to apply Fiplex styles to WinForms controls.
 /// </summary>
 /// <remarks>
-/// Estas extensiones facilitan la aplicación consistente de la paleta corporativa
-/// Fiplex by Honeywell a los controles de la interfaz de usuario.
+/// These extensions facilitate consistent application of the Fiplex by Honeywell
+/// corporate palette to user interface controls.
 /// </remarks>
 public static class ControlStyleExtensions
 {
     /// <summary>
-    /// Aplica estilo de botón primario Fiplex.
+    /// Applies Fiplex primary button style.
     /// </summary>
-    /// <param name="button">El botón a estilizar.</param>
+    /// <param name="button">The button to style.</param>
     /// <remarks>
-    /// Botón con fondo azul Fiplex (#00589B), texto blanco y efecto hover oscuro.
+    /// Button with Fiplex blue background (#00589B), white text and dark hover effect.
     /// </remarks>
     public static void ApplyPrimaryStyle(this Button button)
     {
@@ -33,11 +33,11 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de botón secundario Fiplex.
+    /// Applies Fiplex secondary button style.
     /// </summary>
-    /// <param name="button">El botón a estilizar.</param>
+    /// <param name="button">The button to style.</param>
     /// <remarks>
-    /// Botón con fondo blanco, texto oscuro y borde suave gris.
+    /// Button with white background, dark text and soft gray border.
     /// </remarks>
     public static void ApplySecondaryStyle(this Button button)
     {
@@ -55,11 +55,11 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de botón outline (primario con borde).
+    /// Applies outline button style (primary with border).
     /// </summary>
-    /// <param name="button">El botón a estilizar.</param>
+    /// <param name="button">The button to style.</param>
     /// <remarks>
-    /// Botón con fondo blanco, texto azul Fiplex y borde azul.
+    /// Button with white background, Fiplex blue text and blue border.
     /// </remarks>
     public static void ApplyOutlineStyle(this Button button)
     {
@@ -77,11 +77,11 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de botón de peligro/error.
+    /// Applies danger/error button style.
     /// </summary>
-    /// <param name="button">El botón a estilizar.</param>
+    /// <param name="button">The button to style.</param>
     /// <remarks>
-    /// Botón con fondo rojo Fiplex (#E2231A), texto blanco.
+    /// Button with Fiplex red background (#E2231A), white text.
     /// </remarks>
     public static void ApplyDangerStyle(this Button button)
     {
@@ -98,9 +98,9 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de LinkLabel Fiplex.
+    /// Applies Fiplex LinkLabel style.
     /// </summary>
-    /// <param name="link">El LinkLabel a estilizar.</param>
+    /// <param name="link">The LinkLabel to style.</param>
     public static void ApplyFiplexStyle(this LinkLabel link)
     {
         link.LinkColor = FiplexTheme.TextLink;
@@ -111,10 +111,10 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica configuración de formulario base Fiplex.
+    /// Applies Fiplex base form configuration.
     /// </summary>
-    /// <param name="form">El formulario a estilizar.</param>
-    /// <param name="isDialog">True si es un diálogo modal.</param>
+    /// <param name="form">The form to style.</param>
+    /// <param name="isDialog">True if it is a modal dialog.</param>
     public static void ApplyFiplexFormStyle(this Form form, bool isDialog = false)
     {
         form.BackColor = FiplexTheme.BackgroundMain;
@@ -131,9 +131,9 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de GroupBox Fiplex.
+    /// Applies Fiplex GroupBox style.
     /// </summary>
-    /// <param name="groupBox">El GroupBox a estilizar.</param>
+    /// <param name="groupBox">The GroupBox to style.</param>
     public static void ApplyFiplexStyle(this GroupBox groupBox)
     {
         groupBox.Font = FiplexTheme.FontBold;
@@ -141,19 +141,19 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de Panel secundario Fiplex.
+    /// Applies Fiplex secondary Panel style.
     /// </summary>
-    /// <param name="panel">El Panel a estilizar.</param>
+    /// <param name="panel">The Panel to style.</param>
     public static void ApplyPanelStyle(this Panel panel)
     {
         panel.BackColor = FiplexTheme.BackgroundPanel;
     }
 
     /// <summary>
-    /// Aplica estilo de Label primario Fiplex.
+    /// Applies Fiplex primary Label style.
     /// </summary>
-    /// <param name="label">El Label a estilizar.</param>
-    /// <param name="isHeading">True si es un encabezado.</param>
+    /// <param name="label">The Label to style.</param>
+    /// <param name="isHeading">True if it is a heading.</param>
     public static void ApplyFiplexStyle(this Label label, bool isHeading = false)
     {
         label.ForeColor = FiplexTheme.TextPrimary;
@@ -161,9 +161,9 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de Label secundario Fiplex.
+    /// Applies Fiplex secondary Label style.
     /// </summary>
-    /// <param name="label">El Label a estilizar.</param>
+    /// <param name="label">The Label to style.</param>
     public static void ApplySecondaryStyle(this Label label)
     {
         label.ForeColor = FiplexTheme.TextSecondary;
@@ -171,9 +171,9 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de TextBox Fiplex.
+    /// Applies Fiplex TextBox style.
     /// </summary>
-    /// <param name="textBox">El TextBox a estilizar.</param>
+    /// <param name="textBox">The TextBox to style.</param>
     public static void ApplyFiplexStyle(this TextBox textBox)
     {
         textBox.BorderStyle = BorderStyle.FixedSingle;
@@ -182,9 +182,9 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de CheckBox Fiplex.
+    /// Applies Fiplex CheckBox style.
     /// </summary>
-    /// <param name="checkBox">El CheckBox a estilizar.</param>
+    /// <param name="checkBox">The CheckBox to style.</param>
     public static void ApplyFiplexStyle(this CheckBox checkBox)
     {
         checkBox.Font = FiplexTheme.FontRegular;
@@ -192,9 +192,9 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de título principal Fiplex.
+    /// Applies Fiplex main title style.
     /// </summary>
-    /// <param name="label">El Label a estilizar como título.</param>
+    /// <param name="label">The Label to style as title.</param>
     public static void ApplyTitleStyle(this Label label)
     {
         label.Font = FiplexTheme.FontTitle;
@@ -202,9 +202,9 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de estado de éxito.
+    /// Applies success state style.
     /// </summary>
-    /// <param name="label">El Label a estilizar.</param>
+    /// <param name="label">The Label to style.</param>
     public static void ApplySuccessStyle(this Label label)
     {
         label.ForeColor = FiplexTheme.StateSuccess;
@@ -212,9 +212,9 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de estado de error.
+    /// Applies error state style.
     /// </summary>
-    /// <param name="label">El Label a estilizar.</param>
+    /// <param name="label">The Label to style.</param>
     public static void ApplyErrorStyle(this Label label)
     {
         label.ForeColor = FiplexTheme.StateError;
@@ -222,9 +222,9 @@ public static class ControlStyleExtensions
     }
 
     /// <summary>
-    /// Aplica estilo de estado de advertencia.
+    /// Applies warning state style.
     /// </summary>
-    /// <param name="label">El Label a estilizar.</param>
+    /// <param name="label">The Label to style.</param>
     public static void ApplyWarningStyle(this Label label)
     {
         label.ForeColor = FiplexTheme.StateWarning;

@@ -5,9 +5,9 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Security;
 
 /// <summary>
-/// Implementación del servicio de usuarios privilegiados.
+/// Privileged user service implementation.
 /// 
-/// Whitelist original (30+ usuarios):
+/// Original whitelist (30+ users):
 /// validUser = (usr = "H469432") Or (usr = "H469421") Or (usr = "H469433") Or ...
 /// </summary>
 public class PrivilegedUserService : IPrivilegedUserService
@@ -16,9 +16,9 @@ public class PrivilegedUserService : IPrivilegedUserService
     private readonly IConfiguration _configuration;
     
     /// <summary>
-    /// Whitelist de usuarios privilegiados.
-    /// Originalmente hardcodeada en General.vb.
-    /// Puede ser sobreescrita desde configuración.
+    /// Privileged user whitelist.
+    /// Originally hardcoded in General.vb.
+    /// Can be overridden from configuration.
     /// </summary>
     private static readonly HashSet<string> DefaultAllowedUsers = new(StringComparer.OrdinalIgnoreCase)
     {
@@ -44,7 +44,7 @@ public class PrivilegedUserService : IPrivilegedUserService
         _logger = logger;
         _configuration = configuration;
         
-        // Intentar cargar usuarios desde configuración
+        // Try to load users from configuration
         var configuredUsers = _configuration
             .GetSection("Security:PrivilegedUsers")
             .Get<string[]>();
@@ -52,7 +52,7 @@ public class PrivilegedUserService : IPrivilegedUserService
         if (configuredUsers != null && configuredUsers.Length > 0)
         {
             _allowedUsers = new HashSet<string>(configuredUsers, StringComparer.OrdinalIgnoreCase);
-            _logger.LogInformation("Cargados {Count} usuarios privilegiados desde configuración", 
+            _logger.LogInformation("Loaded {Count} privileged users from configuration", 
                 _allowedUsers.Count);
         }
         else
@@ -71,9 +71,9 @@ public class PrivilegedUserService : IPrivilegedUserService
             var currentUser = Environment.UserName;
             var isInWhitelist = _allowedUsers.Contains(currentUser);
             
-            _logger.LogDebug("Usuario '{User}' {Status} en whitelist", 
+            _logger.LogDebug("User '{User}' {Status} in whitelist", 
                 currentUser, 
-                isInWhitelist ? "está" : "NO está");
+                isInWhitelist ? "is" : "is NOT");
             
             return isInWhitelist;
         }
@@ -84,51 +84,51 @@ public class PrivilegedUserService : IPrivilegedUserService
     {
         var currentUser = Environment.UserName;
         
-        // PASO 1: Verificar whitelist
+        // STEP 1: Verify whitelist
         if (!_allowedUsers.Contains(currentUser))
         {
-            _logger.LogDebug("Usuario '{User}' no está en whitelist de privilegiados", currentUser);
+            _logger.LogDebug("User '{User}' is not in privileged whitelist", currentUser);
             return (false, null);
         }
         
-        _logger.LogDebug("Usuario '{User}' está en whitelist, verificando pass.bin", currentUser);
+        _logger.LogDebug("User '{User}' is in whitelist, verifying pass.bin", currentUser);
         
-        // PASO 2: Verificar existencia de pass.bin
+        // STEP 2: Verify pass.bin exists
         if (!File.Exists(PasswordFilePath))
         {
-            _logger.LogDebug("Archivo pass.bin no encontrado en: {Path}", PasswordFilePath);
+            _logger.LogDebug("pass.bin file not found at: {Path}", PasswordFilePath);
             return (false, null);
         }
         
-        // PASO 3: Leer password del archivo
+        // STEP 3: Read password from file
         try
         {
-            // Leer password del archivo
+            // Read password from file
             var password = await File.ReadAllTextAsync(PasswordFilePath);
             password = password.Trim();
             
             if (string.IsNullOrEmpty(password))
             {
-                _logger.LogWarning("Archivo pass.bin vacío");
+                _logger.LogWarning("File pass.bin is empty");
                 return (false, null);
             }
             
-            _logger.LogInformation("Usuario privilegiado validado: {User}", currentUser);
+            _logger.LogInformation("Privileged user validated: {User}", currentUser);
             return (true, password);
         }
         catch (UnauthorizedAccessException ex)
         {
-            _logger.LogWarning(ex, "Sin permisos para leer pass.bin");
+            _logger.LogWarning(ex, "No permission to read pass.bin");
             return (false, null);
         }
         catch (IOException ex)
         {
-            _logger.LogWarning(ex, "Error de I/O leyendo pass.bin");
+            _logger.LogWarning(ex, "I/O error reading pass.bin");
             return (false, null);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inesperado leyendo pass.bin");
+            _logger.LogError(ex, "Unexpected error reading pass.bin");
             return (false, null);
         }
     }

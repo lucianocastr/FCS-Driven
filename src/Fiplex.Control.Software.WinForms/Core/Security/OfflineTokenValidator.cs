@@ -9,8 +9,8 @@ using Microsoft.IdentityModel.Tokens;
 namespace Fiplex.Control.Software.WinForms.Core.Security;
 
 /// <summary>
-/// Validador de tokens offline JWT.
-/// Valida expiración, firma ECDSA e issuer de tokens JWT.
+/// Offline JWT token validator.
+/// Validates expiration, ECDSA signature and issuer of JWT tokens.
 /// </summary>
 public class OfflineTokenValidator : IOfflineTokenValidator
 {
@@ -35,57 +35,57 @@ public class OfflineTokenValidator : IOfflineTokenValidator
     {
         try
         {
-            // Cargar token desde almacenamiento
+            // Load token from storage
             var tokenFromStorage = await _tokenManager.LoadOfflineTokenAsync(filename, ct);
             
             if (string.IsNullOrEmpty(tokenFromStorage))
             {
-                _logger.LogDebug("Token no encontrado: {Filename}", filename);
+                _logger.LogDebug("Token not found: {Filename}", filename);
                 return false;
             }
 
-            // Cargar token offline para validación de firma (si es diferente)
+            // Load offline token for signature validation (if different)
             var tokenForSignatureValidation = filename == OfflineTokenManager.OFFLINE_TOKEN_NAME
                 ? tokenFromStorage
                 : await _tokenManager.LoadOfflineTokenAsync(OfflineTokenManager.OFFLINE_TOKEN_NAME, ct);
 
-            // Verificar expiración
+            // Verify expiration
             if (!IsTokenNotExpired(tokenFromStorage))
             {
-                _logger.LogWarning("Token expirado: {Filename}", filename);
+                _logger.LogWarning("Token expired: {Filename}", filename);
                 return false;
             }
 
-            // Validar firma (solo si tenemos el token offline)
+            // Validate signature (only if we have the offline token)
             if (!string.IsNullOrEmpty(tokenForSignatureValidation))
             {
                 var signatureValid = await ValidateSignatureAsync(tokenForSignatureValidation, ct);
                 
                 if (!signatureValid)
                 {
-                    _logger.LogWarning("Firma de token inválida");
-                    // Por compatibilidad, permitir continuar si no hay clave pública
-                    // pero log como warning
+                    _logger.LogWarning("Invalid token signature");
+                    // For compatibility, allow to continue if no public key
+                    // but log as warning
                 }
             }
 
-            _logger.LogInformation("Token válido: {Filename}", filename);
+            _logger.LogInformation("Token valid: {Filename}", filename);
             return true;
         }
         catch (Exception ex)
         {
             if (ex.Message.Contains("Could not find file"))
             {
-                _logger.LogDebug("Archivo de token no encontrado: {Filename}", filename);
+                _logger.LogDebug("Token file not found: {Filename}", filename);
                 return false;
             }
 
-            _logger.LogError(ex, "Error validando token: {Filename}", filename);
+            _logger.LogError(ex, "Error validating token: {Filename}", filename);
             
             if (filename == OfflineTokenManager.OFFLINE_TOKEN_NAME)
             {
-                // No mostrar MessageBox aquí, dejar que el llamador lo maneje
-                _logger.LogWarning("Validación de token de autenticación fallida");
+                // Don't show MessageBox here, let the caller handle it
+                _logger.LogWarning("Authentication token validation failed");
             }
 
             return false;
@@ -105,30 +105,30 @@ public class OfflineTokenValidator : IOfflineTokenValidator
             if (jwtToken == null)
                 return false;
 
-            // Obtener timestamp actual en epoch seconds
+            // Get current timestamp in epoch seconds
             var currentEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             
-            // Verificar expiración (token.Payload.Exp > currentDateEpoc)
+            // Verify expiration (token.Payload.Exp > currentDateEpoc)
             var expiration = jwtToken.Payload.Expiration;
             
             if (expiration == null)
             {
-                _logger.LogWarning("Token sin claim de expiración");
-                return true; // Sin expiración, asumir válido
+                _logger.LogWarning("Token without expiration claim");
+                return true; // No expiration, assume valid
             }
 
             var isValid = expiration > currentEpoch;
             
             if (!isValid)
             {
-                _logger.LogDebug("Token expirado. Exp: {Exp}, Current: {Current}", expiration, currentEpoch);
+                _logger.LogDebug("Token expired. Exp: {Exp}, Current: {Current}", expiration, currentEpoch);
             }
 
             return isValid;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error verificando expiración de token");
+            _logger.LogError(ex, "Error checking token expiration");
             return false;
         }
     }
@@ -138,20 +138,20 @@ public class OfflineTokenValidator : IOfflineTokenValidator
     {
         try
         {
-            // Cargar clave pública
+            // Load public key
             var publicKeyString = await _tokenManager.LoadOfflineTokenAsync(
                 OfflineTokenManager.PUBLIC_KEY_NAME, ct);
 
             if (string.IsNullOrEmpty(publicKeyString))
             {
-                _logger.LogDebug("Clave pública no disponible, omitiendo validación de firma");
-                return true; // Sin clave pública, no podemos validar firma
+                _logger.LogDebug("Public key not available, skipping signature validation");
+                return true; // No public key, cannot validate signature
             }
 
-            // Convertir clave pública a formato ECDSA
+            // Convert public key to ECDSA format
             var publicKeyBytes = Convert.FromBase64String(publicKeyString);
             
-            // Construir blob de clave ECDSA P-256
+            // Build ECDSA P-256 key blob
             // keyType = 0x45, 0x43, 0x53, 0x31 (ECS1 = ECDSA P-256 public)
             // keyLength = 0x20, 0x00, 0x00, 0x00 (32 bytes)
             byte[] keyType = [0x45, 0x43, 0x53, 0x31];
@@ -175,33 +175,33 @@ public class OfflineTokenValidator : IOfflineTokenValidator
 
             _tokenHandler.ValidateToken(token, validationParameters, out _);
             
-            _logger.LogInformation("Firma de token validada exitosamente");
+            _logger.LogInformation("Token signature validated successfully");
             return true;
         }
         catch (SecurityTokenValidationException ex)
         {
-            _logger.LogWarning(ex, "Validación de firma de token fallida");
+            _logger.LogWarning(ex, "Token signature validation failed");
             return false;
         }
         catch (CryptographicException ex)
         {
-            _logger.LogWarning(ex, "Error criptográfico validando firma");
+            _logger.LogWarning(ex, "Cryptographic error validating signature");
             return false;
         }
         catch (FormatException ex)
         {
-            _logger.LogWarning(ex, "Formato de clave pública inválido");
+            _logger.LogWarning(ex, "Invalid public key format");
             return false;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error inesperado validando firma de token");
+            _logger.LogError(ex, "Unexpected error validating token signature");
             return false;
         }
     }
 
     /// <summary>
-    /// Opciones de deserialización JSON case-insensitive.
+    /// Case-insensitive JSON deserialization options.
     /// </summary>
     private static readonly System.Text.Json.JsonSerializerOptions JsonOptions = new()
     {
@@ -209,7 +209,7 @@ public class OfflineTokenValidator : IOfflineTokenValidator
     };
     
     /// <summary>
-    /// Extrae claims del token JWT.
+    /// Extracts claims from JWT token.
     /// </summary>
     public TokenClaims? ExtractClaims(string token)
     {
@@ -227,7 +227,7 @@ public class OfflineTokenValidator : IOfflineTokenValidator
             _logger.LogDebug("Available claims in JWT token:");
             foreach (var claim in jwtToken.Claims)
             {
-                // Truncar valores largos para el log
+                // Truncate long values for the log
                 var value = claim.Value.Length > 100 ? claim.Value[..100] + "..." : claim.Value;
                 _logger.LogDebug("  Claim: '{Type}' = '{Value}'", claim.Type, value);
             }
@@ -249,7 +249,7 @@ public class OfflineTokenValidator : IOfflineTokenValidator
                 {
                     claims.EsdBrands = System.Text.Json.JsonSerializer.Deserialize<List<EsdBrand>>(esdBrandsJson, JsonOptions);
                 }
-                catch { /* Ignorar errores de deserialización */ }
+                catch { /* Ignore deserialization errors */ }
             }
 
             var permissionsJson = GetClaimValue(jwtToken, "Permissions");
@@ -259,7 +259,7 @@ public class OfflineTokenValidator : IOfflineTokenValidator
                 {
                     claims.Permissions = System.Text.Json.JsonSerializer.Deserialize<List<Permission>>(permissionsJson, JsonOptions);
                 }
-                catch { /* Ignorar errores de deserialización */ }
+                catch { /* Ignore deserialization errors */ }
             }
 
             var usersCountJson = GetClaimValue(jwtToken, "UsersCount");
@@ -269,7 +269,7 @@ public class OfflineTokenValidator : IOfflineTokenValidator
                 {
                     claims.UsersCount = System.Text.Json.JsonSerializer.Deserialize<List<UsersCountInfo>>(usersCountJson, JsonOptions);
                 }
-                catch { /* Ignorar errores de deserialización */ }
+                catch { /* Ignore deserialization errors */ }
             }
 
             var trainingExpiryJson = GetClaimValue(jwtToken, "UsersTrainingExpiryDate");
@@ -294,21 +294,21 @@ public class OfflineTokenValidator : IOfflineTokenValidator
                 {
                     claims.LicenseExpiryDetails = System.Text.Json.JsonSerializer.Deserialize<List<LicenseExpiryDetailsInfo>>(licenseExpiryJson, JsonOptions);
                 }
-                catch { /* Ignorar errores de deserialización */ }
+                catch { /* Ignore deserialization errors */ }
             }
 
-            _logger.LogDebug("Claims extraídos del token para usuario: {UniqueName}", claims.UniqueName);
+            _logger.LogDebug("Claims extracted from token for user: {UniqueName}", claims.UniqueName);
             return claims;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error extrayendo claims del token");
+            _logger.LogError(ex, "Error extracting claims from token");
             return null;
         }
     }
 
     /// <summary>
-    /// Obtiene el valor de un claim específico.
+    /// Gets the value of a specific claim.
     /// </summary>
     private static string? GetClaimValue(JwtSecurityToken token, string claimType)
     {
@@ -316,15 +316,15 @@ public class OfflineTokenValidator : IOfflineTokenValidator
     }
 
     /// <summary>
-    /// Elimina comillas dobles al inicio y final de un string.
-    /// Algunos claims vienen con comillas embebidas como: "\"Honeywell Internal US\""
+    /// Removes double quotes from start and end of a string.
+    /// Some claims come with embedded quotes like: "\"Honeywell Internal US\""
     /// </summary>
     private static string? TrimQuotes(string? value)
     {
         if (string.IsNullOrEmpty(value))
             return value;
         
-        // Eliminar comillas dobles al inicio y final
+        // Remove double quotes from start and end
         return value.Trim('"');
     }
 
@@ -335,16 +335,16 @@ public class OfflineTokenValidator : IOfflineTokenValidator
         {
             if (string.IsNullOrEmpty(token))
             {
-                return OfflineTokenValidationResult.Failure("Token vacío o nulo");
+                return OfflineTokenValidationResult.Failure("Empty or null token");
             }
 
-            // Verificar expiración primero
+            // Verify expiration first
             if (!IsTokenNotExpired(token))
             {
-                return OfflineTokenValidationResult.Failure("Token expirado");
+                return OfflineTokenValidationResult.Failure("Token expired");
             }
 
-            // Validar firma si hay clave pública disponible
+            // Validate signature if public key is available
             if (!string.IsNullOrEmpty(publicKey))
             {
                 try
@@ -375,36 +375,36 @@ public class OfflineTokenValidator : IOfflineTokenValidator
                 }
                 catch (SecurityTokenValidationException ex)
                 {
-                    _logger.LogWarning(ex, "Validación de firma fallida");
-                    return OfflineTokenValidationResult.Failure($"Firma inválida: {ex.Message}");
+                    _logger.LogWarning(ex, "Signature validation failed");
+                    return OfflineTokenValidationResult.Failure($"Invalid signature: {ex.Message}");
                 }
                 catch (CryptographicException ex)
                 {
-                    _logger.LogWarning(ex, "Error criptográfico");
-                    // Continuar sin validación de firma si hay error de formato
+                    _logger.LogWarning(ex, "Cryptographic error");
+                    // Continue without signature validation if format error
                 }
                 catch (FormatException ex)
                 {
-                    _logger.LogWarning(ex, "Formato de clave inválido");
-                    // Continuar sin validación de firma si hay error de formato
+                    _logger.LogWarning(ex, "Invalid key format");
+                    // Continue without signature validation if format error
                 }
             }
 
-            // Extraer claims
+            // Extract claims
             var claims = ExtractClaims(token);
             
             if (claims == null)
             {
-                return OfflineTokenValidationResult.Failure("No se pudieron extraer claims del token");
+                return OfflineTokenValidationResult.Failure("Could not extract claims from token");
             }
 
-            _logger.LogInformation("Token validado exitosamente para: {UserName}", claims.UniqueName);
+            _logger.LogInformation("Token validated successfully for: {UserName}", claims.UniqueName);
             return OfflineTokenValidationResult.Success(claims);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error validando token");
-            return OfflineTokenValidationResult.Failure($"Error de validación: {ex.Message}");
+            _logger.LogError(ex, "Error validating token");
+            return OfflineTokenValidationResult.Failure($"Validation error: {ex.Message}");
         }
     }
 }

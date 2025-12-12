@@ -37,22 +37,22 @@ namespace Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 public interface ISerialCommandPipeline : IDisposable
 {
     /// <summary>
-    /// Indica si el parser está esperando LF (fin de trama).
+    /// Indicates whether the parser is waiting for LF (end of frame).
     /// </summary>
     bool IsWaitingLF { get; }
     
     /// <summary>
-    /// Indica si el pipeline está esperando respuesta del dispositivo.
+    /// Indicates whether the pipeline is waiting for device response.
     /// </summary>
     bool IsWaitingAnswer { get; }
     
     /// <summary>
-    /// Indica si hay una respuesta pendiente de procesar.
+    /// Indicates whether there is a pending response to process.
     /// </summary>
     bool IsPendingAnswer { get; }
     
     /// <summary>
-    /// Longitud actual del buffer de recepción.
+    /// Current length of the receive buffer.
     /// </summary>
     int BufferLength { get; }
 
@@ -91,7 +91,7 @@ public interface ISerialCommandPipeline : IDisposable
     void ClearStoredPassword();
     
     /// <summary>
-    /// Cancela todos los comandos pendientes en la cola.
+    /// Cancels all pending commands in the queue.
     /// </summary>
     void CancelPendingCommands();
 

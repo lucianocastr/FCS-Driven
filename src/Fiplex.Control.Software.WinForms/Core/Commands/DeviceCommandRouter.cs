@@ -12,8 +12,8 @@ using Fiplex.Control.Software.WinForms.Core.Http;
 namespace Fiplex.Control.Software.WinForms.Core.Commands;
 
 /// <summary>
-/// Implementación del enrutador de comandos HTTP a serial.
-/// Mantiene caches de configuración y maneja encoding/decoding hexadecimal.
+/// Implementation of the HTTP to serial command router.
+/// Maintains configuration caches and handles hexadecimal encoding/decoding.
 /// </summary>
 public class DeviceCommandRouter : IDeviceCommandRouter
 {
@@ -25,31 +25,31 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     private readonly ResponseFormatter _responseFormatter;
     private readonly HttpCommandLogger? _commandLogger;
     
-    // Caches para mapeo de comandos
+    // Caches for command mapping
     private readonly Dictionary<string, GetCommand> _getCommandCache = new(StringComparer.OrdinalIgnoreCase);
     private readonly Dictionary<string, PostCommand> _postCommandCache = new(StringComparer.OrdinalIgnoreCase);
 
-    // ETAPA 4: Circuit breaker state
+    // STAGE 4: Circuit breaker state
     private int _consecutiveFailures = 0;
     private DateTime _lastFailureTime = DateTime.MinValue;
     private readonly object _circuitLock = new();
     
-    // ETAPA 7: Factory Parameters
+    // STAGE 7: Factory Parameters
     private FactoryParameters? _currentDeviceParams;
     
-    // NUEVO: Password para reintentos con INVALID CREDENTIALS
+    // NEW: Password for retries with INVALID CREDENTIALS
     private string? _storedPassword;
     
-    // NUEVO: Cache de última respuesta para previousans/dpreviousans
-    // - previousans: retorna la última respuesta sin modificar
-    // - dpreviousans: retorna la última respuesta decodificada de hex
+    // NEW: Cache of last response for previousans/dpreviousans
+    // - previousans: returns the last response without modification
+    // - dpreviousans: returns the last response decoded from hex
     private string _previousAnswer = string.Empty;
     private string _decodedPreviousAnswer = string.Empty;
     private readonly object _previousAnswerLock = new();
 
     /// <summary>
-    /// Constructor con inyección de dependencias
-    /// ETAPA 8: CommandMetrics y DeviceResponseProcessor opcionales
+    /// Constructor with dependency injection.
+    /// STAGE 8: CommandMetrics and DeviceResponseProcessor are optional.
     /// </summary>
     public DeviceCommandRouter(
         ISerialCommandPipeline serialPipeline,
@@ -64,14 +64,14 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         _factoryParams = factoryParams ?? throw new ArgumentNullException(nameof(factoryParams));
         _responseFormatter = responseFormatter ?? throw new ArgumentNullException(nameof(responseFormatter));
-        _responseProcessor = responseProcessor; // Opcional - para casos especiales por dispositivo
-        _metrics = metrics; // Opcional
-        _commandLogger = commandLogger; // Opcional - para logging de comandos HTTP
+        _responseProcessor = responseProcessor; // Optional - for device-specific special cases
+        _metrics = metrics; // Optional
+        _commandLogger = commandLogger; // Optional - for HTTP command logging
     }
     
     /// <summary>
-    /// Habilita el logging detallado de comandos HTTP GET.
-    /// Los logs se guardan en %LocalAppData%/Fiplex.Control.Software/HttpCommandLogs/
+    /// Enables detailed HTTP GET command logging.
+    /// Logs are saved to %LocalAppData%/Fiplex.Control.Software/HttpCommandLogs/
     /// </summary>
     public void EnableCommandLogging()
     {
@@ -80,7 +80,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     }
     
     /// <summary>
-    /// Deshabilita el logging de comandos HTTP GET.
+    /// Disables HTTP GET command logging.
     /// </summary>
     public void DisableCommandLogging()
     {
@@ -89,26 +89,26 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     }
     
     /// <summary>
-    /// Indica si el logging de comandos está habilitado.
+    /// Indicates whether command logging is enabled.
     /// </summary>
     public bool IsCommandLoggingEnabled => _commandLogger?.IsEnabled ?? false;
     
     /// <summary>
-    /// Obtiene la ruta del archivo de log actual.
+    /// Gets the current log file path.
     /// </summary>
     public string? GetCommandLogFile() => _commandLogger?.GetCurrentLogFile();
 
     /// <summary>
-    /// Establece el password para reintentos con INVALID CREDENTIALS.
+    /// Sets the password for retries with INVALID CREDENTIALS.
     /// </summary>
     public void SetStoredPassword(string? password)
     {
         _storedPassword = password;
-        _logger.LogDebug("Password almacenado en router para reintentos INVALID CREDENTIALS");
+        _logger.LogDebug("Password stored in router for INVALID CREDENTIALS retries");
     }
     
     /// <summary>
-    /// Limpia el password almacenado.
+    /// Clears the stored password.
     /// </summary>
     public void ClearStoredPassword()
     {
@@ -116,36 +116,36 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     }
     
     /// <summary>
-    /// Resetea el estado del router al desconectar.
+    /// Resets the router state on disconnect.
     /// </summary>
     public void Reset()
     {
-        _logger.LogDebug("Reseteando DeviceCommandRouter");
+        _logger.LogDebug("Resetting DeviceCommandRouter");
         
-        // Limpiar caches de comandos
+        // Clear command caches
         _getCommandCache.Clear();
         _postCommandCache.Clear();
         
-        // Limpiar password
+        // Clear password
         _storedPassword = null;
         
-        // Resetear parámetros de dispositivo
+        // Reset device parameters
         _currentDeviceParams = null;
         
-        // Resetear procesador de respuestas (SCA, etc.)
+        // Reset response processor (SCA, etc.)
         _responseProcessor?.Reset();
         
-        // Resetear circuit breaker
+        // Reset circuit breaker
         _consecutiveFailures = 0;
         
-        // Limpiar cache de respuestas anteriores
+        // Clear previous responses cache
         lock (_previousAnswerLock)
         {
             _previousAnswer = string.Empty;
             _decodedPreviousAnswer = string.Empty;
         }
         
-        _logger.LogInformation("DeviceCommandRouter reseteado");
+        _logger.LogInformation("DeviceCommandRouter reset");
     }
 
     /// <inheritdoc/>
@@ -156,25 +156,25 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             throw new ArgumentNullException(nameof(config));
         }
 
-        _logger.LogInformation("Cargando configuraci�n de dispositivo en router");
+        _logger.LogInformation("Loading device configuration in router");
 
-        // Limpiar caches
+        // Clear caches
         _getCommandCache.Clear();
         _postCommandCache.Clear();
 
-        // Cargar comandos GET
+        // Load GET commands
         foreach (var cmd in config.GetCommands)
         {
             if (!string.IsNullOrEmpty(cmd.Page))
             {
                 _getCommandCache[cmd.Page] = cmd;
-                var lengths = cmd.ExpectedLengths?.Length > 0 ? string.Join(", ", cmd.ExpectedLengths) : "(vacío)";
-                _logger.LogDebug("GET command cacheado: {Page} -> {Command} [ExpectedLengths: {Lengths}]", 
+                var lengths = cmd.ExpectedLengths?.Length > 0 ? string.Join(", ", cmd.ExpectedLengths) : "(empty)";
+                _logger.LogDebug("GET command cached: {Page} -> {Command} [ExpectedLengths: {Lengths}]", 
                     cmd.Page, cmd.Command, lengths);
             }
         }
 
-        // Cargar comandos POST
+        // Load POST commands
         foreach (var cmd in config.PostCommands)
         {
             if (!string.IsNullOrEmpty(cmd.Page))
@@ -185,33 +185,33 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         }
 
         _logger.LogInformation(
-            "Configuraci�n cargada: {GetCount} GET commands, {PostCount} POST commands",
+            "Configuration loaded: {GetCount} GET commands, {PostCount} POST commands",
             _getCommandCache.Count,
             _postCommandCache.Count);
     }
 
     /// <summary>
-    /// Configura parámetros del dispositivo actual para decisiones de enrutamiento.
-    /// ETAPA 7: Debe llamarse después de LoadConfiguration()
+    /// Configures current device parameters for routing decisions.
+    /// STAGE 7: Must be called after LoadConfiguration().
     /// </summary>
     public async Task ConfigureDeviceAsync(string deviceType, double deviceVersion, CancellationToken ct = default)
     {
         _currentDeviceParams = await _factoryParams.GetFactoryParametersAsync(deviceType, deviceVersion, ct);
         
-        // Configurar procesador de respuestas para casos especiales por dispositivo
+        // Configure response processor for device-specific special cases
         _responseProcessor?.ConfigureForDevice(deviceType, deviceVersion);
         
         _logger.LogInformation("Device configured: {Type} v{Version}", deviceType, deviceVersion);
     }
 
     /// <summary>
-    /// Procesa comando multipart O1+U1 para dispositivos 5dm.
-    /// Concatena respuestas con separador \t\t\t (triple tab).
-    /// ETAPA 2: Comando multipart
+    /// Processes multipart O1+U1 command for 5dm devices.
+    /// Concatenates responses with \t\t\t (triple tab) separator.
+    /// STAGE 2: Multipart command.
     /// </summary>
     private async Task<string> ProcessMultipartCommandAsync(CancellationToken ct)
     {
-        _logger.LogInformation("Procesando comando multipart O1+U1");
+        _logger.LogInformation("Processing multipart O1+U1 command");
 
         try
         {
@@ -219,16 +219,16 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             // wsck_DataArrival: U1 → U10002 + U10305 + U10608
             if (Is5dmDevice())
             {
-                _logger.LogInformation("Dispositivo 5dm detectado - usando fragmentación");
+                _logger.LogInformation("5dm device detected - using fragmentation");
                 
-                // Ejecutar O1 fragmentado
+                // Execute fragmented O1
                 o1Response = await ProcessFragmentedCommandAsync("O1", ct);
                 if (o1Response.StartsWith("ERROR:"))
                 {
                     return o1Response;
                 }
                 
-                // Ejecutar U1 fragmentado
+                // Execute fragmented U1
                 u1Response = await ProcessFragmentedCommandAsync("U1", ct);
                 if (u1Response.StartsWith("ERROR:"))
                 {
@@ -237,7 +237,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             }
             else
             {
-                // 1. Ejecutar comando O1 simple
+                // 1. Execute simple O1 command
                 var o1Command = new SerialCommand
                 {
                     Payload = "O1",
@@ -252,12 +252,12 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 var o1Result = await _serialPipeline.EnqueueCommandAsync(o1Command);
                 if (!o1Result.Success)
                 {
-                    _logger.LogError("Comando O1 falló: {Status}", o1Result.Status);
+                    _logger.LogError("O1 command failed: {Status}", o1Result.Status);
                     return $"ERROR: O1 failed - {o1Result.Status}";
                 }
                 o1Response = o1Result.Data;
 
-                // 2. Ejecutar comando U1 simple
+                // 2. Execute simple U1 command
                 var u1Command = new SerialCommand
                 {
                     Payload = "U1",
@@ -272,30 +272,30 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 var u1Result = await _serialPipeline.EnqueueCommandAsync(u1Command);
                 if (!u1Result.Success)
                 {
-                    _logger.LogError("Comando U1 falló: {Status}", u1Result.Status);
+                    _logger.LogError("U1 command failed: {Status}", u1Result.Status);
                     return $"ERROR: U1 failed - {u1Result.Status}";
                 }
                 u1Response = u1Result.Data;
             }
 
-            // 3. Concatenar con triple tab
+            // 3. Concatenate with triple tab
             var combinedResponse = $"{o1Response}\t\t\t{u1Response}";
 
-            _logger.LogInformation("Multipart exitoso: O1={O1Len} chars, U1={U1Len} chars",
+            _logger.LogInformation("Multipart successful: O1={O1Len} chars, U1={U1Len} chars",
                 o1Response.Length, u1Response.Length);
 
             return combinedResponse;
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error en comando multipart");
+            _logger.LogError(ex, "Error in multipart command");
             return $"ERROR: {ex.Message}";
         }
     }
 
     /// <summary>
-    /// Determina si el dispositivo actual requiere comando multipart.
-    /// ETAPA 7: Evalúa flag RequiresMultipartCommand de FactoryParameters
+    /// Determines if the current device requires multipart command.
+    /// STAGE 7: Evaluates RequiresMultipartCommand flag from FactoryParameters.
     /// </summary>
     private bool RequiresMultipartCommand()
     {
@@ -303,7 +303,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     }
     
     /// <summary>
-    /// Determina si el dispositivo actual es un 5dm que requiere fragmentación.
+    /// Determines if the current device is a 5dm that requires fragmentation.
     /// </summary>
     private bool Is5dmDevice()
     {
@@ -311,24 +311,24 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     }
 
     /// <summary>
-    /// Procesa comando fragmentado para dispositivos 5dm.
+    /// Processes fragmented command for 5dm devices.
     ///   U1 → U10002 + U10305 + U10608
     ///   O1 → O10002 + O10305 + O10608
     /// </summary>
-    /// <param name="baseCommand">Comando base (U1, O1)</param>
-    /// <param name="ct">Token de cancelación</param>
-    /// <returns>Respuesta concatenada con triple-tab</returns>
+    /// <param name="baseCommand">Base command (U1, O1).</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>Concatenated response with triple-tab.</returns>
     private async Task<string> ProcessFragmentedCommandAsync(string baseCommand, CancellationToken ct)
     {
         var fragments = new[] { "0002", "0305", "0608" };
         var responses = new List<string>();
         
-        _logger.LogInformation("Procesando comando fragmentado {Command} para 5dm", baseCommand);
+        _logger.LogInformation("Processing fragmented command {Command} for 5dm", baseCommand);
         
         foreach (var fragment in fragments)
         {
             var fragmentedCmd = $"{baseCommand}{fragment}";
-            _logger.LogDebug("Enviando fragmento: {Command}", fragmentedCmd);
+            _logger.LogDebug("Sending fragment: {Command}", fragmentedCmd);
             
             var command = new SerialCommand
             {
@@ -345,27 +345,27 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             
             if (!result.Success)
             {
-                _logger.LogError("Fragmento {Command} falló: {Status}", fragmentedCmd, result.Status);
+                _logger.LogError("Fragment {Command} failed: {Status}", fragmentedCmd, result.Status);
                 return $"ERROR: Fragment {fragmentedCmd} failed - {result.Status}";
             }
             
             responses.Add(result.Data);
-            _logger.LogDebug("Fragmento {Command} exitoso: {Length} chars", fragmentedCmd, result.Data.Length);
+            _logger.LogDebug("Fragment {Command} successful: {Length} chars", fragmentedCmd, result.Data.Length);
         }
         
-        // Concatenar con triple-tab 
+        // Concatenate with triple-tab
         var combined = string.Join("\t\t\t", responses);
         
-        _logger.LogInformation("Comando fragmentado {Command} completado: {TotalLength} chars total",
+        _logger.LogInformation("Fragmented command {Command} completed: {TotalLength} chars total",
             baseCommand, combined.Length);
         
         return combined;
     }
 
     /// <summary>
-    /// Evalúa si el circuit breaker debe bloquear comandos.
-    /// Backoff exponencial: 2^(failures-5) segundos, m�ximo 30s.
-    /// ETAPA 4: Protecci�n contra saturaci�n
+    /// Evaluates whether the circuit breaker should block commands.
+    /// Exponential backoff: 2^(failures-5) seconds, maximum 30s.
+    /// STAGE 4: Saturation protection
     /// </summary>
     private bool ShouldApplyCircuitBreaker()
     {
@@ -380,7 +380,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             if (timeSinceLastFailure < backoffTime)
             {
                 _logger.LogWarning(
-                    "Circuit breaker activo: {Failures} fallos consecutivos, esperando {BackoffMs}ms",
+                    "Circuit breaker active: {Failures} consecutive failures, waiting {BackoffMs}ms",
                     _consecutiveFailures, backoffTime.TotalMilliseconds);
                 return true;
             }
@@ -390,8 +390,8 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     }
 
     /// <summary>
-    /// Registra un fallo de comando, incrementando contador.
-    /// ETAPA 4: Circuit breaker tracking
+    /// Records a command failure, incrementing counter.
+    /// STAGE 4: Circuit breaker tracking.
     /// </summary>
     private void RecordFailure()
     {
@@ -408,8 +408,8 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     }
 
     /// <summary>
-    /// Resetea el contador de fallos tras un �xito.
-    /// ETAPA 4: Circuit breaker recovery
+    /// Resets the failure counter after a success.
+    /// STAGE 4: Circuit breaker recovery
     /// </summary>
     private void RecordSuccess()
     {
@@ -435,19 +435,19 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             return "ERROR: Command name is empty";
         }
 
-        // Normalizar page: Asegurar que empiece con /
+        // Normalize page: Ensure it starts with /
         var normalizedPage = page.StartsWith("/") ? page : $"/{page}";
         
-        // ETAPA 8: Iniciar medici�n de tiempo
+        // STAGE 8: Start time measurement
         var stopwatch = Stopwatch.StartNew();
         int retries = 0;
         string status = "success";
 
-        // ETAPA 2/7: Detectar comando multipart para dispositivos 5dm
+        // STAGE 2/7: Detect multipart command for 5dm devices
         if (normalizedPage.Equals("/multipart", StringComparison.OrdinalIgnoreCase) ||
             (normalizedPage.Equals("/status5dm", StringComparison.OrdinalIgnoreCase) && RequiresMultipartCommand()))
         {
-            _logger.LogInformation("Detectado comando multipart, ejecutando O1+U1");
+            _logger.LogInformation("Multipart command detected, executing O1+U1");
             var multipartResult = await ProcessMultipartCommandAsync(ct);
             
             stopwatch.Stop();
@@ -456,10 +456,10 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             return multipartResult;
         }
 
-        // Buscar comando en cache
+        // Look up command in cache
         if (!_getCommandCache.TryGetValue(normalizedPage, out var getCommand))
         {
-            _logger.LogWarning("Comando no encontrado: {Page}", normalizedPage);
+            _logger.LogWarning("Command not found: {Page}", normalizedPage);
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "not_found", stopwatch.Elapsed.TotalSeconds, 0);
@@ -467,22 +467,22 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             return "ERROR: Command not found";
         }
         
-        // NUEVO: Manejar comandos previousans y dpreviousans
+        // NEW: Handle previousans and dpreviousans commands
         if (getCommand.Command.Equals("previousans", StringComparison.OrdinalIgnoreCase))
         {
-            // Retornar última respuesta sin modificar
+            // Return last response without modification
             string cachedResponse;
             lock (_previousAnswerLock)
             {
                 cachedResponse = _previousAnswer;
             }
             
-            _logger.LogDebug("previousans: Retornando respuesta cacheada ({Length} chars)", cachedResponse.Length);
+            _logger.LogDebug("previousans: Returning cached response ({Length} chars)", cachedResponse.Length);
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "cached", stopwatch.Elapsed.TotalSeconds, 0);
             
-            // Log para análisis comparativo
+            // Log for comparative analysis
             _commandLogger?.LogCommand(new CommandLogEntry
             {
                 Page = normalizedPage,
@@ -504,19 +504,19 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         
         if (getCommand.Command.Equals("dpreviousans", StringComparison.OrdinalIgnoreCase))
         {
-            // Retornar última respuesta decodificada de hex
+            // Return last response decoded from hex
             string cachedResponse;
             lock (_previousAnswerLock)
             {
                 cachedResponse = _decodedPreviousAnswer;
             }
             
-            _logger.LogDebug("dpreviousans: Retornando respuesta decodificada cacheada ({Length} chars)", cachedResponse.Length);
+            _logger.LogDebug("dpreviousans: Returning cached decoded response ({Length} chars)", cachedResponse.Length);
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "cached", stopwatch.Elapsed.TotalSeconds, 0);
             
-            // Log para análisis comparativo
+            // Log for comparative analysis
             _commandLogger?.LogCommand(new CommandLogEntry
             {
                 Page = normalizedPage,
@@ -536,11 +536,11 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             return cachedResponse;
         }
 
-        _logger.LogDebug("Procesando comando GET: {Page}", normalizedPage);
+        _logger.LogDebug("Processing GET command: {Page}", normalizedPage);
 
         try
         {
-            // ETAPA 4: Circuit breaker check
+            // STAGE 4: Circuit breaker check
             if (ShouldApplyCircuitBreaker())
             {
                 stopwatch.Stop();
@@ -549,18 +549,18 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 return "ERROR: Circuit breaker active - too many consecutive failures";
             }
 
-            // 1. Construir comando serial con par�metros interpolados
+            // 1. Build serial command with interpolated parameters
             var serialCommandPayload = BuildSerialCommand(getCommand.Command, queryParams);
             _logger.LogDebug("HTTP ? Serial: {Page} ? {Command}", normalizedPage, serialCommandPayload);
 
-            // 2. Aplicar encoding hex si es requerido
+            // 2. Apply hex encoding if required
             if (getCommand.Encode)
             {
                 serialCommandPayload = EncodeToHex(serialCommandPayload);
-                _logger.LogDebug("Comando codificado a hex: {Command}", serialCommandPayload);
+                _logger.LogDebug("Command encoded to hex: {Command}", serialCommandPayload);
             }
 
-            // 3. Enviar comando con retry logic (3 intentos)
+            // 3. Send command with retry logic (3 intentos)
             string response = string.Empty;
             int maxRetries = 3;
             int attempt = 0;
@@ -571,7 +571,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 try
                 {
                     attempt++;
-                    _logger.LogDebug("Intento {Attempt}/{MaxRetries} enviando comando", attempt, maxRetries);
+                    _logger.LogDebug("Attempt {Attempt}/{MaxRetries} sending command", attempt, maxRetries);
                     
                     var command = new SerialCommand
                     {
@@ -590,15 +590,15 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                     {
                         response = result.Data;
                         
-                        // NUEVO: Manejo de INVALID CREDENTIALS
+                        // NEW: Handle INVALID CREDENTIALS
                         //                       strans = GetUSBAnswer("*0" & passW & Mid(strCommand, 3))
                         if (response.Contains("INVALID", StringComparison.OrdinalIgnoreCase) && 
                             !string.IsNullOrEmpty(_storedPassword))
                         {
-                            _logger.LogWarning("INVALID CREDENTIALS detectado, reintentando con password");
+                            _logger.LogWarning("INVALID CREDENTIALS detected, retrying with password");
                             
-                            // Construir comando con prefijo *0{password}
-                            // Mid(strCommand, 3) = desde carácter 3 = skipea los 2 primeros chars
+                            // Build command with *0{password} prefix
+                            // Mid(strCommand, 3) = from character 3 = skips the first 2 chars
                             var commandSuffix = serialCommandPayload.Length > 2 
                                 ? serialCommandPayload.Substring(2) 
                                 : string.Empty;
@@ -609,7 +609,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                                 currentPayload = EncodeToHex(currentPayload);
                             }
                             
-                            continue; // Reintentar con el nuevo comando
+                            continue; // Retry with the new command
                         }
                         
                         RecordSuccess();
@@ -619,13 +619,13 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                     
                     RecordFailure();
                     status = result.Status.ToString().ToLowerInvariant();
-                    _logger.LogWarning("Intento {Attempt} falló: {Status}", attempt, result.Status);
+                    _logger.LogWarning("Attempt {Attempt} failed: {Status}", attempt, result.Status);
                 }
                 catch (TimeoutException) when (attempt < maxRetries)
                 {
                     RecordFailure();
                     status = "timeout";
-                    _logger.LogWarning("Timeout en intento {Attempt}, reintentando...", attempt);
+                    _logger.LogWarning("Timeout on attempt {Attempt}, retrying...", attempt);
                     await Task.Delay(200, ct);
                 }
             }
@@ -654,7 +654,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 }
             }
 
-            // 4.5 Procesar respuesta con handler específico del dispositivo
+            // 4.5 Process response with device-specific handler
             if (_responseProcessor != null && _responseProcessor.HasActiveHandler)
             {
                 response = _responseProcessor.ProcessResponse(getCommand.Command, response);
@@ -683,11 +683,11 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 
                 if (lengthSpec.StartsWith("splitwith3tabs:", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Número de remotes hardcodeado en base.js: nrOfRemotes = 8
+                    // Number of remotes hardcoded in base.js: nrOfRemotes = 8
                     const int nrOfRemotes = 8;
-                    _logger.LogInformation("Aplicando formato splitwith3tabs para {Page}", normalizedPage);
+                    _logger.LogInformation("Applying splitwith3tabs format for {Page}", normalizedPage);
                     finalResponse = _responseFormatter.FormatResponse(finalResponse, lengthSpec, nrOfRemotes);
-                    _logger.LogDebug("Formato splitwith3tabs aplicado ({Remotes} remotes)", nrOfRemotes);
+                    _logger.LogDebug("splitwith3tabs format applied ({Remotes} remotes)", nrOfRemotes);
                     
                     formatApplied = "splitwith3tabs";
                     frameCount = nrOfRemotes + 1; // master + remotes
@@ -696,13 +696,13 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
             _logger.LogDebug("Serial ? HTTP: {Response}", finalResponse);
             
-            // 7. Almacenar respuesta para previousans/dpreviousans
+            // 7. Store response for previousans/dpreviousans
             lock (_previousAnswerLock)
             {
-                _previousAnswer = response;  // Respuesta raw (sin decodificar)
-                _decodedPreviousAnswer = finalResponse;  // Respuesta procesada/formateada
+                _previousAnswer = response;  // Raw response (not decoded)
+                _decodedPreviousAnswer = finalResponse;  // Processed/formatted response
             }
-            _logger.LogDebug("Respuesta almacenada para previousans ({RawLen} chars) y dpreviousans ({DecodedLen} chars)", 
+            _logger.LogDebug("Response stored for previousans ({RawLen} chars) and dpreviousans ({DecodedLen} chars)", 
                 response.Length, finalResponse.Length);
             
             stopwatch.Stop();
@@ -729,12 +729,12 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Comando cancelado: {Page}", normalizedPage);
+            _logger.LogWarning("Command cancelled: {Page}", normalizedPage);
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "cancelled", stopwatch.Elapsed.TotalSeconds, retries);
             
-            // Log para análisis
+            // Log for analysis
             _commandLogger?.LogCommand(new CommandLogEntry
             {
                 Page = normalizedPage,
@@ -754,12 +754,12 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         catch (Exception ex)
         {
             RecordFailure();
-            _logger.LogError(ex, "Error procesando comando GET: {Page}", normalizedPage);
+            _logger.LogError(ex, "Error processing GET command: {Page}", normalizedPage);
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "exception", stopwatch.Elapsed.TotalSeconds, retries);
             
-            // Log para análisis
+            // Log for analysis
             _commandLogger?.LogCommand(new CommandLogEntry
             {
                 Page = normalizedPage,
@@ -791,18 +791,18 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             return "ERROR: Command name is empty";
         }
 
-        // Normalizar page
+        // Normalize page
         var normalizedPage = page.StartsWith("/") ? page : $"/{page}";
         
-        // ETAPA 8: Iniciar medici�n de tiempo
+        // STAGE 8: Start time measurement
         var stopwatch = Stopwatch.StartNew();
         int retries = 0;
         string status = "success";
 
-        // Buscar comando en cache
+        // Look up command in cache
         if (!_postCommandCache.TryGetValue(normalizedPage, out var postCommand))
         {
-            _logger.LogWarning("Comando POST no encontrado: {Page}", normalizedPage);
+            _logger.LogWarning("POST command not found: {Page}", normalizedPage);
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "not_found", stopwatch.Elapsed.TotalSeconds, 0);
@@ -810,11 +810,11 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             return "ERROR: Command not found";
         }
 
-        _logger.LogDebug("Procesando comando POST: {Page}, Data: {Data}", normalizedPage, body);
+        _logger.LogDebug("Processing POST command: {Page}, Data: {Data}", normalizedPage, body);
 
         try
         {
-            // ETAPA 4: Circuit breaker check
+            // STAGE 4: Circuit breaker check
             if (ShouldApplyCircuitBreaker())
             {
                 stopwatch.Stop();
@@ -823,39 +823,39 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 return "ERROR: Circuit breaker active - too many consecutive failures";
             }
 
-            // NUEVO: Procesar body con decodificación si es requerido
+            // NEW: Process body with decoding if required
             var processedBody = body;
             if (postCommand.DecodeBody && !string.IsNullOrEmpty(body))
             {
                 processedBody = DecodePostBody(body, postCommand.NoDecodeChars);
-                _logger.LogDebug("Body decodificado: {Original} → {Decoded}", 
+                _logger.LogDebug("Decoded body: {Original} → {Decoded}", 
                     body.Length > 50 ? body.Substring(0, 50) + "..." : body,
                     processedBody.Length > 50 ? processedBody.Substring(0, 50) + "..." : processedBody);
             }
 
-            // Construir comando serial con datos del body
+            // Build serial command with body data
             var serialCommandPayload = postCommand.Command;
             if (!string.IsNullOrEmpty(processedBody))
             {
-                // Si el comando tiene placeholder {data}, reemplazar
+                // If the command has a {data} placeholder, replace it
                 if (serialCommandPayload.Contains("{data}"))
                 {
                     serialCommandPayload = serialCommandPayload.Replace("{data}", processedBody);
                 }
                 else
                 {
-                    // Si no hay placeholder, concatenar al final 
+                    // If there is no placeholder, concatenate at the end
                     serialCommandPayload = serialCommandPayload + processedBody;
                 }
             }
 
             _logger.LogDebug("HTTP → Serial: {Page} → {Command}", normalizedPage, serialCommandPayload);
 
-            // Aplicar encoding hex al comando completo si es requerido
+            // Apply hex encoding to the complete command if required
             if (postCommand.Encode)
             {
                 serialCommandPayload = EncodeToHex(serialCommandPayload);
-                _logger.LogDebug("Comando POST codificado a hex: {Command}", serialCommandPayload);
+                _logger.LogDebug("POST command encoded to hex: {Command}", serialCommandPayload);
             }
 
             // Retry logic con manejo de INVALID CREDENTIALS
@@ -888,11 +888,11 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                     {
                         response = result.Data;
                         
-                        // NUEVO: Manejo de INVALID CREDENTIALS en POST
+                        // NEW: Handle INVALID CREDENTIALS in POST
                         if (response.Contains("INVALID", StringComparison.OrdinalIgnoreCase) && 
                             !string.IsNullOrEmpty(_storedPassword))
                         {
-                            _logger.LogWarning("INVALID CREDENTIALS en POST, reintentando con password");
+                            _logger.LogWarning("INVALID CREDENTIALS in POST, retrying with password");
                             
                             var commandSuffix = serialCommandPayload.Length > 2 
                                 ? serialCommandPayload.Substring(2) 
@@ -914,7 +914,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                     
                     RecordFailure();
                     status = result.Status.ToString().ToLowerInvariant();
-                    _logger.LogWarning("Intento {Attempt} POST falló: {Status}", attempt, result.Status);
+                    _logger.LogWarning("Attempt {Attempt} POST failed: {Status}", attempt, result.Status);
                 }
                 catch (TimeoutException) when (attempt < maxRetries)
                 {
@@ -929,7 +929,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             
             if (attempt >= maxRetries && !postCommand.WaitResponse)
             {
-                _logger.LogDebug("POST sin espera de respuesta completado después de reintentos");
+                _logger.LogDebug("POST without response wait completed after retries");
                 
                 stopwatch.Stop();
                 _metrics?.RecordCommand(normalizedPage, "success", stopwatch.Elapsed.TotalSeconds, retries);
@@ -977,7 +977,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         }
         catch (OperationCanceledException)
         {
-            _logger.LogWarning("Comando POST cancelado: {Page}", normalizedPage);
+            _logger.LogWarning("POST command cancelled: {Page}", normalizedPage);
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "cancelled", stopwatch.Elapsed.TotalSeconds, retries);
@@ -987,7 +987,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         catch (Exception ex)
         {
             RecordFailure();
-            _logger.LogError(ex, "Error procesando comando POST: {Page}", normalizedPage);
+            _logger.LogError(ex, "Error processing POST command: {Page}", normalizedPage);
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "exception", stopwatch.Elapsed.TotalSeconds, retries);
@@ -1005,8 +1005,8 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
         var result = baseCommand;
         
-        // Solo sustituir placeholders explícitos como {paramName}
-        // NO concatenar parámetros que no tienen placeholder (como 'co' cache-buster)
+        // Only substitute explicit placeholders like {paramName}
+        // DO NOT concatenate parameters without placeholder (like 'co' cache-buster)
         foreach (var kvp in queryParams)
         {
             if (!string.IsNullOrEmpty(kvp.Key) && kvp.Value != null)
@@ -1015,9 +1015,9 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             }
         }
         
-        // Nota: Ya no concatenamos parámetros automáticamente cuando no hay placeholders.
-        // Parámetros como 'co' (timestamp/cache-buster) no deben incluirse en el comando serial.
-        // Si un comando necesita parámetros, debe definir placeholders explícitos en settings.cfg
+        // Note: We no longer automatically concatenate parameters when there are no placeholders.
+        // Parameters like 'co' (timestamp/cache-buster) should not be included in the serial command.
+        // If a command needs parameters, it must define explicit placeholders in settings.cfg
 
         return result;
     }
@@ -1065,7 +1065,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         }
         catch (FormatException ex)
         {
-            _logger.LogError(ex, "Error decodificando hex string: {Hex}", hex);
+            _logger.LogError(ex, "Error decoding hex string: {Hex}", hex);
             return hex;
         }
         catch (Exception ex)
@@ -1078,12 +1078,12 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     /// <summary>
     /// Decodifica el body de un POST preservando los primeros N caracteres sin decodificar.
     /// 
-    /// - Toma una cadena hex y la convierte a ASCII
+    /// - Takes a hex string and converts it to ASCII
     /// - Preserva los primeros 'noDecodeChars' caracteres tal cual
-    /// - Ejemplo: Decode("C01234ABCD", 2) = "C0" + DecodeHex("1234ABCD")
+    /// - Example: Decode("C01234ABCD", 2) = "C0" + DecodeHex("1234ABCD")
     /// </summary>
     /// <param name="body">Body del POST (puede ser hex o mixto)</param>
-    /// <param name="noDecodeChars">Número de caracteres iniciales a preservar sin decodificar</param>
+    /// <param name="noDecodeChars">Number of initial characters to preserve without decoding</param>
     /// <returns>Body con la parte hex decodificada</returns>
     private string DecodePostBody(string body, int noDecodeChars)
     {
@@ -1112,3 +1112,6 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         return preserved + decoded;
     }
 }
+
+
+

@@ -1,204 +1,204 @@
 namespace Fiplex.Control.Software.WinForms.Models;
 
 /// <summary>
-/// Claims extraídos del token JWT para autenticación offline.
+/// Claims extracted from JWT token for offline authentication.
 /// </summary>
 /// <remarks>
-/// Contiene la información del usuario extraída del token JWT incluyendo:
+/// Contains user information extracted from JWT token including:
 /// <list type="bullet">
-///   <item>Identificación del usuario (UniqueName, AccountCompanyName)</item>
-///   <item>Roles y permisos</item>
-///   <item>Información de licencia y training</item>
+///   <item>User identification (UniqueName, AccountCompanyName)</item>
+///   <item>Roles and permissions</item>
+///   <item>License and training information</item>
 /// </list>
 /// </remarks>
 public class TokenClaims
 {
     /// <summary>
-    /// Nombre único del usuario (claim "unique_name").
+    /// Unique user name (claim "unique_name").
     /// </summary>
     public string? UniqueName { get; set; }
 
     /// <summary>
-    /// Nombre de la compañía asociada a la cuenta.
+    /// Company name associated with the account.
     /// </summary>
     public string? AccountCompanyName { get; set; }
 
     /// <summary>
-    /// Capacidad o nivel de acceso del usuario.
+    /// User capability or access level.
     /// </summary>
     public string? Capability { get; set; }
 
     /// <summary>
-    /// Lista de marcas ESD asociadas al usuario.
+    /// List of ESD brands associated with the user.
     /// </summary>
     public List<EsdBrand>? EsdBrands { get; set; }
 
     /// <summary>
-    /// Roles asignados al usuario en el sistema.
+    /// Roles assigned to the user in the system.
     /// </summary>
     public List<Role>? Roles { get; set; }
 
     /// <summary>
-    /// Información de conteo de usuarios por software.
+    /// User count information per software.
     /// </summary>
     public List<UsersCountInfo>? UsersCount { get; set; }
 
     /// <summary>
-    /// Información de fechas de expiración de entrenamiento.
+    /// Training expiration date information.
     /// </summary>
     public List<UsersTrainingExpiryDateInfo>? UsersTrainingExpiryDate { get; set; }
 
     /// <summary>
-    /// Detalles de expiración de licencias.
+    /// License expiration details.
     /// </summary>
     public List<LicenseExpiryDetailsInfo>? LicenseExpiryDetails { get; set; }
 
     /// <summary>
-    /// Permisos específicos del usuario.
+    /// User-specific permissions.
     /// </summary>
     public List<Permission>? Permissions { get; set; }
 
     /// <summary>
-    /// Fecha de emisión del token (iat claim).
+    /// Token issue date (iat claim).
     /// </summary>
     public DateTime? IssuedAt { get; set; }
 
     /// <summary>
-    /// Fecha de expiración del token (exp claim).
+    /// Token expiration date (exp claim).
     /// </summary>
     public DateTime? ExpiresAt { get; set; }
 }
 
 /// <summary>
-/// Representa una marca ESD asociada al usuario.
+/// Represents an ESD brand associated with the user.
 /// </summary>
 public class EsdBrand
 {
-    /// <summary>Nombre de la marca.</summary>
+    /// <summary>Brand name.</summary>
     public string BrandName { get; set; } = string.Empty;
 }
 
 /// <summary>
-/// Representa un rol asignado al usuario.
+/// Represents a role assigned to the user.
 /// </summary>
 public class Role
 {
-    /// <summary>Identificador único del rol.</summary>
+    /// <summary>Unique role identifier.</summary>
     public int Id { get; set; }
     
-    /// <summary>Nombre descriptivo del rol.</summary>
+    /// <summary>Descriptive role name.</summary>
     public string Name { get; set; } = string.Empty;
     
-    /// <summary>Fecha de expiración del rol (formato ISO 8601).</summary>
+    /// <summary>Role expiration date (ISO 8601 format).</summary>
     public string? Expiry { get; set; }
     
-    /// <summary>Descripción del rol y sus permisos.</summary>
+    /// <summary>Role and permissions description.</summary>
     public string? Description { get; set; }
     
-    /// <summary>Indica si el rol requiere licencia activa.</summary>
+    /// <summary>Indicates whether the role requires an active license.</summary>
     public bool IsLicenseRequired { get; set; }
     
-    /// <summary>Indica si el training está completado y vigente.</summary>
+    /// <summary>Indicates whether training is completed and current.</summary>
     public bool IsTrainingCompletedAndNotExpired { get; set; }
 }
 
 /// <summary>
-/// Información de conteo de usuarios por tipo de software.
+/// User count information per software type.
 /// </summary>
 public class UsersCountInfo
 {
-    /// <summary>Nombre del software.</summary>
+    /// <summary>Software name.</summary>
     public string Software { get; set; } = string.Empty;
     
-    /// <summary>Número de usuarios con licencia para este software.</summary>
+    /// <summary>Number of users licensed for this software.</summary>
     public int NumberOfUsers { get; set; }
 }
 
 /// <summary>
-/// Información de fecha de expiración de entrenamiento por usuario.
+/// Training expiration date information per user.
 /// </summary>
 public class UsersTrainingExpiryDateInfo
 {
-    /// <summary>Identificador de objeto del usuario.</summary>
+    /// <summary>User object identifier.</summary>
     public string? UserOId { get; set; }
     
-    /// <summary>Nombre del software asociado al training.</summary>
+    /// <summary>Software name associated with training.</summary>
     public string Software { get; set; } = string.Empty;
     
-    /// <summary>Fecha de expiración del training (formato ISO 8601).</summary>
+    /// <summary>Training expiration date (ISO 8601 format).</summary>
     public string? ExpirationDate { get; set; }
     
-    /// <summary>Indica si el training está activo ("true"/"false").</summary>
+    /// <summary>Indicates whether training is active ("true"/"false").</summary>
     public string? IsActive { get; set; }
 }
 
 /// <summary>
-/// Información detallada de expiración de licencia.
+/// Detailed license expiration information.
 /// </summary>
 public class LicenseExpiryDetailsInfo
 {
-    /// <summary>Identificador único de la licencia.</summary>
+    /// <summary>Unique license identifier.</summary>
     public int Id { get; set; }
     
-    /// <summary>Fecha de expiración (formato ISO 8601).</summary>
+    /// <summary>Expiration date (ISO 8601 format).</summary>
     public string? ExpiryDate { get; set; }
     
-    /// <summary>Indica si la licencia está activa.</summary>
+    /// <summary>Indicates whether the license is active.</summary>
     public string? IsActive { get; set; }
     
-    /// <summary>Indica si la licencia está pagada.</summary>
+    /// <summary>Indicates whether the license is paid.</summary>
     public string? IsPaid { get; set; }
     
-    /// <summary>Indica si la renovación automática está habilitada.</summary>
+    /// <summary>Indicates whether auto-renewal is enabled.</summary>
     public string? AutoRenewal { get; set; }
 }
 
 /// <summary>
-/// Representa un permiso específico del usuario.
+/// Represents a user-specific permission.
 /// </summary>
 public class Permission
 {
-    /// <summary>Identificador único del permiso.</summary>
+    /// <summary>Unique permission identifier.</summary>
     public int Id { get; set; }
     
-    /// <summary>Nombre del permiso.</summary>
+    /// <summary>Permission name.</summary>
     public string Name { get; set; } = string.Empty;
     
-    /// <summary>Fecha de expiración del permiso.</summary>
+    /// <summary>Permission expiration date.</summary>
     public string? Expiry { get; set; }
     
-    /// <summary>Descripción del permiso.</summary>
+    /// <summary>Permission description.</summary>
     public string? Description { get; set; }
     
-    /// <summary>Indica si requiere licencia activa.</summary>
+    /// <summary>Indicates whether an active license is required.</summary>
     public bool IsLicenseRequired { get; set; }
     
-    /// <summary>Indica si el training está vigente.</summary>
+    /// <summary>Indicates whether training is current.</summary>
     public bool IsTrainingCompletedAndNotExpired { get; set; }
 }
 
 /// <summary>
-/// Resultado de la validación de un token JWT.
+/// Result of JWT token validation.
 /// </summary>
 public class OfflineTokenValidationResult
 {
     /// <summary>
-    /// Indica si la validación fue exitosa.
+    /// Indicates whether the validation was successful.
     /// </summary>
     public bool IsValid { get; set; }
     
     /// <summary>
-    /// Mensaje de error si la validación falló.
+    /// Error message if validation failed.
     /// </summary>
     public string? ErrorMessage { get; set; }
     
     /// <summary>
-    /// Claims extraídos del token si la validación fue exitosa.
+    /// Claims extracted from the token if validation was successful.
     /// </summary>
     public TokenClaims? Claims { get; set; }
     
     /// <summary>
-    /// Crea un resultado de validación exitosa.
+    /// Creates a successful validation result.
     /// </summary>
     public static OfflineTokenValidationResult Success(TokenClaims claims) => new()
     {
@@ -207,7 +207,7 @@ public class OfflineTokenValidationResult
     };
     
     /// <summary>
-    /// Crea un resultado de validación fallida.
+    /// Creates a failed validation result.
     /// </summary>
     public static OfflineTokenValidationResult Failure(string errorMessage) => new()
     {

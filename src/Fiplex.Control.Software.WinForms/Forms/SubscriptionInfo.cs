@@ -4,12 +4,12 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Forms;
 
 /// <summary>
-/// Diálogo para mostrar información de suscripción y entrenamiento CLSS.
+/// Dialog to show CLSS subscription and training information.
 /// </summary>
 /// <remarks>
-/// Muestra fechas de expiración de suscripción, entrenamiento y última actualización,
-/// junto con información del usuario y organización. Utiliza colores para indicar
-/// el estado del entrenamiento (verde=vigente, naranja=expira hoy, rojo=expirado).
+/// Displays subscription expiration dates, training and last update,
+/// along with user and organization information. Uses colors to indicate
+/// training status (green=valid, orange=expires today, red=expired).
 /// </remarks>
 public partial class SubscriptionInfo : Form
 {
@@ -32,12 +32,12 @@ public partial class SubscriptionInfo : Form
     }
 
     /// <summary>
-    /// Pobla los controles con información de licencia y entrenamiento.
+    /// Populates controls with license and training information.
     /// </summary>
     /// <remarks>
-    /// Lee los valores del servicio <see cref="ITrainingValidationService"/> y los
-    /// muestra en los labels correspondientes con formato de fecha "dd MMM yyyy".
-    /// Aplica colores según el estado de expiración del entrenamiento.
+    /// Reads values from <see cref="ITrainingValidationService"/> service and
+    /// displays them in corresponding labels with date format "dd MMM yyyy".
+    /// Applies colors based on training expiration status.
     /// </remarks>
     private void PopulateControls()
     {
@@ -62,12 +62,12 @@ public partial class SubscriptionInfo : Form
                 lblTrainingExpiryValue.Text = _trainingValidation.TrainingExpiryDate.Value
                     .ToString("dd MMM yyyy");
 
-                // Agregar indicador de días restantes
+                // Add remaining days indicator
                 var daysRemaining = _trainingValidation.DaysRemaining;
                 if (daysRemaining > 0)
                 {
                     lblTrainingExpiryValue.Text += $" ({daysRemaining} days remaining)";
-                    // Color verde oscuro para indicar vigente (visible sobre fondo claro)
+                    // Dark green color to indicate valid (visible on light background)
                     lblTrainingExpiryValue.ForeColor = Color.FromArgb(0, 128, 0); // Green
                 }
                 else if (daysRemaining == 0)
@@ -97,7 +97,7 @@ public partial class SubscriptionInfo : Form
                 lblUpdatedOnValue.Text = "N/A";
             }
 
-            // Información adicional del usuario
+            // Additional user information
             lblUserValue.Text = _trainingValidation.UserName ?? "Unknown";
             lblOrganizationValue.Text = _trainingValidation.Organization ?? "Unknown";
 
@@ -111,7 +111,7 @@ public partial class SubscriptionInfo : Form
     }
 
     /// <summary>
-    /// Cierra el diálogo al presionar el botón OK.
+    /// Closes the dialog when OK button is pressed.
     /// </summary>
     private void BtnOk_Click(object sender, EventArgs e)
     {

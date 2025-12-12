@@ -552,25 +552,25 @@
         private GroupBox grpFW700800;
         private GroupBox grpFWVHFUHF;
         
-        // Checkboxes para Narrow Filters (índices 0-3)
+        // Checkboxes for Narrow Filters (indices 0-3)
         private CheckBox chkNbEn0;
         private CheckBox chkNbEn1;
         private CheckBox chkNbEn2;
         private CheckBox chkNbEn3;
         
-        // Checkboxes para AdjBW Filters (índices 0-3)
+        // Checkboxes for AdjBW Filters (indices 0-3)
         private CheckBox chkAdjEn0;
         private CheckBox chkAdjEn1;
         private CheckBox chkAdjEn2;
         private CheckBox chkAdjEn3;
         
-        // Checkboxes para Single Band (índices 0-3)
+        // Checkboxes for Single Band (indices 0-3)
         private CheckBox chkSingEn0;
         private CheckBox chkSingEn1;
         private CheckBox chkSingEn2;
         private CheckBox chkSingEn3;
         
-        // TextBoxes para Power Limit Downlink (índices 0-3)
+        // TextBoxes for Power Limit Downlink (indices 0-3)
         private TextBox txtPowDL0;
         private TextBox txtPowDL1;
         private TextBox txtPowDL2;
@@ -596,7 +596,7 @@
         private Label lblBootFirmware;
         private ComboBox cmbBoot;
         
-        // Botón y feedback
+        // Button and feedback
         private Button cmdApply;
         private PictureBox pctOK;
         private PictureBox pctKO;

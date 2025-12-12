@@ -3,18 +3,18 @@ using Fiplex.Control.Software.WinForms.Models;
 namespace Fiplex.Control.Software.WinForms.Core.Config.Interfaces;
 
 /// <summary>
-/// Servicio para ejecutar operaciones de archivo (SaveCFG, LoadCFG, SaveCAL, LoadCAL).
+/// Service for executing file operations (SaveCFG, LoadCFG, SaveCAL, LoadCAL).
 /// </summary>
 public interface IFileOperationService
 {
     /// <summary>
-    /// Ejecuta secuencia de comandos SaveCFG para guardar configuración del dispositivo a archivo.
+    /// Executes SaveCFG command sequence to save device configuration to file.
     /// </summary>
-    /// <param name="filePath">Ruta del archivo donde guardar</param>
-    /// <param name="commands">Comandos de la sección SaveCFG</param>
-    /// <param name="progress">Callback de progreso opcional</param>
-    /// <param name="ct">Token de cancelación</param>
-    /// <returns>True si exitoso</returns>
+    /// <param name="filePath">File path where to save</param>
+    /// <param name="commands">Commands from SaveCFG section</param>
+    /// <param name="progress">Optional progress callback</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>True if successful</returns>
     Task<FileOperationResult> SaveConfigurationAsync(
         string filePath,
         IEnumerable<FileOperationCommand> commands,
@@ -22,13 +22,13 @@ public interface IFileOperationService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Ejecuta secuencia de comandos LoadCFG para cargar configuración desde archivo al dispositivo.
+    /// Executes LoadCFG command sequence to load configuration from file to device.
     /// </summary>
-    /// <param name="filePath">Ruta del archivo a cargar</param>
-    /// <param name="commands">Comandos de la sección LoadCFG</param>
-    /// <param name="progress">Callback de progreso opcional</param>
-    /// <param name="ct">Token de cancelación</param>
-    /// <returns>True si exitoso</returns>
+    /// <param name="filePath">File path to load</param>
+    /// <param name="commands">Commands from LoadCFG section</param>
+    /// <param name="progress">Optional progress callback</param>
+    /// <param name="ct">Cancellation token</param>
+    /// <returns>True if successful</returns>
     Task<FileOperationResult> LoadConfigurationAsync(
         string filePath,
         IEnumerable<FileOperationCommand> commands,
@@ -36,7 +36,7 @@ public interface IFileOperationService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Ejecuta secuencia de comandos SaveCAL para guardar calibración.
+    /// Executes SaveCAL command sequence to save calibration.
     /// </summary>
     Task<FileOperationResult> SaveCalibrationAsync(
         string filePath,
@@ -45,7 +45,7 @@ public interface IFileOperationService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Ejecuta secuencia de comandos LoadCAL para cargar calibración.
+    /// Executes LoadCAL command sequence to load calibration.
     /// </summary>
     Task<FileOperationResult> LoadCalibrationAsync(
         string filePath,
@@ -54,13 +54,13 @@ public interface IFileOperationService
         CancellationToken ct = default);
 
     /// <summary>
-    /// Ejecuta operación de archivo genérica basada en el tipo de operación.
+    /// Executes generic file operation based on operation type.
     /// </summary>
-    /// <param name="operationType">Tipo: SaveCFG, LoadCFG, SaveCAL, LoadCAL</param>
-    /// <param name="filePath">Ruta del archivo</param>
-    /// <param name="commands">Comandos a ejecutar</param>
-    /// <param name="progress">Callback de progreso opcional</param>
-    /// <param name="ct">Token de cancelación</param>
+    /// <param name="operationType">Type: SaveCFG, LoadCFG, SaveCAL, LoadCAL</param>
+    /// <param name="filePath">File path</param>
+    /// <param name="commands">Commands to execute</param>
+    /// <param name="progress">Optional progress callback</param>
+    /// <param name="ct">Cancellation token</param>
     Task<FileOperationResult> ExecuteFileOperationAsync(
         FileOperationType operationType,
         string filePath,
@@ -70,61 +70,61 @@ public interface IFileOperationService
 }
 
 /// <summary>
-/// Tipos de operación de archivo soportados (equivale a secciones en settings.cfg)
+/// Supported file operation types (equivalent to sections in settings.cfg)
 /// </summary>
 public enum FileOperationType
 {
-    /// <summary>Guardar configuración del dispositivo</summary>
+    /// <summary>Save device configuration</summary>
     SaveConfig,
     
-    /// <summary>Cargar configuración al dispositivo</summary>
+    /// <summary>Load configuration to device</summary>
     LoadConfig,
     
-    /// <summary>Guardar calibración del dispositivo</summary>
+    /// <summary>Save device calibration</summary>
     SaveCalibration,
     
-    /// <summary>Cargar calibración al dispositivo</summary>
+    /// <summary>Load calibration to device</summary>
     LoadCalibration,
     
-    /// <summary>Upload de firmware</summary>
+    /// <summary>Firmware upload</summary>
     FirmwareUpload
 }
 
 /// <summary>
-/// Comando individual para operación de archivo.
+/// Individual command for file operation.
 /// </summary>
 public record FileOperationCommand
 {
     /// <summary>
-    /// Comandos seriales a ejecutar .
-    /// Ej: "C1,F1" ejecuta C1 y luego F1.
+    /// Serial commands to execute.
+    /// Example: "C1,F1" executes C1 and then F1.
     /// </summary>
     public string[] Commands { get; init; } = Array.Empty<string>();
 
     /// <summary>
-    /// Longitud esperada de respuesta para validación.
-    /// Formato: número simple, "splitwith3tabs:N", o lista "128,256".
+    /// Expected response length for validation.
+    /// Format: simple number, "splitwith3tabs:N", or list "128,256".
     /// </summary>
     public string LengthValidation { get; init; } = string.Empty;
 
     /// <summary>
-    /// Mensaje a mostrar durante la operación.
+    /// Message to display during the operation.
     /// </summary>
     public string Message { get; init; } = string.Empty;
 
     /// <summary>
-    /// Modo de operación adicional.
+    /// Additional operation mode.
     /// </summary>
     public string Mode { get; init; } = string.Empty;
 
     /// <summary>
-    /// Tipo de operación padre (SaveCFG, LoadCFG, etc.)
+    /// Parent operation type (SaveCFG, LoadCFG, etc.)
     /// </summary>
     public FileOperationType OperationType { get; init; }
 }
 
 /// <summary>
-/// Resultado de una operación de archivo
+/// Result of a file operation
 /// </summary>
 public record FileOperationResult
 {
@@ -156,7 +156,7 @@ public record FileOperationResult
 }
 
 /// <summary>
-/// Progreso de una operación de archivo
+/// Progress of a file operation
 /// </summary>
 public record FileOperationProgress
 {

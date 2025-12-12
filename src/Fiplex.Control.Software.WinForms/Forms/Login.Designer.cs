@@ -7,8 +7,8 @@
         /// </summary>
         private System.ComponentModel.IContainer components = null;
 
-        // Nota: El método Dispose está implementado en Login.cs
-        // para manejar la liberación de CancellationTokenSource
+        // Note: The Dispose method is implemented in Login.cs
+        // to handle CancellationTokenSource disposal
 
         #region Windows Form Designer generated code
 

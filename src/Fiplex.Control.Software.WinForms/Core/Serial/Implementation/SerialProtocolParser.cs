@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace Fiplex.Control.Software.WinForms.Core.Serial.Implementation;
 
 /// <summary>
-/// Parser del protocolo serial Fiplex.
+/// Fiplex serial protocol parser.
 /// </summary>
 public class SerialProtocolParser : ISerialProtocolParser
 {
@@ -15,14 +15,14 @@ public class SerialProtocolParser : ISerialProtocolParser
     private bool _waitingLF = false;
     private DateTime _lastByteReceived = DateTime.MinValue;
     
-    // Constantes de protocolo
+    // Protocol constants
     private const string InvalidCredentialsMarker = "INVALID CREDENTIALS";
     private const string AckMarker = "ACK";
     private const string NackMarker = "NACK";
     private const char LF = '\n';
     private const char CR = '\r';
     
-    // Timeout para datos parciales (ms)
+    // Timeout for partial data (ms)
     private const int PartialDataTimeoutMs = 500;
 
     public SerialProtocolParser()
@@ -35,7 +35,7 @@ public class SerialProtocolParser : ISerialProtocolParser
     }
 
     /// <summary>
-    /// Procesa datos entrantes del puerto serial.
+    /// Processes incoming data from the serial port.
     /// </summary>
     public IEnumerable<ProtocolToken> ProcessIncomingData(ReadOnlySpan<byte> data)
     {
@@ -45,7 +45,7 @@ public class SerialProtocolParser : ISerialProtocolParser
         
         foreach (byte b in data)
         {
-            // LF detectado = fin de trama
+            // LF detected = end of frame
             if (b == LF)
             {
                 var line = _buffer.ToString().TrimEnd(CR);
@@ -63,60 +63,60 @@ public class SerialProtocolParser : ISerialProtocolParser
             }
             else if (b == CR)
             {
-                // Ignorar CR, solo usamos LF como terminador
+                // Ignore CR, only use LF as terminator
             }
             else if (b == '\t')
             {
-                // Preservar caracteres TAB (ASCII 9)
-                // Los dispositivos Fiplex usan triple-tab como separador de frames
+                // Preserve TAB characters (ASCII 9)
+                // Fiplex devices use triple-tab as frame separator
                 _buffer.Append('\t');
             }
             else if (b >= 32 && b <= 126)
             {
-                // Caracteres imprimibles ASCII estándar
+                // Standard printable ASCII characters
                 _buffer.Append((char)b);
             }
             else if (b >= 128)
             {
-                // Caracteres extendidos (algunos dispositivos los usan)
+                // Extended characters (some devices use them)
                 _buffer.Append((char)b);
             }
-            // Otros bytes de control (< 32, excepto TAB/CR/LF) se ignoran
+            // Other control bytes (< 32, except TAB/CR/LF) are ignored
         }
 
         return tokens;
     }
 
     /// <summary>
-    /// Parsea una línea completa y determina el tipo de token.
+    /// Parses a complete line and determines the token type.
     /// </summary>
     private ProtocolToken ParseLine(string line)
     {
-        // Detectar ACK
+        // Detect ACK
         if (line.Equals(AckMarker, StringComparison.OrdinalIgnoreCase))
         {
             return new ProtocolToken(TokenType.Ack);
         }
         
-        // Detectar NACK
+        // Detect NACK
         if (line.Equals(NackMarker, StringComparison.OrdinalIgnoreCase))
         {
             return new ProtocolToken(TokenType.Nack);
         }
         
-        // Detectar INVALID CREDENTIALS
+        // Detect INVALID CREDENTIALS
         if (line.Contains(InvalidCredentialsMarker, StringComparison.OrdinalIgnoreCase))
         {
             _logger?.LogWarning("Received INVALID CREDENTIALS response");
             return new ProtocolToken(TokenType.InvalidCredentials, line);
         }
         
-        // DataFrame normal
+        // Normal DataFrame
         return new ProtocolToken(TokenType.DataFrame, line);
     }
 
     /// <summary>
-    /// Valida si hay datos parciales pendientes (timeout).
+    /// Validates if there is pending partial data (timeout).
     /// </summary>
     public bool HasPartialData()
     {
@@ -128,7 +128,7 @@ public class SerialProtocolParser : ISerialProtocolParser
     }
 
     /// <summary>
-    /// Obtiene datos parciales si el timeout expiró.
+    /// Gets partial data if timeout expired.
     /// </summary>
     public ProtocolToken? GetPartialDataIfTimeout()
     {
@@ -152,7 +152,7 @@ public class SerialProtocolParser : ISerialProtocolParser
     }
 
     /// <summary>
-    /// Reinicia el estado del parser.
+    /// Resets the parser state.
     /// </summary>
     public void Reset()
     {
@@ -162,12 +162,12 @@ public class SerialProtocolParser : ISerialProtocolParser
     }
     
     /// <summary>
-    /// Indica si el parser está esperando LF.
+    /// Indicates if the parser is waiting for LF.
     /// </summary>
     public bool IsWaitingLF => _waitingLF;
     
     /// <summary>
-    /// Longitud actual del buffer.
+    /// Current buffer length.
     /// </summary>
     public int BufferLength => _buffer.Length;
 }

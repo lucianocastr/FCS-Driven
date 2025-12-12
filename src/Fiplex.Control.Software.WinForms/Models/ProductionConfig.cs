@@ -5,110 +5,110 @@
 namespace Fiplex.Control.Software.WinForms.Models;
 
 /// <summary>
-/// Representa un conjunto de comandos de configuración para tests de producción.
+/// Represents a set of configuration commands for production tests.
 /// </summary>
 /// <remarks>
-/// Utilizado para enviar secuencias de comandos de configuración al dispositivo
-/// durante los procesos de prueba en línea de producción.
+/// Used to send configuration command sequences to the device
+/// during production line testing processes.
 /// </remarks>
 public class ProductionConfigData
 {
     /// <summary>
-    /// Lista de comandos a enviar al dispositivo.
+    /// List of commands to send to the device.
     /// </summary>
     public List<ProductionCommand> Commands { get; } = new();
 
     /// <summary>
-    /// Descripción del tipo de configuración.
+    /// Description of the configuration type.
     /// </summary>
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// Tipo de dispositivo para el que aplica esta configuración.
+    /// Device type for which this configuration applies.
     /// </summary>
     public string DeviceType { get; set; } = string.Empty;
 
     /// <summary>
-    /// Versión del dispositivo.
+    /// Device version.
     /// </summary>
     public double DeviceVersion { get; set; }
 }
 
 /// <summary>
-/// Representa un comando individual de configuración de producción.
+/// Represents an individual production configuration command.
 /// </summary>
 public class ProductionCommand
 {
     /// <summary>
-    /// Payload del comando a enviar (string hexadecimal o texto).
+    /// Command payload to send (hexadecimal string or text).
     /// </summary>
     public string Payload { get; set; } = string.Empty;
 
     /// <summary>
-    /// Descripción del comando para logging y debugging.
+    /// Command description for logging and debugging.
     /// </summary>
     public string Description { get; set; } = string.Empty;
 
     /// <summary>
-    /// Indica si el comando espera respuesta ACK del dispositivo.
+    /// Indicates whether the command expects an ACK response from the device.
     /// </summary>
     public bool ExpectsAck { get; set; } = true;
 
     /// <summary>
-    /// Timeout en segundos para la respuesta.
+    /// Timeout in seconds for the response.
     /// </summary>
     public int TimeoutSeconds { get; set; } = 10;
 
     /// <summary>
-    /// Prefijo del comando (para logging).
-    /// Por ejemplo: "C", "J", "O", "T", "!".
+    /// Command prefix (for logging).
+    /// For example: "C", "J", "O", "T", "!".
     /// </summary>
     public string CommandPrefix => Payload.Length > 0 ? Payload[0].ToString() : string.Empty;
 }
 
 /// <summary>
-/// Define los modos de configuración para tests de 2 canales.
+/// Defines the configuration modes for 2-channel tests.
 /// </summary>
 public enum TwoChannelMode
 {
     /// <summary>
-    /// Configura el canal al inicio de la banda de frecuencia.
+    /// Configures the channel at the start of the frequency band.
     /// </summary>
     BandStart = 0,
 
     /// <summary>
-    /// Configura el canal en el centro de la banda de frecuencia.
+    /// Configures the channel at the center of the frequency band.
     /// </summary>
     BandCenter = 1,
 
     /// <summary>
-    /// Configura el canal al final de la banda de frecuencia.
+    /// Configures the channel at the end of the frequency band.
     /// </summary>
     BandStop = 2
 }
 
 /// <summary>
-/// Define el número de canales para tests de producción.
+/// Defines the number of channels for production tests.
 /// </summary>
 public enum ProductionChannels
 {
     /// <summary>
-    /// Configuración para filtro FirstNet (exclusivo para dispositivos 1c v5).
+    /// Configuration for FirstNet filter (exclusive for 1c v5 devices).
     /// </summary>
     FirstNet = 0,
 
     /// <summary>
-    /// Configuración de 1 canal.
+    /// 1-channel configuration.
     /// </summary>
     OneChannel = 1,
 
     /// <summary>
-    /// Configuración de 2 canales.
+    /// 2-channel configuration.
     /// </summary>
     TwoChannels = 2,
 
     /// <summary>
-    /// Configuración de 6 canales.
+    /// 6-channel configuration.
     /// </summary>
     SixChannels = 6
 }

@@ -1,19 +1,19 @@
 namespace Fiplex.Control.Software.WinForms.Core.Devices;
 
 /// <summary>
-/// Define el modo de escaneo de dispositivos Fiplex.
+/// Defines the Fiplex device scan mode.
 /// </summary>
 public enum DeviceScanMode
 {
     /// <summary>
-    /// Escaneo rápido: se detiene al encontrar el primer dispositivo válido.
-    /// Ideal para la carga inicial del formulario.
+    /// Quick scan: stops when the first valid device is found.
+    /// Ideal for initial form load.
     /// </summary>
     QuickScan,
 
     /// <summary>
-    /// Escaneo completo: recorre todos los puertos COM disponibles.
-    /// Usado cuando el usuario solicita identificar todos los dispositivos.
+    /// Full scan: iterates through all available COM ports.
+    /// Used when the user requests to identify all devices.
     /// </summary>
     FullScan
 }

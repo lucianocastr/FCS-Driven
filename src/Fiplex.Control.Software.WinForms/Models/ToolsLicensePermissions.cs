@@ -1,57 +1,57 @@
 namespace Fiplex.Control.Software.WinForms.Models;
 
 /// <summary>
-/// Representa los permisos y estado de licencia del usuario autenticado.
+/// Represents the permissions and license status of the authenticated user.
 /// </summary>
 /// <remarks>
-/// Esta clase centraliza la información de autorización incluyendo:
+/// This class centralizes authorization information including:
 /// <list type="bullet">
-///   <item>Estado de validez del token</item>
-///   <item>Estado de login</item>
-///   <item>Tipo de usuario (básico/privilegiado)</item>
+///   <item>Token validity status</item>
+///   <item>Login status</item>
+///   <item>User type (basic/privileged)</item>
 /// </list>
 /// </remarks>
 public class ToolsLicensePermissions
 {
     /// <summary>
-    /// Constante que indica autorización exitosa del token.
+    /// Constant indicating successful token authorization.
     /// </summary>
-    /// <value>Valor 1 indica token válido y autorizado.</value>
+    /// <value>Value 1 indicates valid and authorized token.</value>
     public const int TOKEN_AUTHORIZATION_SUCCESS = 1;
 
     /// <summary>
-    /// Estado de validez del token de licencia.
-    /// 0 = No válido, 1 = Válido/Autorizado
+    /// License token validity status.
+    /// 0 = Not valid, 1 = Valid/Authorized
     /// </summary>
     public int IsLicenseTokenValid { get; set; }
 
     /// <summary>
-    /// Indica si el usuario ha iniciado sesión correctamente.
+    /// Indicates whether the user has logged in successfully.
     /// </summary>
     public bool LoginStatus { get; set; }
 
     /// <summary>
-    /// Nombre del usuario autenticado.
+    /// Authenticated user name.
     /// </summary>
     public string? UserName { get; set; }
 
     /// <summary>
-    /// Indica si el usuario es un usuario básico con permisos limitados.
+    /// Indicates whether the user is a basic user with limited permissions.
     /// </summary>
     /// <remarks>
-    /// Los usuarios básicos tienen restricciones en funcionalidades avanzadas
-    /// como calibración, configuración de fábrica y gestión de licencias.
+    /// Basic users have restrictions on advanced functionalities
+    /// such as calibration, factory configuration, and license management.
     /// </remarks>
     public bool IsBasicUser { get; set; }
 
     /// <summary>
-    /// Indica si es el primer inicio de la aplicación en la sesión actual.
+    /// Indicates whether this is the first application start in the current session.
     /// </summary>
-    /// <value><c>true</c> durante el arranque inicial; <c>false</c> después.</value>
+    /// <value><c>true</c> during initial startup; <c>false</c> afterwards.</value>
     public bool IsStartup { get; set; } = true;
 
     /// <summary>
-    /// Reinicia el estado de permisos.
+    /// Resets the permissions state.
     /// </summary>
     public void Reset()
     {
