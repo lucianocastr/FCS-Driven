@@ -21,6 +21,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="docs\**" />
     <Compile Remove="pages\htdocs_1a1\**" />
     <Compile Remove="pages\htdocs_1a2\**" />
     <Compile Remove="pages\htdocs_1a2_2\**" />
@@ -68,6 +69,7 @@
     <Compile Remove="pages\htdocs_5dm1\**" />
     <Compile Remove="pages\htdocs_5dm\**" />
     <Compile Remove="pages\htdocs_default\**" />
+    <EmbeddedResource Remove="docs\**" />
     <EmbeddedResource Remove="pages\htdocs_1a1\**" />
     <EmbeddedResource Remove="pages\htdocs_1a2\**" />
     <EmbeddedResource Remove="pages\htdocs_1a2_2\**" />
@@ -115,6 +117,7 @@
     <EmbeddedResource Remove="pages\htdocs_5dm1\**" />
     <EmbeddedResource Remove="pages\htdocs_5dm\**" />
     <EmbeddedResource Remove="pages\htdocs_default\**" />
+    <None Remove="docs\**" />
     <None Remove="pages\htdocs_1a1\**" />
     <None Remove="pages\htdocs_1a2\**" />
     <None Remove="pages\htdocs_1a2_2\**" />
@@ -199,10 +202,6 @@
 
   <ItemGroup>
     <Folder Include="Assets\Logos\" />
-    <Folder Include="docs\form-login\prompts\" />
-    <Folder Include="docs\menustrip-clss\prompts\" />
-    <Folder Include="docs\menustrip-file\prompts\" />
-    <Folder Include="docs\menustrip-ethernet\" />
     <Folder Include="pages\" />
   </ItemGroup>
 
