@@ -98,13 +98,13 @@ The project is configured for .NET 10 with Windows Forms:
 
 ```xml
 <PropertyGroup>
-  <Version>3.0.0-alpha</Version>
+  <Version>3.0.0</Version>
   <AssemblyVersion>3.0.0.0</AssemblyVersion>
   <FileVersion>3.0.0.0</FileVersion>
   
   <Product>Fiplex Control Software</Product>
   <Company>Fiplex Communications</Company>
-  <Copyright>Copyright © Fiplex Communications 2025</Copyright>
+  <Copyright>Copyright © Fiplex Communications 2026</Copyright>
 </PropertyGroup>
 ```
 
