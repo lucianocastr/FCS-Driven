@@ -21,7 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Nothing yet
 
 ### Fixed
-- Nothing yet
+- Issue #18: "Edit password menu fails" (source: user Excel tracker, 2026-05-01) for `release/3.0.0` stabilization
 
 ### Security
 - Nothing yet
