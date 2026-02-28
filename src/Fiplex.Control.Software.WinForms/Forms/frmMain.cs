@@ -2488,12 +2488,6 @@ public partial class frmMain : Form
         passwordDialog.IsEditMode = true;  // Configures title, prompt and hides chkRemember
         passwordDialog.ShowCancel = true;  // Allow cancellation
 
-        // Pre-populate with current password if available
-        if (!string.IsNullOrEmpty(_validatedPassword))
-        {
-            passwordDialog.Password = _validatedPassword;
-        }
-
         if (passwordDialog.ShowDialog(this) != DialogResult.OK)
         {
             _logger.LogDebug("Password change cancelled by user");
