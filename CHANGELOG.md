@@ -21,7 +21,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Nothing yet
 
 ### Fixed
-- Issue #18: "Edit password menu fails" (source: user Excel tracker, 2026-05-01) for `release/3.0.0` stabilization
+- **Issue #18: "Edit password menu fails"** (source: user Excel tracker, 2026-05-01) for `release/3.0.0` stabilization
+  - Fixed device password change command (`^0`) configuration in `frmMain.cs`
+  - **Root cause**: Command was configured with `ExpectsData = true`, causing pipeline to wait for a DataFrame that never arrives
+  - **Impact**: Password was successfully changed on device, but software showed error message due to timeout
+  - **Solution**: Changed to `ExpectsData = false` since device only responds with ACK (no data frame)
+  - **Technical details**:
+    - Modified `mnuPassword_Click` handler in `frmMain.cs` (lines ~2509-2554)
+    - Simplified validation logic from `result.Success && result.Data.Equals("ACK")` to just `result.Success`
+    - Removed `ParsePasswordValidationError()` call since device doesn't send validation errors in ACK-only mode
+  - **Behavior**: Now correctly shows success message when password change is accepted by device
 
 ### Security
 - Nothing yet
