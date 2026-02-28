@@ -2517,7 +2517,7 @@ public partial class frmMain : Form
             {
                 Payload = $"^0{newPassword}",
                 ExpectsAck = true,
-                ExpectsData = true,
+                ExpectsData = false,  // Device only sends ACK, no additional data frame
                 MaxRetries = 2,
                 AckTimeout = TimeSpan.FromSeconds(2),
                 CancellationToken = _cts?.Token ?? default
@@ -2525,7 +2525,7 @@ public partial class frmMain : Form
             var result = await _pipeline.EnqueueCommandAsync(serialCommand);
 
             // Verify successful response
-            if (result.Success && result.Data.Equals("ACK", StringComparison.OrdinalIgnoreCase))
+            if (result.Success)
             {
                 // Update stored password
                 _validatedPassword = newPassword;
@@ -2541,13 +2541,13 @@ public partial class frmMain : Form
 
                 _logger.LogInformation("Device password changed successfully");
             }
-        else
-        {
-            // Process specific password validation errors
-            var errorMessage = ParsePasswordValidationError(result.Data);                _logger.LogWarning("Password change failed: {Response} -> {Error}", result.Data, errorMessage);
+            else
+            {
+                // If device returns NACK or error, result.Success will be false
+                _logger.LogWarning("Password change failed: {Status}", result.Status);
                 LogStatus("Password change failed");
                 MessageBox.Show(
-                    $"Failed to change password.\n\n{errorMessage}",
+                    "Failed to change password.\n\nThe device did not accept the new password.",
                     "Password Change Failed",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
