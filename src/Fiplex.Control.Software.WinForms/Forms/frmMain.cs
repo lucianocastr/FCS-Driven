@@ -1007,7 +1007,6 @@ public partial class frmMain : Form
                     string? savedPassword = null;
                     try
                     {
-                        savedPassword = await _appSettings.GetSettingAsync<string>("DevicePassword");
                         if (!string.IsNullOrEmpty(savedPassword))
                         {
                             _logger.LogDebug("Password retrieved from configuration");
