@@ -1003,51 +1003,9 @@ public partial class frmMain : Form
                     _logger.LogInformation("Device requires authentication");
                     LogStatus("Password required...");
 
-                    // STAGE 3: Try to retrieve saved password
-                    string? savedPassword = null;
-                    try
-                    {
-                        savedPassword = await _appSettings.GetSettingAsync<string>("DevicePassword");
-                        if (!string.IsNullOrEmpty(savedPassword))
-                        {
-                            _logger.LogDebug("Password retrieved from configuration");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "No saved password or error retrieving");
-                    }
-
-                    // STAGE 3: Automatic authentication if saved password exists
-                    if (!string.IsNullOrEmpty(savedPassword))
-                    {
-                        _logger.LogInformation("Attempting automatic authentication with saved password");
-                        var autoAuth = await _authService.AuthenticateAsync(savedPassword, _cts.Token);
-
-                        if (autoAuth)
-                        {
-                            _logger.LogInformation("Automatic authentication successful");
-                            LogStatus("Auto-authentication successful");
-
-                            // Store validated password and configure in pipeline and router
-                            _validatedPassword = savedPassword;
-                            _pipeline.SetStoredPassword(savedPassword);
-                            _commandRouter.SetStoredPassword(savedPassword);
-                            break; // Exit switch, continue flow
-                        }
-
-                        _logger.LogWarning("Automatic authentication failed, requesting manual password");
-                    }
-
-                    // Manual dialog (preserve existing code)
+                    // Manual password dialog
                     using (var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>())
                     {
-                        // STAGE 3: Pre-populate with saved password if exists (improved UX)
-                        if (!string.IsNullOrEmpty(savedPassword))
-                        {
-                            passwordDialog.Password = savedPassword;
-                        }
-
                         if (passwordDialog.ShowDialog(this) != DialogResult.OK)
                         {
                             _logger.LogInformation("User cancelled password dialog");
@@ -1068,20 +1026,6 @@ public partial class frmMain : Form
                                 MessageBoxButtons.OK,
                                 MessageBoxIcon.Warning);
                             return;
-                        }
-
-                        // Save password if RememberPassword is checked
-                        if (passwordDialog.RememberPassword)
-                        {
-                            try
-                            {
-                                await _appSettings.SaveSettingAsync("DevicePassword", passwordDialog.Password);
-                                _logger.LogInformation("Password saved for future connections");
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning(ex, "Error saving password");
-                            }
                         }
 
                         _logger.LogInformation("Authentication successful");
@@ -1420,24 +1364,7 @@ public partial class frmMain : Form
             return _validatedPassword;
         }
 
-        // Try to retrieve saved password from configuration
-        try
-        {
-            var savedPassword = await _appSettings.GetSettingAsync<string>("DevicePassword");
-            if (!string.IsNullOrEmpty(savedPassword))
-            {
-                _logger.LogDebug("Using saved password for INVALID CREDENTIALS retry");
-                _validatedPassword = savedPassword;
-                _pipeline.SetStoredPassword(savedPassword);
-                return savedPassword;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Error retrieving saved password");
-        }
-
-        // As last resort, show password dialog
+        // Show password dialog
         // Note: This must run on the UI thread
         string? password = null;
 
@@ -2561,12 +2488,6 @@ public partial class frmMain : Form
         passwordDialog.IsEditMode = true;  // Configures title, prompt and hides chkRemember
         passwordDialog.ShowCancel = true;  // Allow cancellation
 
-        // Pre-populate with current password if available
-        if (!string.IsNullOrEmpty(_validatedPassword))
-        {
-            passwordDialog.Password = _validatedPassword;
-        }
-
         if (passwordDialog.ShowDialog(this) != DialogResult.OK)
         {
             _logger.LogDebug("Password change cancelled by user");
@@ -2596,7 +2517,7 @@ public partial class frmMain : Form
             {
                 Payload = $"^0{newPassword}",
                 ExpectsAck = true,
-                ExpectsData = true,
+                ExpectsData = false,  // Device only sends ACK, no additional data frame
                 MaxRetries = 2,
                 AckTimeout = TimeSpan.FromSeconds(2),
                 CancellationToken = _cts?.Token ?? default
@@ -2604,17 +2525,12 @@ public partial class frmMain : Form
             var result = await _pipeline.EnqueueCommandAsync(serialCommand);
 
             // Verify successful response
-            if (result.Success && result.Data.Equals("ACK", StringComparison.OrdinalIgnoreCase))
+            if (result.Success)
             {
                 // Update stored password
                 _validatedPassword = newPassword;
                 _pipeline.SetStoredPassword(newPassword);
                 _commandRouter.SetStoredPassword(newPassword);
-
-                // In edit mode, always save the new password
-                // (user already authenticated to be able to change it)
-                await _appSettings.SaveSettingAsync("DevicePassword", newPassword);
-                _logger.LogInformation("New password saved to settings");
 
                 LogStatus("Password changed successfully");
                 MessageBox.Show(
@@ -2625,13 +2541,13 @@ public partial class frmMain : Form
 
                 _logger.LogInformation("Device password changed successfully");
             }
-        else
-        {
-            // Process specific password validation errors
-            var errorMessage = ParsePasswordValidationError(result.Data);                _logger.LogWarning("Password change failed: {Response} -> {Error}", result.Data, errorMessage);
+            else
+            {
+                // If device returns NACK or error, result.Success will be false
+                _logger.LogWarning("Password change failed: {Status}", result.Status);
                 LogStatus("Password change failed");
                 MessageBox.Show(
-                    $"Failed to change password.\n\n{errorMessage}",
+                    "Failed to change password.\n\nThe device did not accept the new password.",
                     "Password Change Failed",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);

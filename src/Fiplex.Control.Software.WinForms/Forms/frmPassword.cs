@@ -38,11 +38,6 @@ public partial class frmPassword : Form
     }
 
     /// <summary>
-    /// Indicates whether the user selected to remember the password.
-    /// </summary>
-    public bool RememberPassword => chkRemember.Checked;
-
-    /// <summary>
     /// Indicates whether the dialog is in edit mode (password change).
     /// </summary>
     /// <remarks>
@@ -89,7 +84,6 @@ public partial class frmPassword : Form
             // Edit mode: Change device password
             Text = "Change Device Password";
             lblPrompt.Text = "Enter new password:";
-            chkRemember.Visible = false;
             
             // Show confirmation field and adjust height
             lblConfirm.Visible = true;
@@ -107,7 +101,6 @@ public partial class frmPassword : Form
             // Capture mode: Standard authentication
             Text = "Device Authentication";
             lblPrompt.Text = "Enter device password:";
-            chkRemember.Visible = true;
             
             // Hide confirmation field
             lblConfirm.Visible = false;
