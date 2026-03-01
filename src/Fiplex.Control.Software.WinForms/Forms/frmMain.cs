@@ -1145,9 +1145,11 @@ public partial class frmMain : Form
             mnuFWInfo.Visible = true;
 
             // Enable configuration menus
-            mnuConfig.Enabled = true;
-            mnuLoadConfig.Enabled = true;
-            mnuSaveConfig.Enabled = true;
+            // mnuConfig disabled for Flex devices (4dm*, 5dm, 2c) per VB reference
+            var configEnabled = IsConfigMenuEnabledForDevice(selectedDevice);
+            mnuConfig.Enabled = configEnabled;
+            mnuLoadConfig.Enabled = configEnabled;
+            mnuSaveConfig.Enabled = configEnabled;
 
             // Enable calibration menus if visible
             if (mnuCal.Visible)
@@ -1400,6 +1402,21 @@ public partial class frmMain : Form
     }
 
     #region Helper Methods
+
+    /// <summary>
+    /// Determines whether mnuConfig (File → Configuration) should be enabled for a device.
+    /// </summary>
+    /// <remarks>
+    /// Equivalente VB.NET:
+    /// <c>mnuConfig.Enabled = (tdev &lt;&gt; "4dm") And (tdev &lt;&gt; "4dm1") And (tdev &lt;&gt; "4dm2") And (tdev &lt;&gt; "4dm3") And (tdev &lt;&gt; "4dm4") And (tdev &lt;&gt; "5dm") And (tdev &lt;&gt; "2c")</c>
+    /// Flex devices do not support user-editable configuration via this menu.
+    /// </remarks>
+    private static bool IsConfigMenuEnabledForDevice(DeviceInfo? device)
+    {
+        if (device?.TDev is null) return false;
+
+        return device.TDev is not ("4dm" or "4dm1" or "4dm2" or "4dm3" or "4dm4" or "5dm" or "2c");
+    }
 
     private bool ValidateDeviceSelection()
     {
@@ -2287,9 +2304,11 @@ public partial class frmMain : Form
             // Includes parent menus along with child items
             if (_sessionContext.State == ConnectionState.Connected)
             {
-                mnuConfig.Enabled = true;
-                mnuSaveConfig.Enabled = true;
-                mnuLoadConfig.Enabled = true;
+                // mnuConfig stays disabled for Flex devices (4dm*, 5dm, 2c)
+                var configEnabled = IsConfigMenuEnabledForDevice(_sessionContext.Device);
+                mnuConfig.Enabled = configEnabled;
+                mnuSaveConfig.Enabled = configEnabled;
+                mnuLoadConfig.Enabled = configEnabled;
                 // Re-enable calibration menus only if device supports them
                 if (mnuCal.Visible)
                 {
