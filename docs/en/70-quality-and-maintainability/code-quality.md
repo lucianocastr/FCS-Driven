@@ -61,6 +61,7 @@ public class MyService : IMyService
 
 | Area | Issue | Priority | Notes |
 |------|-------|----------|-------|
+| UI/Menu | #16 File → Configuration should be disabled on Flex Devices (5/1/2026) | High | |
 | UI/Menu | #18 Edit password menu fails (5/1/2026) | High | Stabilize `release/3.0.0`; validate Edit Password flow and menu state transitions |
 | frmMain | Large file (~4300 lines) | Medium | Consider splitting |
 | Serial | Sync/async mixing | Low | Works correctly |
