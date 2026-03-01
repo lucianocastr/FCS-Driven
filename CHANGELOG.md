@@ -31,6 +31,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Simplified validation logic from `result.Success && result.Data.Equals("ACK")` to just `result.Success`
     - Removed `ParsePasswordValidationError()` call since device doesn't send validation errors in ACK-only mode
   - **Behavior**: Now correctly shows success message when password change is accepted by device
+- **Parity fix for `mnuConfig` (File → Configuration) on Flex devices**
+  - **Root cause**: In C#, `mnuConfig` was being enabled unconditionally after connect and after file operations.
+  - **Impact**: `File → Configuration` appeared enabled on Flex families where legacy VB behavior requires it to stay disabled.
+  - **Solution**: Restored VB parity by disabling `mnuConfig` for `4dm`, `4dm1`, `4dm2`, `4dm3`, `4dm4`, `5dm`, and `2c`.
+  - **Technical details**:
+    - Added `IsConfigMenuEnabledForDevice(DeviceInfo? device)` in `frmMain.cs`.
+    - Replaced unconditional enable logic in `ConnectAsync()` with device-conditional logic.
+    - Replaced unconditional re-enable logic in `ExecuteFileOperationAsync()` (`finally`) with device-conditional logic.
+  - **Behavior**: `File → Configuration` now remains disabled on Flex devices, matching expected VB behavior
 
 ### Security
 - Nothing yet
