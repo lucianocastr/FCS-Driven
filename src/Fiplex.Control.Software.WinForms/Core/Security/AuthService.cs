@@ -29,12 +29,12 @@ public class AuthService : IAuthService
         _logger = logger;
     }
 
-    public async Task<bool> AuthenticateAsync(string password, CancellationToken ct = default)
+    public async Task<AuthResult> AuthenticateAsync(string password, CancellationToken ct = default)
     {
         if (string.IsNullOrWhiteSpace(password))
         {
             _logger.LogWarning("Empty password provided");
-            return false;
+            return AuthResult.IncorrectPassword;
         }
 
         _logger.LogInformation("Attempting authentication");
@@ -54,13 +54,18 @@ public class AuthService : IAuthService
         if (result.Success)
         {
             _logger.LogInformation("Authentication succeeded");
-        }
-        else
-        {
-            _logger.LogWarning("Authentication failed: {Status}", result.Status);
+            return AuthResult.AuthenticationSuccessful;
         }
 
-        return result.Success;
+        // Equivalente VB.NET: If GetUSBAnswer("*0" & passW) <> "ACK" → Wrong password
+        // AuthenticateAsync is only called after CheckAuthenticationRequirementAsync confirmed
+        // the device is alive and requires authentication (V1 returned INVALID CREDENTIALS).
+        // Therefore, any *0{password} failure at this point means incorrect password.
+        // Note: CheckDeviceAliveAsync (N1) cannot be used here because N1 also requires
+        // authentication, which would fail with INVALID CREDENTIALS after a wrong password,
+        // producing a false "device not responding" result.
+        _logger.LogWarning("Authentication failed - incorrect password (Status: {Status})", result.Status);
+        return AuthResult.IncorrectPassword;
     }
 
     public async Task<string> GetVersionAsync(CancellationToken ct = default)
@@ -133,6 +138,17 @@ public class AuthService : IAuthService
             // STEP 1: Verify if there was a successful command result
             if (!result.Success)
             {
+                // Equivalente VB.NET: checkIfPassRequired distinguishes between
+                // -2 (device not responding, Len(ucans)=0) and -1 (INVALID CREDENTIALS).
+                // When the pipeline returns AuthenticationFailed, it means the device DID respond
+                // with INVALID CREDENTIALS but the password provided via CredentialsRequired
+                // was incorrect. This must NOT be confused with DeviceNotResponding.
+                if (result.Status == CommandResultStatus.AuthenticationFailed)
+                {
+                    _logger.LogWarning("Authentication failed during V1 check - incorrect password provided via pipeline");
+                    return AuthResult.IncorrectPassword;
+                }
+
                 _logger.LogWarning("Device not responding to V1 command (Status: {Status})", result.Status);
                 return AuthResult.DeviceNotResponding;
             }
