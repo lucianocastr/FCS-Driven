@@ -15,7 +15,8 @@ namespace Fiplex.Control.Software.WinForms.Core.Http.Interfaces;
 /// <example>
 /// Starting the server:
 /// <code>
-/// await httpServer.StartAsync(8080, @"C:\pages\htdocs_2c1", ct);
+/// var token = Guid.NewGuid().ToString("N");
+/// await httpServer.StartAsync(8080, @"C:\pages\htdocs_2c1", token, ct);
 /// httpServer.CommandReceived += async (s, e) =>
 /// {
 ///     var response = await router.ProcessGetRequestAsync(e.CommandName, e.Parameters, ct);
@@ -32,8 +33,13 @@ public interface IEmbeddedHttpServer : IDisposable
     /// </summary>
     /// <param name="port">The port number to listen on (typically 8080-8090).</param>
     /// <param name="documentRoot">The root folder containing device UI files (htdocs_*).</param>
+    /// <param name="sessionToken">
+    /// Per-session secret token for request validation.
+    /// Every request must include this token in the <c>X-Fiplex-Token</c> header;
+    /// requests without a valid token receive 403 Forbidden.
+    /// </param>
     /// <param name="ct">Cancellation token.</param>
-    Task StartAsync(int port, string documentRoot, CancellationToken ct = default);
+    Task StartAsync(int port, string documentRoot, string sessionToken, CancellationToken ct = default);
 
     /// <summary>
     /// Stops the HTTP server and releases the port.
