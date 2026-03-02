@@ -8,11 +8,14 @@ namespace Fiplex.Control.Software.WinForms.Core.Http;
 
 public class EmbeddedHttpServer : IEmbeddedHttpServer
 {
+    private const string TokenHeaderName = "X-Fiplex-Token";
+
     private readonly ILogger<EmbeddedHttpServer> _logger;
     private HttpListener? _listener;
     private Task? _listenerTask;
     private CancellationTokenSource? _cts;
     private string _rootPath = string.Empty;
+    private string _sessionToken = string.Empty;
 
     private static readonly Dictionary<string, string> MimeTypes = new()
     {
@@ -53,7 +56,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
     public EmbeddedHttpServer(ILogger<EmbeddedHttpServer> logger) 
         => _logger = logger;
 
-    public async Task StartAsync(int port, string rootPath, CancellationToken ct = default)
+    public async Task StartAsync(int port, string rootPath, string sessionToken, CancellationToken ct = default)
     {
         if (_listener != null)
         {
@@ -71,7 +74,13 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             throw new ArgumentNullException(nameof(rootPath));
         }
 
+        if (string.IsNullOrWhiteSpace(sessionToken))
+        {
+            throw new ArgumentNullException(nameof(sessionToken));
+        }
+
         _rootPath = rootPath;
+        _sessionToken = sessionToken;
         CurrentPort = port;
 
         // 2. Crear HttpListener con prefijo http://localhost:{port}/
@@ -137,6 +146,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
         _listener = null;
         _listenerTask = null;
         CurrentPort = null;
+        _sessionToken = string.Empty;
 
         // 5. Shutdown logging
         _logger.LogInformation("HTTP server stopped");
@@ -161,9 +171,23 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
                     {
                         var request = context.Request;
                         var response = context.Response;
-                        
+
                         _logger.LogDebug("HTTP {Method} {Url}", request.HttpMethod, request.Url);
-                        
+
+                        // Validate session token before processing any request
+                        var requestToken = request.Headers[TokenHeaderName];
+                        if (!string.Equals(requestToken, _sessionToken, StringComparison.Ordinal))
+                        {
+                            _logger.LogWarning("Rejected unauthorized request: {Method} {Url}",
+                                request.HttpMethod, request.Url);
+                            response.StatusCode = 403;
+                            var forbidden = Encoding.UTF8.GetBytes("403 Forbidden");
+                            response.ContentLength64 = forbidden.Length;
+                            await response.OutputStream.WriteAsync(forbidden);
+                            response.Close();
+                            return;
+                        }
+
                         // Distinguish command routes vs static files
                         // Supports /api/*.html and /command/*
                         var path = request.Url?.AbsolutePath ?? "";

@@ -46,6 +46,7 @@ public partial class frmMain : Form
     private SessionContext _sessionContext = new();
     private bool _httpServerIsRunning = false;
     private int _httpPort = 8000;
+    private string? _sessionToken;
     private DevelopmentModeSettings? _devModeSettings;
 
     // Current device configuration (FILE commands)
@@ -424,6 +425,21 @@ public partial class frmMain : Form
         if (!e.IsSuccess)
         {
             LogStatus($"Navigation error: {e.WebErrorStatus}");
+        }
+    }
+
+    /// <summary>
+    /// Injects the session token header into every WebView2 request to the embedded HTTP server.
+    /// </summary>
+    /// <remarks>
+    /// This prevents external browsers from accessing the server since they cannot provide the token.
+    /// See issue #11: Factory can be accessed with external browser.
+    /// </remarks>
+    private void CoreWebView2_WebResourceRequested(object? sender, CoreWebView2WebResourceRequestedEventArgs e)
+    {
+        if (_sessionToken != null)
+        {
+            e.Request.Headers.SetHeader("X-Fiplex-Token", _sessionToken);
         }
     }
 
@@ -1090,12 +1106,23 @@ public partial class frmMain : Form
             try
             {
                 var port = GetAvailablePort();
-                await _httpServer.StartAsync(port, devicePath, _cts.Token);
+                _sessionToken = Guid.NewGuid().ToString("N");
+                await _httpServer.StartAsync(port, devicePath, _sessionToken, _cts.Token);
                 _httpServerIsRunning = true;
                 _httpPort = port;
 
                 _logger.LogInformation("HTTP server started on port {Port}", port);
                 _logger.LogInformation("Root path: {RootPath}", devicePath);
+
+                // Inject session token into all WebView2 requests via custom header
+                if (webView?.CoreWebView2 != null)
+                {
+                    webView.CoreWebView2.AddWebResourceRequestedFilter(
+                        $"http://localhost:{port}/*", CoreWebView2WebResourceContext.All);
+                    webView.CoreWebView2.AddWebResourceRequestedFilter(
+                        $"http://127.0.0.1:{port}/*", CoreWebView2WebResourceContext.All);
+                    webView.CoreWebView2.WebResourceRequested += CoreWebView2_WebResourceRequested;
+                }
 
                 // Navigate WebView2 to main page
                 if (webView?.CoreWebView2 != null)
@@ -1265,8 +1292,15 @@ public partial class frmMain : Form
             {
                 try
                 {
+                    // Remove WebResourceRequested handler before stopping server
+                    if (webView?.CoreWebView2 != null)
+                    {
+                        webView.CoreWebView2.WebResourceRequested -= CoreWebView2_WebResourceRequested;
+                    }
+
                     await _httpServer.StopAsync();
                     _httpServerIsRunning = false;
+                    _sessionToken = null;
                     _logger.LogInformation("HTTP server stopped");
                 }
                 catch (Exception ex)
