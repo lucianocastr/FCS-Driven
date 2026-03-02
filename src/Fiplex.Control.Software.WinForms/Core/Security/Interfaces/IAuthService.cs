@@ -20,7 +20,7 @@ namespace Fiplex.Control.Software.WinForms.Core.Security.Interfaces;
 /// var authResult = await authService.CheckAuthenticationRequirementAsync(ct);
 /// if (authResult == AuthResult.PasswordRequired)
 /// {
-///     bool success = await authService.AuthenticateAsync(password, ct);
+///     var loginResult = await authService.AuthenticateAsync(password, ct);
 /// }
 /// int version = authService.UcVersion; // 0x10B = 267
 /// </code>
@@ -48,8 +48,12 @@ public interface IAuthService
     /// </summary>
     /// <param name="password">The device password.</param>
     /// <param name="ct">Cancellation token.</param>
-    /// <returns><c>true</c> if authentication succeeded.</returns>
-    Task<bool> AuthenticateAsync(string password, CancellationToken ct = default);
+    /// <returns>
+    /// <see cref="AuthResult.AuthenticationSuccessful"/> if authentication succeeded;
+    /// <see cref="AuthResult.IncorrectPassword"/> if password is wrong;
+    /// <see cref="AuthResult.DeviceNotResponding"/> on communication error.
+    /// </returns>
+    Task<AuthResult> AuthenticateAsync(string password, CancellationToken ct = default);
 
     /// <summary>
     /// Gets the device version string via the V1 command.

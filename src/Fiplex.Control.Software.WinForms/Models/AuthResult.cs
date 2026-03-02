@@ -26,5 +26,15 @@ public enum AuthResult
     /// V1 timeout or empty - device not responding.
     /// Communication error or device not available on the port.
     /// </summary>
-    DeviceNotResponding = -2
+    DeviceNotResponding = -2,
+
+    /// <summary>
+    /// Authentication succeeded.
+    /// </summary>
+    AuthenticationSuccessful = 1,
+
+    /// <summary>
+    /// Password rejected by the device.
+    /// </summary>
+    IncorrectPassword = -3
 }

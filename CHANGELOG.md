@@ -21,6 +21,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Nothing yet
 
 ### Fixed
+- **Issue #21: Wrong password shows unclear connectivity message** (source: user Excel tracker, 2026-05-01)
+  - Restored VB parity for authentication failure handling when an invalid password is entered.
+  - **Root cause**: During `V1` authentication check, pipeline-level `AuthenticationFailed` (triggered after invalid credentials in the credentials retry flow) was interpreted as `DeviceNotResponding`.
+  - **Impact**: Users saw the connectivity error message (`"Device is not responding..."`) instead of a credential-specific message.
+  - **Solution**:
+    - Added explicit `AuthResult.IncorrectPassword` handling in `CheckAuthenticationRequirementAsync()` when pipeline status is `CommandResultStatus.AuthenticationFailed`.
+    - Added explicit `AuthResult.IncorrectPassword` branch in `frmMain.ConnectAsync()`.
+    - Updated UI message to: `"Incorrect password. Please verify your credentials and try again."`
+  - **Technical details**:
+    - Updated `Models/AuthResult.cs` with authentication outcome values used by the C# flow.
+    - Updated `Core/Security/Interfaces/IAuthService.cs` to return `AuthResult` from `AuthenticateAsync`.
+    - Updated `Core/Security/AuthService.cs` for explicit password-vs-connectivity result mapping.
+    - Updated `Forms/frmMain.cs` authentication switch to display credential-specific feedback.
+  - **Behavior**: Invalid password now shows a clear authentication message, while true connectivity failures still show the connectivity message.
 - **Issue #18: "Edit password menu fails"** (source: user Excel tracker, 2026-05-01) for `release/3.0.0` stabilization
   - Fixed device password change command (`^0`) configuration in `frmMain.cs`
   - **Root cause**: Command was configured with `ExpectsData = true`, causing pipeline to wait for a DataFrame that never arrives

@@ -999,6 +999,21 @@ public partial class frmMain : Form
                         MessageBoxIcon.Error);
                     return;
 
+                case AuthResult.IncorrectPassword:
+                    // Equivalente VB.NET: When frmPassword sends *0{password} and it fails,
+                    // VB shows "Wrong password" label inside the dialog and user can retry.
+                    // In C#, the pipeline's CredentialsRequired handler already showed the
+                    // password dialog during CheckAuthenticationRequirementAsync. If the password
+                    // was wrong, the pipeline returned AuthenticationFailed, which we map here.
+                    _logger.LogWarning("Authentication failed - incorrect password");
+                    await DisconnectAsync();
+                    MessageBox.Show(
+                        "Incorrect password.\nPlease verify your credentials and try again.",
+                        "Authentication Failed",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+
                 case AuthResult.PasswordRequired:
                     _logger.LogInformation("Device requires authentication");
                     LogStatus("Password required...");
@@ -1013,15 +1028,39 @@ public partial class frmMain : Form
                             return;
                         }
 
-                        var authenticated = await _authService.AuthenticateAsync(
+                        var authenticationResult = await _authService.AuthenticateAsync(
                             passwordDialog.Password, _cts.Token);
 
-                        if (!authenticated)
+                        if (authenticationResult == AuthResult.IncorrectPassword)
                         {
                             _logger.LogWarning("Authentication failed - incorrect password");
                             await DisconnectAsync();
                             MessageBox.Show(
-                                "Incorrect password.\nPlease try again.",
+                                "Incorrect password.\nPlease verify your credentials and try again.",
+                                "Authentication Failed",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            return;
+                        }
+
+                        if (authenticationResult == AuthResult.DeviceNotResponding)
+                        {
+                            _logger.LogError("Device not responding during authentication");
+                            await DisconnectAsync();
+                            MessageBox.Show(
+                                "Device is not responding.\nPlease check the connection and try again.",
+                                "Connection Error",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
+                            return;
+                        }
+
+                        if (authenticationResult != AuthResult.AuthenticationSuccessful)
+                        {
+                            _logger.LogError("Unexpected authentication result: {Result}", authenticationResult);
+                            await DisconnectAsync();
+                            MessageBox.Show(
+                                "Authentication failed.\nPlease try again.",
                                 "Authentication Failed",
                                 MessageBoxButtons.OK,
                                 MessageBoxIcon.Warning);
