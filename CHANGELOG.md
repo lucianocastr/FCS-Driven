@@ -21,31 +21,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Nothing yet
 
 ### Fixed
-- **Port scan resilience and BDA/Signal Booster discovery parity improvements** (branch: `fix/bda-connection`, 2026-04-04)
-  - Improved COM scanning so non-Fiplex devices do not block the scan loop.
-  - Restored more VB-like tolerance for legacy identification responses during device discovery.
-  - Ensured the UI remains responsive while scanning ports.
-  - Added structured per-port/per-retry discovery logging for support diagnostics.
-  - **Root causes addressed**:
-    - Discovery previously depended on complete LF-terminated responses, which could miss legacy or partial `I1` replies.
-    - A blocked or slow COM device could leave the application stuck in `Scanning COMx`.
-    - Pending serial pipeline state after disconnect could interfere with subsequent scans.
-  - **Solution**:
-    - Added `AcceptPartialResponse` to `SerialCommand` and enabled it only for discovery command `I1`.
-    - Updated `SerialCommandPipeline` to surface partial responses as `DataFrame` only when explicitly allowed.
-    - Added pre-scan cleanup and disconnect cleanup in `frmMain` (`CancelPendingCommands`, defensive serial close).
-    - Moved scan execution off the UI thread in `frmMain` to avoid freezing the WinForms message loop.
-    - Added timeout guards around discovery stages in `DeviceDiscoveryService`:
-      - `CheckComPort`
-      - `ExistePort`
-      - serial port open
-      - `I1` identification wait
-    - Added scan trace logging with `scanId`, COM port, retry, raw response, timeout, and identification outcome.
-  - **Behavior**:
-    - The scan now continues through all available COM ports even when unrelated serial devices are present.
-    - Full scan supports multiple Fiplex devices connected at the same time.
-    - Repeated `Scan → Connect → Disconnect → Scan` cycles are more reliable.
-    - Debug logs now provide exact per-port discovery traceability.
 - **Issue #21: Wrong password shows unclear connectivity message** (source: user Excel tracker, 2026-05-01)
   - Restored VB parity for authentication failure handling when an invalid password is entered.
   - **Root cause**: During `V1` authentication check, pipeline-level `AuthenticationFailed` (triggered after invalid credentials in the credentials retry flow) was interpreted as `DeviceNotResponding`.
@@ -82,6 +57,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Security
 - Nothing yet
+
+---
+
+## [3.0.1] - 2026-04-04
+
+### Fixed
+- **Port scan resilience and BDA/Signal Booster discovery parity improvements** (branch: `fix/bda-connection`)
+  - Improved COM scanning so non-Fiplex devices do not block the scan loop.
+  - Restored more VB-like tolerance for legacy identification responses during device discovery.
+  - Ensured the UI remains responsive while scanning ports.
+  - Added structured per-port/per-retry discovery logging for support diagnostics.
+  - **Root causes addressed**:
+    - Discovery previously depended on complete LF-terminated responses, which could miss legacy or partial `I1` replies.
+    - A blocked or slow COM device could leave the application stuck in `Scanning COMx`.
+    - Pending serial pipeline state after disconnect could interfere with subsequent scans.
+  - **Solution**:
+    - Added `AcceptPartialResponse` to `SerialCommand` and enabled it only for discovery command `I1`.
+    - Updated `SerialCommandPipeline` to surface partial responses as `DataFrame` only when explicitly allowed.
+    - Added pre-scan cleanup and disconnect cleanup in `frmMain` (`CancelPendingCommands`, defensive serial close).
+    - Moved scan execution off the UI thread in `frmMain` to avoid freezing the WinForms message loop.
+    - Added timeout guards around discovery stages in `DeviceDiscoveryService`:
+      - `CheckComPort`
+      - `ExistePort`
+      - serial port open
+      - `I1` identification wait
+    - Added scan trace logging with `scanId`, COM port, retry, raw response, timeout, and identification outcome.
+  - **Behavior**:
+    - The scan now continues through all available COM ports even when unrelated serial devices are present.
+    - Full scan supports multiple Fiplex devices connected at the same time.
+    - Repeated `Scan → Connect → Disconnect → Scan` cycles are more reliable.
+    - Debug logs now provide exact per-port discovery traceability.
 
 ---
 
@@ -123,7 +129,8 @@ See migration comments in code (`// Equivalente VB.NET:`) for historical context
 
 | Version | Date | Framework | Status |
 |---------|------|-----------|--------|
-| 3.0.0 | 2025 | .NET 10 | Current |
+| 3.0.1 | 2026 | .NET 10 | Current |
+| 3.0.0 | 2025 | .NET 10 | Previous |
 | 1.x.x | 2015-2025 | .NET Framework | Legacy |
 
 ---
@@ -145,5 +152,6 @@ See migration comments in code (`// Equivalente VB.NET:`) for historical context
 
 ---
 
-[Unreleased]: https://github.com/fiplex/control-software/compare/v3.0.0...HEAD
+[Unreleased]: https://github.com/fiplex/control-software/compare/v3.0.1...HEAD
+[3.0.1]: https://github.com/fiplex/control-software/compare/v3.0.0...v3.0.1
 [3.0.0]: https://github.com/fiplex/control-software/releases/tag/v3.0.0
