@@ -13,6 +13,7 @@
 
 Main application form that orchestrates:
 - Serial device connection
+- Serial device discovery / COM scanning
 - WebView2 for HTML UI rendering
 - Embedded HTTP server
 - Dynamic menus per device
@@ -107,6 +108,36 @@ sequenceDiagram
 
 ## Main Areas
 
+### Device Scan Orchestration
+
+`frmMain` is responsible for initiating port scan operations and keeping the UI stable while discovery is running.
+
+Current scan safeguards include:
+
+- pre-scan cleanup of pending pipeline commands,
+- defensive serial port close before scan start,
+- scan execution off the UI thread,
+- progress updates through the status bar,
+- cancellation support through `_scanCts`.
+
+```csharp
+private async Task ExecuteDeviceScanAsync(DeviceScanMode mode = DeviceScanMode.FullScan)
+{
+    _scanCts?.Cancel();
+    _scanCts = new CancellationTokenSource();
+
+    _pipeline.CancelPendingCommands();
+    if (_serialPort.IsOpen)
+        await _serialPort.CloseAsync();
+
+    _foundDevices = await Task.Run(
+        () => _discovery.ScanPortsAsync(mode, progress, _scanCts.Token),
+        _scanCts.Token);
+}
+```
+
+This design helps avoid UI hangs when COM ports belong to non-Fiplex devices.
+
 ### WebView2
 
 ```csharp
@@ -181,6 +212,18 @@ stateDiagram-v2
 | `CredentialsRequired` | Pipeline | Show frmPassword |
 | `BaseJsLoaded` | HttpServer | Clear pending commands |
 | `NavigationCompleted` | WebView2 | Enable menus |
+| `cmdIDPort_Click` | Scan button | Start guarded COM discovery |
+
+## Shutdown / Cleanup Notes
+
+`frmMain` now performs additional cleanup to avoid scan-related deadlocks on close:
+
+- cancels `_scanCts`,
+- cancels pending pipeline commands,
+- disconnects active serial session if needed,
+- stops the pipeline with a timeout guard.
+
+This reduces the chance of leaving background serial work running after the main form closes.
 
 ## Main Menus
 
