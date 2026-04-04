@@ -641,6 +641,21 @@ public partial class frmMain : Form
         _scanCts?.Cancel();
         _scanCts = new CancellationTokenSource();
 
+        // Defensive cleanup before scan: previous sessions may leave pending commands
+        // that block discovery command processing.
+        try
+        {
+            _pipeline.CancelPendingCommands();
+            if (_serialPort.IsOpen)
+            {
+                await _serialPort.CloseAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Pre-scan cleanup failed");
+        }
+
         SetUIState(isScanning: true);
         PrepareComboBoxForScan();
         LogStatus(mode == DeviceScanMode.QuickScan 
@@ -650,7 +665,10 @@ public partial class frmMain : Form
         try
         {
             var progress = new Progress<ScanProgress>(UpdateScanProgress);
-            _foundDevices = await _discovery.ScanPortsAsync(mode, progress, _scanCts.Token);
+            // Run scan off the UI thread to keep the form responsive during COM probing.
+            _foundDevices = await Task.Run(
+                () => _discovery.ScanPortsAsync(mode, progress, _scanCts.Token),
+                _scanCts.Token);
 
             UpdateDeviceList();
             LogScanCompleteStatus(mode);
@@ -1272,6 +1290,10 @@ public partial class frmMain : Form
 
             // Cancel ongoing operations
             _cts?.Cancel();
+
+            // Cancel pending/blocked serial commands before stopping services.
+            // This prevents scan deadlocks after reconnect/disconnect cycles.
+            _pipeline.CancelPendingCommands();
 
             // Stop watchdog
             if (_watchdog != null)
@@ -4306,12 +4328,21 @@ public partial class frmMain : Form
         {
             _scanCts?.Cancel();
 
+            // Ensure pipeline queue is unblocked even if there are hanging commands.
+            _pipeline.CancelPendingCommands();
+
             if (_serialPort.IsOpen)
             {
                 await DisconnectAsync();
             }
 
-            await _pipeline.StopAsync();
+            // Guard StopAsync with timeout to avoid indefinite wait on close.
+            var stopTask = _pipeline.StopAsync();
+            var completed = await Task.WhenAny(stopTask, Task.Delay(2000));
+            if (completed != stopTask)
+            {
+                _logger.LogWarning("Pipeline stop timed out during form closing");
+            }
 
             _logger.LogInformation("Cleanup complete");
         }

@@ -82,6 +82,15 @@ public record SerialCommand
     /// </remarks>
     public bool IsMultipart { get; init; } = false;
 
+    /// <summary>
+    /// Gets a value indicating whether partial responses (without LF terminator) are accepted.
+    /// </summary>
+    /// <remarks>
+    /// Legacy devices may return valid frames without trailing LF during identification (I1).
+    /// Keep disabled by default to avoid accepting incomplete frames in normal command flow.
+    /// </remarks>
+    public bool AcceptPartialResponse { get; init; } = false;
+
     /// <summary>Gets the cancellation token for this command.</summary>
     public CancellationToken CancellationToken { get; init; }
 }
