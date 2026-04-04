@@ -34,7 +34,6 @@ namespace Fiplex.Control.Software.WinForms.Forms
             lblConfirm = new Label();
             txtConfirmPassword = new TextBox();
             lblPasswordError = new Label();
-            chkRemember = new CheckBox();
             btnOK = new Button();
             btnCancel = new Button();
             SuspendLayout();
@@ -109,20 +108,6 @@ namespace Fiplex.Control.Software.WinForms.Forms
             lblPasswordError.Text = "";
             lblPasswordError.Visible = false;
             // 
-            // chkRemember
-            // 
-            chkRemember.AccessibleDescription = "Option to save password for future use";
-            chkRemember.AccessibleName = "Remember Password Checkbox";
-            chkRemember.AutoSize = true;
-            chkRemember.Font = new Font("Segoe UI", 9F);
-            chkRemember.ForeColor = Color.FromArgb(34, 34, 34);
-            chkRemember.Location = new Point(20, 80);
-            chkRemember.Name = "chkRemember";
-            chkRemember.Size = new Size(137, 19);
-            chkRemember.TabIndex = 4;
-            chkRemember.Text = "Remember password";
-            chkRemember.UseVisualStyleBackColor = true;
-            // 
             // btnOK
             // 
             btnOK.AccessibleDescription = "Accept the password and authenticate";
@@ -178,7 +163,6 @@ namespace Fiplex.Control.Software.WinForms.Forms
             Controls.Add(lblPasswordError);
             Controls.Add(btnCancel);
             Controls.Add(btnOK);
-            Controls.Add(chkRemember);
             Controls.Add(txtConfirmPassword);
             Controls.Add(lblConfirm);
             Controls.Add(txtPassword);
@@ -203,7 +187,6 @@ namespace Fiplex.Control.Software.WinForms.Forms
         private System.Windows.Forms.Label lblConfirm;
         private System.Windows.Forms.TextBox txtConfirmPassword;
         private System.Windows.Forms.Label lblPasswordError;
-        private System.Windows.Forms.CheckBox chkRemember;
         private System.Windows.Forms.Button btnOK;
         private System.Windows.Forms.Button btnCancel;
     }

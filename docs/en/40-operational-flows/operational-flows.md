@@ -11,8 +11,9 @@ This document describes the main operational flows of the Fiplex Control Softwar
 | 1 | [Initialization](#initialization-flow) | Application startup |
 | 2 | [User Authentication](#user-authentication-flow) | OIDC login |
 | 3 | [Device Connection](#device-connection-flow) | Serial connection |
-| 4 | [HTTP-Serial Commands](#http-serial-command-flow) | Command processing |
-| 5 | [Watchdog](#watchdog-flow) | Device keepalive |
+| 4 | [Device Discovery / Port Scan](#device-discovery-port-scan-flow) | COM scan with non-Fiplex tolerance |
+| 5 | [HTTP-Serial Commands](#http-serial-command-flow) | Command processing |
+| 6 | [Watchdog](#watchdog-flow) | Device keepalive |
 
 ---
 
@@ -183,6 +184,89 @@ sequenceDiagram
     Main->>HTTP: StartAsync(8080, htdocs_path)
     Main->>WV: Navigate(http://localhost:8080/)
 ```
+
+## Device Discovery / Port Scan Flow
+
+### Objective
+
+Scan COM ports without blocking the UI, identify Fiplex devices reliably, and continue scanning even when non-Fiplex devices or problematic serial drivers are present.
+
+### Current Behavior
+
+- The scan runs off the UI thread to keep `frmMain` responsive.
+- Every COM port is evaluated independently with guarded timeouts.
+- Non-Fiplex devices (for example Microchip-based boards or unrelated USB serial devices) do **not** block the full scan.
+- Full scan continues collecting multiple Fiplex devices across different COM ports.
+- Identification accepts legacy partial `I1` responses without trailing LF when explicitly enabled for discovery.
+
+### Sequence Diagram
+
+```mermaid
+sequenceDiagram
+    participant User
+    participant Main as frmMain
+    participant Scan as DeviceDiscoveryService
+    participant Pipe as SerialCommandPipeline
+    participant Serial as ISerialPort
+    participant Cat as DeviceCatalog
+
+    User->>Main: Click "Scan Devices"
+    Main->>Main: Cancel pending commands + close prior port
+    Main->>Scan: ScanPortsAsync(FullScan)
+
+    loop COM1..COM255
+        Scan->>Scan: CheckComPort(timeout)
+        Scan->>Scan: ExistePort(timeout)
+
+        alt Port unavailable / busy / timed out
+            Scan->>Scan: Continue with next COM
+        else Candidate port
+            Scan->>Serial: OpenAsync(COMx, timeout)
+            Scan->>Pipe: EnqueueCommandAsync(I1)
+
+            alt I1 timeout / non-Fiplex response / empty response
+                Scan->>Pipe: CancelPendingCommands()
+                Scan->>Serial: CloseAsync()
+                Scan->>Scan: Retry or continue to next COM
+            else Fiplex ID response
+                Scan->>Cat: ResolveDevice(response)
+                Cat-->>Scan: DeviceInfo
+                Scan-->>Main: Add COMx to found devices list
+            end
+        end
+    end
+
+    Scan-->>Main: Completed device list
+    Main->>Main: Populate ComboBox
+```
+
+### Discovery Resilience Rules
+
+| Condition | Behavior |
+|-----------|----------|
+| `CheckComPort` blocks | Timeout and continue to next COM |
+| `ExistePort` blocks | Timeout and continue to next COM |
+| `OpenAsync` blocks | Timeout and retry/continue |
+| `I1` returns `NACK` | Retry on same COM |
+| `I1` returns empty or invalid response | Retry on same COM up to limit |
+| `I1` returns partial valid legacy response | Accept as data frame during discovery only |
+| Non-Fiplex serial device | Log and continue scanning |
+| Multiple Fiplex devices present | Collect all in `FullScan` mode |
+
+### Traceability
+
+Debug logs now include a short `scanId` plus per-port/per-retry stages such as:
+
+- `scan start`
+- `CheckComPort => true/false`
+- `ExistePort => true/false`
+- `identify start`
+- `open timeout`
+- `raw response '...'`
+- `identified as ...`
+- `no Fiplex device identified`
+
+This allows support/debug sessions to reconstruct the exact path taken for every COM port.
 
 ### Connection Phases (8)
 

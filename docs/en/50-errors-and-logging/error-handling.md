@@ -56,6 +56,20 @@ flowchart TB
 | `IOException` | Cable disconnected | Automatic disconnection |
 | `InvalidOperationException` | Port not open | Reconnection |
 
+### Discovery-Specific Resilience
+
+The COM discovery flow uses defensive timeout guards around synchronous and asynchronous serial probes.
+This prevents the application from staying indefinitely in `Scanning COMx` when a foreign or malfunctioning serial device is attached.
+
+| Discovery Stage | Guard | Outcome on Timeout |
+|-----------------|-------|--------------------|
+| `CheckComPort` | 300 ms | Port treated as unavailable; scan continues |
+| `ExistePort` | 500 ms | Port treated as busy/unusable; scan continues |
+| `OpenAsync` | 1200 ms | Retry or skip port |
+| `I1` identification | ~4 s hard guard | Cancel pending command, close port, continue scan |
+
+These guards are especially important when USB serial drivers expose COM ports that do not speak the Fiplex protocol.
+
 ### HTTP Layer
 
 | Exception | Cause | Handling |
@@ -198,6 +212,35 @@ _logger.LogError(ex, "Failed to process HTTP command: {Command}",
 // Debug - detailed flow
 _logger.LogDebug("Serial TX: {Data}", BitConverter.ToString(buffer));
 ```
+
+### Discovery Debug Trace
+
+Port scan logging now uses a structured pattern with a per-scan identifier:
+
+```csharp
+_logger.LogDebug("[Scan {ScanId}] COM{Port} - CheckComPort => {Result} ({ElapsedMs} ms)",
+    scanId, portNumber, portAvailable, elapsedMs);
+
+_logger.LogDebug("[Scan {ScanId}] {Port} retry {Retry} - raw response '{Response}' ({ElapsedMs} ms)",
+    scanId, portName, retry, response, elapsedMs);
+```
+
+This provides exact traceability for:
+
+- COM availability checks
+- open/close timing
+- retries
+- raw discovery responses
+- non-Fiplex responses
+- successful device matches
+
+### UI Responsiveness During Scan
+
+The scan is executed off the UI thread. This means:
+
+- the form should remain responsive while ports are being probed,
+- the scan can be cancelled or closed more reliably,
+- a blocked COM probe should not freeze the WinForms message loop.
 
 ## User-Facing Messages
 

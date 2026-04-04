@@ -215,9 +215,56 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                             TokenReceived?.Invoke(token);
                         }
                     }
+
+                    // Handle partial frames without LF when command explicitly allows it.
+                    var partialToken = _parser.GetPartialDataIfTimeout();
+                    if (partialToken != null)
+                    {
+                        var acceptsPartial = _currentCommandContext?.Request.Command.AcceptPartialResponse == true;
+                        if (acceptsPartial)
+                        {
+                            _logger.LogDebug(
+                                "Using partial response as DataFrame for command {CmdId}: {Data}",
+                                _currentCommandContext!.Request.Command.Id,
+                                partialToken.Data.Length > 100 ? partialToken.Data[..100] + "..." : partialToken.Data);
+
+                            TokenReceived?.Invoke(new ProtocolToken(TokenType.DataFrame, partialToken.Data));
+                        }
+                        else
+                        {
+                            _logger.LogTrace(
+                                "Discarding partial response for command {CmdId} (AcceptPartialResponse=false)",
+                                _currentCommandContext?.Request.Command.Id);
+                        }
+                    }
                 }
                 else
                 {
+                    // Also check partial timeout while port is open but no new bytes are arriving.
+                    if (_serialPort.IsOpen)
+                    {
+                        var partialToken = _parser.GetPartialDataIfTimeout();
+                        if (partialToken != null)
+                        {
+                            var acceptsPartial = _currentCommandContext?.Request.Command.AcceptPartialResponse == true;
+                            if (acceptsPartial)
+                            {
+                                _logger.LogDebug(
+                                    "Using partial response as DataFrame for command {CmdId}: {Data}",
+                                    _currentCommandContext!.Request.Command.Id,
+                                    partialToken.Data.Length > 100 ? partialToken.Data[..100] + "..." : partialToken.Data);
+
+                                TokenReceived?.Invoke(new ProtocolToken(TokenType.DataFrame, partialToken.Data));
+                            }
+                            else
+                            {
+                                _logger.LogTrace(
+                                    "Discarding partial response for command {CmdId} (AcceptPartialResponse=false)",
+                                    _currentCommandContext?.Request.Command.Id);
+                            }
+                        }
+                    }
+
                     await Task.Delay(10, ct);
                 }
             }

@@ -1,6 +1,7 @@
 using System.IO.Ports;
 using System.Runtime.InteropServices;
 using System.Text;
+using System.Diagnostics;
 using Fiplex.Control.Software.WinForms.Core.Devices.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Serial.Models;
@@ -32,6 +33,9 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     private const int MaxPort = 255;
     private const int MaxRetries = 5;
     private const int TimeoutSeconds = 3;
+    private static readonly TimeSpan CheckComPortTimeout = TimeSpan.FromMilliseconds(300);
+    private static readonly TimeSpan ExistsPortTimeout = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan OpenPortTimeout = TimeSpan.FromMilliseconds(1200);
     private const string IdentificationCommand = "I1";
     private const string ExpectedPrefix = "Fiplex";
     private const int MinResponseLength = 15;
@@ -55,15 +59,18 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     {
         var foundDevices = new List<DeviceInfo>();
         var stopOnFirstDevice = mode == DeviceScanMode.QuickScan;
+        var scanId = Guid.NewGuid().ToString("N")[..8];
 
         _logger.LogInformation(
-            "Starting device scan from COM{MinPort} to COM{MaxPort} (Mode: {Mode})",
-            MinPort, MaxPort, mode);
+            "Starting device scan {ScanId} from COM{MinPort} to COM{MaxPort} (Mode: {Mode})",
+            scanId, MinPort, MaxPort, mode);
 
         // Scan all COM ports
         for (int portNumber = MinPort; portNumber <= MaxPort; portNumber++)
         {
             ct.ThrowIfCancellationRequested();
+            var portStopwatch = Stopwatch.StartNew();
+            _logger.LogDebug("[Scan {ScanId}] COM{Port} - scan start", scanId, portNumber);
 
             // Report progress
             progress?.Report(new ScanProgress(
@@ -73,29 +80,55 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                 DevicesFound: foundDevices.Count
             ));
 
-            // Verify port availability
-            if (!CheckComPort(portNumber))
+            // Verify port availability (timeout-guarded to avoid hanging on foreign COM drivers)
+            var portAvailable = await ExecuteWithTimeoutAsync(
+                () => CheckComPort(portNumber),
+                CheckComPortTimeout,
+                ct);
+
+            _logger.LogDebug(
+                "[Scan {ScanId}] COM{Port} - CheckComPort => {Result} ({ElapsedMs} ms)",
+                scanId,
+                portNumber,
+                portAvailable,
+                portStopwatch.ElapsedMilliseconds);
+
+            if (!portAvailable)
             {
                 _logger.LogTrace("COM{Port} not available at system level", portNumber);
                 continue;
             }
 
-            // Verify if the port can be opened
-            if (!ExistePort(portNumber))
+            // Verify if the port can be opened (timeout-guarded)
+            var canOpen = await ExecuteWithTimeoutAsync(
+                () => ExistePort(portNumber),
+                ExistsPortTimeout,
+                ct);
+
+            _logger.LogDebug(
+                "[Scan {ScanId}] COM{Port} - ExistePort => {Result} ({ElapsedMs} ms)",
+                scanId,
+                portNumber,
+                canOpen,
+                portStopwatch.ElapsedMilliseconds);
+
+            if (!canOpen)
             {
                 _logger.LogTrace("COM{Port} cannot be opened (in use)", portNumber);
                 continue;
             }
 
             // Attempt to identify device
-            var device = await TryIdentifyDeviceAsync(portNumber, ct);
+            var device = await TryIdentifyDeviceAsync(portNumber, scanId, ct);
             if (device != null)
             {
                 foundDevices.Add(device);
                 _logger.LogInformation(
-                    "Found device: {DeviceName} on COM{Port}",
+                    "[Scan {ScanId}] Found device: {DeviceName} on COM{Port} after {ElapsedMs} ms",
+                    scanId,
                     device.NameTypeDevice,
-                    device.ComPort);
+                    device.ComPort,
+                    portStopwatch.ElapsedMilliseconds);
 
                 // QuickScan: detener al encontrar primer dispositivo
                 if (stopOnFirstDevice)
@@ -104,9 +137,17 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     break;
                 }
             }
+            else
+            {
+                _logger.LogDebug(
+                    "[Scan {ScanId}] COM{Port} - no Fiplex device identified after {ElapsedMs} ms",
+                    scanId,
+                    portNumber,
+                    portStopwatch.ElapsedMilliseconds);
+            }
         }
 
-        _logger.LogInformation("Scan complete: {Count} device(s) found", foundDevices.Count);
+        _logger.LogInformation("Scan {ScanId} complete: {Count} device(s) found", scanId, foundDevices.Count);
         return foundDevices;
     }
 
@@ -168,7 +209,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     /// Attempts to identify a Fiplex device on the port.
     /// Sends I1 command and analyzes the response to detect Fiplex devices.
     /// </summary>
-    private async Task<DeviceInfo?> TryIdentifyDeviceAsync(int portNumber, CancellationToken ct)
+    private async Task<DeviceInfo?> TryIdentifyDeviceAsync(int portNumber, string scanId, CancellationToken ct)
     {
         var portName = $"COM{portNumber}";
 
@@ -177,13 +218,41 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         {
             try
             {
+                var retryStopwatch = Stopwatch.StartNew();
+                _logger.LogDebug("[Scan {ScanId}] {Port} retry {Retry} - identify start", scanId, portName, retry + 1);
+
                 // Open port
-                var opened = await _serialPort.OpenAsync(portName, baudRate: 9600, ct: ct);
+                var openTask = _serialPort.OpenAsync(portName, baudRate: 9600, ct: ct);
+                var openTimeoutTask = Task.Delay(OpenPortTimeout, ct);
+                if (await Task.WhenAny(openTask, openTimeoutTask) != openTask)
+                {
+                    _logger.LogDebug(
+                        "[Scan {ScanId}] {Port} retry {Retry} - open timeout after {ElapsedMs} ms",
+                        scanId,
+                        portName,
+                        retry + 1,
+                        retryStopwatch.ElapsedMilliseconds);
+                    continue;
+                }
+
+                var opened = await openTask;
                 if (!opened)
                 {
-                    _logger.LogTrace("Failed to open {Port} on retry {Retry}", portName, retry);
+                    _logger.LogDebug(
+                        "[Scan {ScanId}] {Port} retry {Retry} - open returned false after {ElapsedMs} ms",
+                        scanId,
+                        portName,
+                        retry + 1,
+                        retryStopwatch.ElapsedMilliseconds);
                     return null;
                 }
+
+                _logger.LogDebug(
+                    "[Scan {ScanId}] {Port} retry {Retry} - port opened ({ElapsedMs} ms)",
+                    scanId,
+                    portName,
+                    retry + 1,
+                    retryStopwatch.ElapsedMilliseconds);
 
                 // Wait 10ms before sending command
                 await Task.Delay(10, ct);
@@ -194,26 +263,64 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     Payload = IdentificationCommand,
                     ExpectsAck = false,
                     ExpectsData = true,
+                    AcceptPartialResponse = true,
                     MaxRetries = 1,
                     DataTimeout = TimeSpan.FromSeconds(TimeoutSeconds),
                     CancellationToken = ct
                 };
 
-                var result = await _pipeline.EnqueueCommandAsync(command);
+                // Hard timeout guard: prevents a single COM port from freezing full scan.
+                var resultTask = _pipeline.EnqueueCommandAsync(command);
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(TimeoutSeconds + 1), ct);
+                if (await Task.WhenAny(resultTask, timeoutTask) != resultTask)
+                {
+                    _logger.LogWarning(
+                        "[Scan {ScanId}] {Port} retry {Retry} - identification timeout guard after {ElapsedMs} ms",
+                        scanId,
+                        portName,
+                        retry + 1,
+                        retryStopwatch.ElapsedMilliseconds);
+
+                    // Try to cancel blocked pipeline command(s) and continue scanning.
+                    _pipeline.CancelPendingCommands();
+
+                    if (_serialPort.IsOpen)
+                    {
+                        await _serialPort.CloseAsync();
+                    }
+
+                    continue;
+                }
+
+                var result = await resultTask;
 
                 // Close port
                 await _serialPort.CloseAsync();
 
-                var response = result.Data ?? string.Empty;
+                var response = (result.Data ?? string.Empty)
+                    .Trim('\0', '\r', '\n', ' ');
 
-                _logger.LogTrace(
-                    "{Port} retry {Retry}: response={Response}",
-                    portName, retry, response);
+                _logger.LogDebug(
+                    "[Scan {ScanId}] {Port} retry {Retry} - raw response '{Response}' ({ElapsedMs} ms)",
+                    scanId,
+                    portName,
+                    retry + 1,
+                    response.Length > 120 ? response[..120] + "..." : response,
+                    retryStopwatch.ElapsedMilliseconds);
 
                 // Retry if response is NACK
                 if (response.Equals("NACK", StringComparison.OrdinalIgnoreCase))
                 {
+                    _logger.LogDebug("[Scan {ScanId}] {Port} retry {Retry} - NACK", scanId, portName, retry + 1);
                     continue; // Retry
+                }
+
+                // Retry when response is empty/timeout or noisy/partial not yet matching IDN.
+                // This improves resilience after disconnect/reconnect cycles where first read can be unstable.
+                if (string.IsNullOrWhiteSpace(response))
+                {
+                    _logger.LogDebug("[Scan {ScanId}] {Port} retry {Retry} - empty response", scanId, portName, retry + 1);
+                    continue;
                 }
 
                 // Verify minimum response length
@@ -226,6 +333,14 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                         var deviceInfo = _catalog.ResolveDevice(response);
                         if (deviceInfo != null)
                         {
+                            _logger.LogDebug(
+                                "[Scan {ScanId}] {Port} retry {Retry} - identified as {DeviceName} ({DeviceId})",
+                                scanId,
+                                portName,
+                                retry + 1,
+                                deviceInfo.NameTypeDevice,
+                                deviceInfo.Id);
+
                             return deviceInfo with { ComPort = portNumber };
                         }
                         else
@@ -237,7 +352,25 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     }
                 }
 
-                // Invalid response, do not retry further
+                // Invalid response. Retry while attempts remain to tolerate transient post-disconnect noise.
+                if (retry < MaxRetries - 1)
+                {
+                    _logger.LogDebug(
+                        "[Scan {ScanId}] {Port} retry {Retry} - invalid non-Fiplex response '{Response}', retrying",
+                        scanId,
+                        portName,
+                        retry + 1,
+                        response.Length > 100 ? response[..100] + "..." : response);
+
+                    continue;
+                }
+
+                _logger.LogDebug(
+                    "[Scan {ScanId}] {Port} retry {Retry} - exhausted identification attempts",
+                    scanId,
+                    portName,
+                    retry + 1);
+
                 break;
             }
             catch (OperationCanceledException)
@@ -246,7 +379,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
             }
             catch (Exception ex)
             {
-                _logger.LogTrace(ex, "Error identifying device on {Port} retry {Retry}", portName, retry);
+                _logger.LogDebug(ex, "[Scan {ScanId}] {Port} retry {Retry} - identification exception", scanId, portName, retry + 1);
 
                 // Ensure port is closed
                 try
@@ -261,6 +394,37 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         }
 
         return null;
+    }
+
+    /// <summary>
+    /// Executes a potentially blocking synchronous COM probe with timeout guard.
+    /// If timeout is reached, returns false and allows scan to continue.
+    /// </summary>
+    private async Task<bool> ExecuteWithTimeoutAsync(
+        Func<bool> operation,
+        TimeSpan timeout,
+        CancellationToken ct)
+    {
+        try
+        {
+            var operationTask = Task.Run(operation, ct);
+            var timeoutTask = Task.Delay(timeout, ct);
+
+            if (await Task.WhenAny(operationTask, timeoutTask) != operationTask)
+            {
+                return false;
+            }
+
+            return await operationTask;
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     /// <summary>

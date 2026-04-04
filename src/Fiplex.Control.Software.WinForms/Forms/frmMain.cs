@@ -46,6 +46,7 @@ public partial class frmMain : Form
     private SessionContext _sessionContext = new();
     private bool _httpServerIsRunning = false;
     private int _httpPort = 8000;
+    private string? _sessionToken;
     private DevelopmentModeSettings? _devModeSettings;
 
     // Current device configuration (FILE commands)
@@ -73,7 +74,7 @@ public partial class frmMain : Form
     private static readonly string SoftwareVersion =
         (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "3.0.0-alpha")
+            ?.InformationalVersion ?? "3.0.0")
         .Split('+')[0];
 
     public frmMain(
@@ -428,6 +429,21 @@ public partial class frmMain : Form
     }
 
     /// <summary>
+    /// Injects the session token header into every WebView2 request to the embedded HTTP server.
+    /// </summary>
+    /// <remarks>
+    /// This prevents external browsers from accessing the server since they cannot provide the token.
+    /// See issue #11: Factory can be accessed with external browser.
+    /// </remarks>
+    private void CoreWebView2_WebResourceRequested(object? sender, CoreWebView2WebResourceRequestedEventArgs e)
+    {
+        if (_sessionToken != null)
+        {
+            e.Request.Headers.SetHeader("X-Fiplex-Token", _sessionToken);
+        }
+    }
+
+    /// <summary>
     /// Navigates to the device interface.
     /// </summary>
     /// <remarks>
@@ -625,6 +641,21 @@ public partial class frmMain : Form
         _scanCts?.Cancel();
         _scanCts = new CancellationTokenSource();
 
+        // Defensive cleanup before scan: previous sessions may leave pending commands
+        // that block discovery command processing.
+        try
+        {
+            _pipeline.CancelPendingCommands();
+            if (_serialPort.IsOpen)
+            {
+                await _serialPort.CloseAsync();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Pre-scan cleanup failed");
+        }
+
         SetUIState(isScanning: true);
         PrepareComboBoxForScan();
         LogStatus(mode == DeviceScanMode.QuickScan 
@@ -634,7 +665,10 @@ public partial class frmMain : Form
         try
         {
             var progress = new Progress<ScanProgress>(UpdateScanProgress);
-            _foundDevices = await _discovery.ScanPortsAsync(mode, progress, _scanCts.Token);
+            // Run scan off the UI thread to keep the form responsive during COM probing.
+            _foundDevices = await Task.Run(
+                () => _discovery.ScanPortsAsync(mode, progress, _scanCts.Token),
+                _scanCts.Token);
 
             UpdateDeviceList();
             LogScanCompleteStatus(mode);
@@ -999,55 +1033,28 @@ public partial class frmMain : Form
                         MessageBoxIcon.Error);
                     return;
 
+                case AuthResult.IncorrectPassword:
+                    // Equivalente VB.NET: When frmPassword sends *0{password} and it fails,
+                    // VB shows "Wrong password" label inside the dialog and user can retry.
+                    // In C#, the pipeline's CredentialsRequired handler already showed the
+                    // password dialog during CheckAuthenticationRequirementAsync. If the password
+                    // was wrong, the pipeline returned AuthenticationFailed, which we map here.
+                    _logger.LogWarning("Authentication failed - incorrect password");
+                    await DisconnectAsync();
+                    MessageBox.Show(
+                        "Incorrect password.\nPlease verify your credentials and try again.",
+                        "Authentication Failed",
+                        MessageBoxButtons.OK,
+                        MessageBoxIcon.Warning);
+                    return;
+
                 case AuthResult.PasswordRequired:
                     _logger.LogInformation("Device requires authentication");
                     LogStatus("Password required...");
 
-                    // STAGE 3: Try to retrieve saved password
-                    string? savedPassword = null;
-                    try
-                    {
-                        savedPassword = await _appSettings.GetSettingAsync<string>("DevicePassword");
-                        if (!string.IsNullOrEmpty(savedPassword))
-                        {
-                            _logger.LogDebug("Password retrieved from configuration");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "No saved password or error retrieving");
-                    }
-
-                    // STAGE 3: Automatic authentication if saved password exists
-                    if (!string.IsNullOrEmpty(savedPassword))
-                    {
-                        _logger.LogInformation("Attempting automatic authentication with saved password");
-                        var autoAuth = await _authService.AuthenticateAsync(savedPassword, _cts.Token);
-
-                        if (autoAuth)
-                        {
-                            _logger.LogInformation("Automatic authentication successful");
-                            LogStatus("Auto-authentication successful");
-
-                            // Store validated password and configure in pipeline and router
-                            _validatedPassword = savedPassword;
-                            _pipeline.SetStoredPassword(savedPassword);
-                            _commandRouter.SetStoredPassword(savedPassword);
-                            break; // Exit switch, continue flow
-                        }
-
-                        _logger.LogWarning("Automatic authentication failed, requesting manual password");
-                    }
-
-                    // Manual dialog (preserve existing code)
+                    // Manual password dialog
                     using (var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>())
                     {
-                        // STAGE 3: Pre-populate with saved password if exists (improved UX)
-                        if (!string.IsNullOrEmpty(savedPassword))
-                        {
-                            passwordDialog.Password = savedPassword;
-                        }
-
                         if (passwordDialog.ShowDialog(this) != DialogResult.OK)
                         {
                             _logger.LogInformation("User cancelled password dialog");
@@ -1055,33 +1062,43 @@ public partial class frmMain : Form
                             return;
                         }
 
-                        var authenticated = await _authService.AuthenticateAsync(
+                        var authenticationResult = await _authService.AuthenticateAsync(
                             passwordDialog.Password, _cts.Token);
 
-                        if (!authenticated)
+                        if (authenticationResult == AuthResult.IncorrectPassword)
                         {
                             _logger.LogWarning("Authentication failed - incorrect password");
                             await DisconnectAsync();
                             MessageBox.Show(
-                                "Incorrect password.\nPlease try again.",
+                                "Incorrect password.\nPlease verify your credentials and try again.",
                                 "Authentication Failed",
                                 MessageBoxButtons.OK,
                                 MessageBoxIcon.Warning);
                             return;
                         }
 
-                        // Save password if RememberPassword is checked
-                        if (passwordDialog.RememberPassword)
+                        if (authenticationResult == AuthResult.DeviceNotResponding)
                         {
-                            try
-                            {
-                                await _appSettings.SaveSettingAsync("DevicePassword", passwordDialog.Password);
-                                _logger.LogInformation("Password saved for future connections");
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogWarning(ex, "Error saving password");
-                            }
+                            _logger.LogError("Device not responding during authentication");
+                            await DisconnectAsync();
+                            MessageBox.Show(
+                                "Device is not responding.\nPlease check the connection and try again.",
+                                "Connection Error",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Error);
+                            return;
+                        }
+
+                        if (authenticationResult != AuthResult.AuthenticationSuccessful)
+                        {
+                            _logger.LogError("Unexpected authentication result: {Result}", authenticationResult);
+                            await DisconnectAsync();
+                            MessageBox.Show(
+                                "Authentication failed.\nPlease try again.",
+                                "Authentication Failed",
+                                MessageBoxButtons.OK,
+                                MessageBoxIcon.Warning);
+                            return;
                         }
 
                         _logger.LogInformation("Authentication successful");
@@ -1107,12 +1124,23 @@ public partial class frmMain : Form
             try
             {
                 var port = GetAvailablePort();
-                await _httpServer.StartAsync(port, devicePath, _cts.Token);
+                _sessionToken = Guid.NewGuid().ToString("N");
+                await _httpServer.StartAsync(port, devicePath, _sessionToken, _cts.Token);
                 _httpServerIsRunning = true;
                 _httpPort = port;
 
                 _logger.LogInformation("HTTP server started on port {Port}", port);
                 _logger.LogInformation("Root path: {RootPath}", devicePath);
+
+                // Inject session token into all WebView2 requests via custom header
+                if (webView?.CoreWebView2 != null)
+                {
+                    webView.CoreWebView2.AddWebResourceRequestedFilter(
+                        $"http://localhost:{port}/*", CoreWebView2WebResourceContext.All);
+                    webView.CoreWebView2.AddWebResourceRequestedFilter(
+                        $"http://127.0.0.1:{port}/*", CoreWebView2WebResourceContext.All);
+                    webView.CoreWebView2.WebResourceRequested += CoreWebView2_WebResourceRequested;
+                }
 
                 // Navigate WebView2 to main page
                 if (webView?.CoreWebView2 != null)
@@ -1201,9 +1229,11 @@ public partial class frmMain : Form
             mnuFWInfo.Visible = true;
 
             // Enable configuration menus
-            mnuConfig.Enabled = true;
-            mnuLoadConfig.Enabled = true;
-            mnuSaveConfig.Enabled = true;
+            // mnuConfig disabled for Flex devices (4dm*, 5dm, 2c) per VB reference
+            var configEnabled = IsConfigMenuEnabledForDevice(selectedDevice);
+            mnuConfig.Enabled = configEnabled;
+            mnuLoadConfig.Enabled = configEnabled;
+            mnuSaveConfig.Enabled = configEnabled;
 
             // Enable calibration menus if visible
             if (mnuCal.Visible)
@@ -1261,6 +1291,10 @@ public partial class frmMain : Form
             // Cancel ongoing operations
             _cts?.Cancel();
 
+            // Cancel pending/blocked serial commands before stopping services.
+            // This prevents scan deadlocks after reconnect/disconnect cycles.
+            _pipeline.CancelPendingCommands();
+
             // Stop watchdog
             if (_watchdog != null)
             {
@@ -1280,8 +1314,15 @@ public partial class frmMain : Form
             {
                 try
                 {
+                    // Remove WebResourceRequested handler before stopping server
+                    if (webView?.CoreWebView2 != null)
+                    {
+                        webView.CoreWebView2.WebResourceRequested -= CoreWebView2_WebResourceRequested;
+                    }
+
                     await _httpServer.StopAsync();
                     _httpServerIsRunning = false;
+                    _sessionToken = null;
                     _logger.LogInformation("HTTP server stopped");
                 }
                 catch (Exception ex)
@@ -1420,24 +1461,7 @@ public partial class frmMain : Form
             return _validatedPassword;
         }
 
-        // Try to retrieve saved password from configuration
-        try
-        {
-            var savedPassword = await _appSettings.GetSettingAsync<string>("DevicePassword");
-            if (!string.IsNullOrEmpty(savedPassword))
-            {
-                _logger.LogDebug("Using saved password for INVALID CREDENTIALS retry");
-                _validatedPassword = savedPassword;
-                _pipeline.SetStoredPassword(savedPassword);
-                return savedPassword;
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogDebug(ex, "Error retrieving saved password");
-        }
-
-        // As last resort, show password dialog
+        // Show password dialog
         // Note: This must run on the UI thread
         string? password = null;
 
@@ -1473,6 +1497,21 @@ public partial class frmMain : Form
     }
 
     #region Helper Methods
+
+    /// <summary>
+    /// Determines whether mnuConfig (File → Configuration) should be enabled for a device.
+    /// </summary>
+    /// <remarks>
+    /// Equivalente VB.NET:
+    /// <c>mnuConfig.Enabled = (tdev &lt;&gt; "4dm") And (tdev &lt;&gt; "4dm1") And (tdev &lt;&gt; "4dm2") And (tdev &lt;&gt; "4dm3") And (tdev &lt;&gt; "4dm4") And (tdev &lt;&gt; "5dm") And (tdev &lt;&gt; "2c")</c>
+    /// Flex devices do not support user-editable configuration via this menu.
+    /// </remarks>
+    private static bool IsConfigMenuEnabledForDevice(DeviceInfo? device)
+    {
+        if (device?.TDev is null) return false;
+
+        return device.TDev is not ("4dm" or "4dm1" or "4dm2" or "4dm3" or "4dm4" or "5dm" or "2c");
+    }
 
     private bool ValidateDeviceSelection()
     {
@@ -2360,9 +2399,11 @@ public partial class frmMain : Form
             // Includes parent menus along with child items
             if (_sessionContext.State == ConnectionState.Connected)
             {
-                mnuConfig.Enabled = true;
-                mnuSaveConfig.Enabled = true;
-                mnuLoadConfig.Enabled = true;
+                // mnuConfig stays disabled for Flex devices (4dm*, 5dm, 2c)
+                var configEnabled = IsConfigMenuEnabledForDevice(_sessionContext.Device);
+                mnuConfig.Enabled = configEnabled;
+                mnuSaveConfig.Enabled = configEnabled;
+                mnuLoadConfig.Enabled = configEnabled;
                 // Re-enable calibration menus only if device supports them
                 if (mnuCal.Visible)
                 {
@@ -2561,12 +2602,6 @@ public partial class frmMain : Form
         passwordDialog.IsEditMode = true;  // Configures title, prompt and hides chkRemember
         passwordDialog.ShowCancel = true;  // Allow cancellation
 
-        // Pre-populate with current password if available
-        if (!string.IsNullOrEmpty(_validatedPassword))
-        {
-            passwordDialog.Password = _validatedPassword;
-        }
-
         if (passwordDialog.ShowDialog(this) != DialogResult.OK)
         {
             _logger.LogDebug("Password change cancelled by user");
@@ -2596,7 +2631,7 @@ public partial class frmMain : Form
             {
                 Payload = $"^0{newPassword}",
                 ExpectsAck = true,
-                ExpectsData = true,
+                ExpectsData = false,  // Device only sends ACK, no additional data frame
                 MaxRetries = 2,
                 AckTimeout = TimeSpan.FromSeconds(2),
                 CancellationToken = _cts?.Token ?? default
@@ -2604,17 +2639,12 @@ public partial class frmMain : Form
             var result = await _pipeline.EnqueueCommandAsync(serialCommand);
 
             // Verify successful response
-            if (result.Success && result.Data.Equals("ACK", StringComparison.OrdinalIgnoreCase))
+            if (result.Success)
             {
                 // Update stored password
                 _validatedPassword = newPassword;
                 _pipeline.SetStoredPassword(newPassword);
                 _commandRouter.SetStoredPassword(newPassword);
-
-                // In edit mode, always save the new password
-                // (user already authenticated to be able to change it)
-                await _appSettings.SaveSettingAsync("DevicePassword", newPassword);
-                _logger.LogInformation("New password saved to settings");
 
                 LogStatus("Password changed successfully");
                 MessageBox.Show(
@@ -2625,13 +2655,13 @@ public partial class frmMain : Form
 
                 _logger.LogInformation("Device password changed successfully");
             }
-        else
-        {
-            // Process specific password validation errors
-            var errorMessage = ParsePasswordValidationError(result.Data);                _logger.LogWarning("Password change failed: {Response} -> {Error}", result.Data, errorMessage);
+            else
+            {
+                // If device returns NACK or error, result.Success will be false
+                _logger.LogWarning("Password change failed: {Status}", result.Status);
                 LogStatus("Password change failed");
                 MessageBox.Show(
-                    $"Failed to change password.\n\n{errorMessage}",
+                    "Failed to change password.\n\nThe device did not accept the new password.",
                     "Password Change Failed",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
@@ -4298,12 +4328,21 @@ public partial class frmMain : Form
         {
             _scanCts?.Cancel();
 
+            // Ensure pipeline queue is unblocked even if there are hanging commands.
+            _pipeline.CancelPendingCommands();
+
             if (_serialPort.IsOpen)
             {
                 await DisconnectAsync();
             }
 
-            await _pipeline.StopAsync();
+            // Guard StopAsync with timeout to avoid indefinite wait on close.
+            var stopTask = _pipeline.StopAsync();
+            var completed = await Task.WhenAny(stopTask, Task.Delay(2000));
+            if (completed != stopTask)
+            {
+                _logger.LogWarning("Pipeline stop timed out during form closing");
+            }
 
             _logger.LogInformation("Cleanup complete");
         }
