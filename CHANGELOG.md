@@ -1,3 +1,10 @@
+#
+
+## [3.0.2] - 2026-05-03
+
+### Changed
+- Actualización de versión de ensamblado, producto y archivo a 3.0.2.
+
 # Changelog
 
 All notable changes to Fiplex Control Software will be documented in this file.
