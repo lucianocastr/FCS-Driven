@@ -412,7 +412,38 @@ public partial class frmMain : Form
     private void CoreWebView2_NewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
     {
         e.Handled = true;
-        webView.CoreWebView2.Navigate(e.Uri);
+
+        try
+        {
+            // Filter Info / Filter Tool use window.open(...).
+            // Ensure popup navigation keeps the in-session token to avoid 403 Forbidden.
+            if (webView?.CoreWebView2 != null &&
+                !string.IsNullOrWhiteSpace(_sessionToken) &&
+                !string.IsNullOrWhiteSpace(e.Uri) &&
+                Uri.TryCreate(e.Uri, UriKind.Absolute, out var popupUri) &&
+                popupUri.IsLoopback)
+            {
+                var headers = $"X-Fiplex-Token: {_sessionToken}\r\n";
+                var request = webView.CoreWebView2.Environment.CreateWebResourceRequest(
+                    e.Uri,
+                    "GET",
+                    null,
+                    headers);
+
+                webView.CoreWebView2.NavigateWithWebResourceRequest(request);
+                _logger.LogDebug("Popup navigation redirected with session token: {Uri}", e.Uri);
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error handling popup navigation with token, fallback to normal navigation");
+        }
+
+        if (webView?.CoreWebView2 != null)
+        {
+            webView.CoreWebView2.Navigate(e.Uri);
+        }
     }
 
     private void CoreWebView2_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
