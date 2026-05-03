@@ -194,7 +194,9 @@ Scan COM ports without blocking the UI, identify Fiplex devices reliably, and co
 ### Current Behavior
 
 - The scan runs off the UI thread to keep `frmMain` responsive.
-- Every COM port is evaluated independently with guarded timeouts.
+- Candidate ports are built dynamically from currently installed COM ports (`SerialPort.GetPortNames()`).
+- USB/Serial ports are prioritized first using live Windows serial mapping (`HARDWARE\\DEVICEMAP\\SERIALCOMM`).
+- Only detected ports are evaluated independently with guarded timeouts (no fixed COM1→COM255 sweep).
 - Non-Fiplex devices (for example Microchip-based boards or unrelated USB serial devices) do **not** block the full scan.
 - Full scan continues collecting multiple Fiplex devices across different COM ports.
 - Identification accepts legacy partial `I1` responses without trailing LF when explicitly enabled for discovery.
@@ -214,9 +216,11 @@ sequenceDiagram
     Main->>Main: Cancel pending commands + close prior port
     Main->>Scan: ScanPortsAsync(FullScan)
 
-    loop COM1..COM255
-        Scan->>Scan: CheckComPort(timeout)
-        Scan->>Scan: ExistePort(timeout)
+    Scan->>Scan: Enumerate installed COM ports
+    Scan->>Scan: Prioritize USB/Serial candidates
+
+    loop Candidate COM ports only
+        Scan->>Scan: CanOpenPort(timeout)
 
         alt Port unavailable / busy / timed out
             Scan->>Scan: Continue with next COM
@@ -244,8 +248,8 @@ sequenceDiagram
 
 | Condition | Behavior |
 |-----------|----------|
-| `CheckComPort` blocks | Timeout and continue to next COM |
-| `ExistePort` blocks | Timeout and continue to next COM |
+| No installed COM ports detected | Finish quickly with empty device list |
+| `CanOpenPort` blocks | Timeout and continue to next COM |
 | `OpenAsync` blocks | Timeout and retry/continue |
 | `I1` returns `NACK` | Retry on same COM |
 | `I1` returns empty or invalid response | Retry on same COM up to limit |
@@ -258,8 +262,8 @@ sequenceDiagram
 Debug logs now include a short `scanId` plus per-port/per-retry stages such as:
 
 - `scan start`
-- `CheckComPort => true/false`
-- `ExistePort => true/false`
+- `Candidate ports: COMx, COMy...`
+- `CanOpenPort => true/false`
 - `identify start`
 - `open timeout`
 - `raw response '...'`

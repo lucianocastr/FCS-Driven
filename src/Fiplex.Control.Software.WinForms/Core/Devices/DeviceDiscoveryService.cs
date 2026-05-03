@@ -1,7 +1,7 @@
 using System.IO.Ports;
-using System.Runtime.InteropServices;
 using System.Text;
 using System.Diagnostics;
+using Microsoft.Win32;
 using Fiplex.Control.Software.WinForms.Core.Devices.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Serial.Models;
@@ -14,7 +14,8 @@ namespace Fiplex.Control.Software.WinForms.Core.Devices;
 /// Fiplex device discovery service for COM ports.
 /// 
 /// Implemented features:
-/// - COM1-COM255 scan with Win32 validation
+/// - Installed COM ports scan (no fixed COM1-COM255 sweep)
+/// - USB/Serial dynamic prioritization based on currently connected hardware
 /// - I1 identification command
 /// - Up to 5 retries in case of NACK
 /// - 3 second timeout per port
@@ -29,12 +30,9 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     private readonly ILogger<DeviceDiscoveryService> _logger;
 
     // Scan configuration constants
-    private const int MinPort = 1;
-    private const int MaxPort = 255;
     private const int MaxRetries = 5;
     private const int TimeoutSeconds = 3;
-    private static readonly TimeSpan CheckComPortTimeout = TimeSpan.FromMilliseconds(300);
-    private static readonly TimeSpan ExistsPortTimeout = TimeSpan.FromMilliseconds(500);
+    private static readonly TimeSpan ProbePortTimeout = TimeSpan.FromMilliseconds(500);
     private static readonly TimeSpan OpenPortTimeout = TimeSpan.FromMilliseconds(1200);
     private const string IdentificationCommand = "I1";
     private const string ExpectedPrefix = "Fiplex";
@@ -60,74 +58,64 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         var foundDevices = new List<DeviceInfo>();
         var stopOnFirstDevice = mode == DeviceScanMode.QuickScan;
         var scanId = Guid.NewGuid().ToString("N")[..8];
+        var candidatePorts = GetCandidatePorts(scanId);
 
         _logger.LogInformation(
-            "Starting device scan {ScanId} from COM{MinPort} to COM{MaxPort} (Mode: {Mode})",
-            scanId, MinPort, MaxPort, mode);
+            "Starting device scan {ScanId} with {PortCount} installed COM candidate(s) (Mode: {Mode})",
+            scanId, candidatePorts.Count, mode);
 
-        // Scan all COM ports
-        for (int portNumber = MinPort; portNumber <= MaxPort; portNumber++)
+        if (candidatePorts.Count == 0)
+        {
+            _logger.LogInformation("Scan {ScanId}: no installed COM ports detected", scanId);
+            return foundDevices;
+        }
+
+        // Scan only detected candidate ports
+        for (int index = 0; index < candidatePorts.Count; index++)
         {
             ct.ThrowIfCancellationRequested();
             var portStopwatch = Stopwatch.StartNew();
-            _logger.LogDebug("[Scan {ScanId}] COM{Port} - scan start", scanId, portNumber);
+            var (portName, portNumber) = candidatePorts[index];
+
+            _logger.LogDebug("[Scan {ScanId}] {Port} - scan start", scanId, portName);
 
             // Report progress
             progress?.Report(new ScanProgress(
-                CurrentPort: $"COM{portNumber}",
-                Completed: portNumber - MinPort + 1,
-                Total: MaxPort - MinPort + 1,
+                CurrentPort: portName,
+                Completed: index + 1,
+                Total: candidatePorts.Count,
                 DevicesFound: foundDevices.Count
             ));
 
-            // Verify port availability (timeout-guarded to avoid hanging on foreign COM drivers)
-            var portAvailable = await ExecuteWithTimeoutAsync(
-                () => CheckComPort(portNumber),
-                CheckComPortTimeout,
-                ct);
-
-            _logger.LogDebug(
-                "[Scan {ScanId}] COM{Port} - CheckComPort => {Result} ({ElapsedMs} ms)",
-                scanId,
-                portNumber,
-                portAvailable,
-                portStopwatch.ElapsedMilliseconds);
-
-            if (!portAvailable)
-            {
-                _logger.LogTrace("COM{Port} not available at system level", portNumber);
-                continue;
-            }
-
             // Verify if the port can be opened (timeout-guarded)
             var canOpen = await ExecuteWithTimeoutAsync(
-                () => ExistePort(portNumber),
-                ExistsPortTimeout,
+                () => CanOpenPort(portName),
+                ProbePortTimeout,
                 ct);
 
             _logger.LogDebug(
-                "[Scan {ScanId}] COM{Port} - ExistePort => {Result} ({ElapsedMs} ms)",
+                "[Scan {ScanId}] {Port} - CanOpenPort => {Result} ({ElapsedMs} ms)",
                 scanId,
-                portNumber,
+                portName,
                 canOpen,
                 portStopwatch.ElapsedMilliseconds);
 
             if (!canOpen)
             {
-                _logger.LogTrace("COM{Port} cannot be opened (in use)", portNumber);
+                _logger.LogTrace("{Port} cannot be opened (in use)", portName);
                 continue;
             }
 
             // Attempt to identify device
-            var device = await TryIdentifyDeviceAsync(portNumber, scanId, ct);
+            var device = await TryIdentifyDeviceAsync(portName, portNumber, scanId, ct);
             if (device != null)
             {
                 foundDevices.Add(device);
                 _logger.LogInformation(
-                    "[Scan {ScanId}] Found device: {DeviceName} on COM{Port} after {ElapsedMs} ms",
+                    "[Scan {ScanId}] Found device: {DeviceName} on {Port} after {ElapsedMs} ms",
                     scanId,
                     device.NameTypeDevice,
-                    device.ComPort,
+                    portName,
                     portStopwatch.ElapsedMilliseconds);
 
                 // QuickScan: detener al encontrar primer dispositivo
@@ -140,9 +128,9 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
             else
             {
                 _logger.LogDebug(
-                    "[Scan {ScanId}] COM{Port} - no Fiplex device identified after {ElapsedMs} ms",
+                    "[Scan {ScanId}] {Port} - no Fiplex device identified after {ElapsedMs} ms",
                     scanId,
-                    portNumber,
+                    portName,
                     portStopwatch.ElapsedMilliseconds);
             }
         }
@@ -151,50 +139,69 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         return foundDevices;
     }
 
-    /// <summary>
-    /// Verifies port availability at Win32 level using CreateFile/CloseHandle.
-    /// </summary>
-    private bool CheckComPort(int portNumber)
+    private List<(string PortName, int PortNumber)> GetCandidatePorts(string scanId)
     {
         try
         {
-            const uint GENERIC_READ = 0x80000000;
-            const uint GENERIC_WRITE = 0x40000000;
-            const uint OPEN_EXISTING = 3;
-            var INVALID_HANDLE_VALUE = new IntPtr(-1);
+            var installedPorts = SerialPort.GetPortNames()
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Select(portName => new
+                {
+                    PortName = portName,
+                    Parsed = TryParseComPortNumber(portName, out var portNumber),
+                    PortNumber = portNumber
+                })
+                .Where(x => x.Parsed)
+                .Select(x => (x.PortName, x.PortNumber))
+                .ToList();
 
-            var handle = NativeMethods.CreateFile(
-                $"\\\\.\\COM{portNumber}",
-                GENERIC_READ | GENERIC_WRITE,
-                0,
-                IntPtr.Zero,
-                OPEN_EXISTING,
-                0,
-                IntPtr.Zero);
-
-            if (handle == INVALID_HANDLE_VALUE)
+            if (installedPorts.Count == 0)
             {
-                return false;
+                return new();
             }
 
-            NativeMethods.CloseHandle(handle);
-            return true;
+            // Identify USB-like serial ports from registry to prioritize them first.
+            var usbPortNumbers = GetUsbSerialPortNumbers();
+
+            var ordered = installedPorts
+                .OrderByDescending(p => usbPortNumbers.Contains(p.PortNumber))
+                .ThenBy(p => p.PortNumber)
+                .ToList();
+
+            var usbCount = ordered.Count(p => usbPortNumbers.Contains(p.PortNumber));
+            _logger.LogDebug(
+                "[Scan {ScanId}] Candidate ports: {Ports} (USB-prioritized: {UsbCount})",
+                scanId,
+                string.Join(", ", ordered.Select(p => p.PortName)),
+                usbCount);
+
+            return ordered;
         }
         catch (Exception ex)
         {
-            _logger.LogTrace(ex, "CheckComPort failed for COM{Port}", portNumber);
-            return false;
+            _logger.LogWarning(ex, "Failed to enumerate installed COM ports. Falling back to raw GetPortNames order.");
+
+            return SerialPort.GetPortNames()
+                .Where(p => !string.IsNullOrWhiteSpace(p))
+                .Select(p => p.Trim())
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .Where(p => TryParseComPortNumber(p, out _))
+                .Select(p => (PortName: p, PortNumber: ExtractComPortNumberOrZero(p)))
+                .OrderBy(p => p.PortNumber)
+                .ToList();
         }
     }
 
     /// <summary>
     /// Checks if the port can be opened by attempting to open it with SerialPort.
     /// </summary>
-    private bool ExistePort(int portNumber)
+    private bool CanOpenPort(string portName)
     {
         try
         {
-            using var port = new SerialPort($"COM{portNumber}");
+            using var port = new SerialPort(portName);
             port.Open();
             port.Close();
             return true;
@@ -209,10 +216,8 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     /// Attempts to identify a Fiplex device on the port.
     /// Sends I1 command and analyzes the response to detect Fiplex devices.
     /// </summary>
-    private async Task<DeviceInfo?> TryIdentifyDeviceAsync(int portNumber, string scanId, CancellationToken ct)
+    private async Task<DeviceInfo?> TryIdentifyDeviceAsync(string portName, int portNumber, string scanId, CancellationToken ct)
     {
-        var portName = $"COM{portNumber}";
-
         // Retry up to MaxRetries
         for (int retry = 0; retry < MaxRetries; retry++)
         {
@@ -396,6 +401,70 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         return null;
     }
 
+    private static bool TryParseComPortNumber(string portName, out int portNumber)
+    {
+        portNumber = 0;
+
+        if (string.IsNullOrWhiteSpace(portName))
+        {
+            return false;
+        }
+
+        var normalized = portName.Trim();
+        if (!normalized.StartsWith("COM", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return int.TryParse(normalized.AsSpan(3), out portNumber) && portNumber > 0;
+    }
+
+    private static int ExtractComPortNumberOrZero(string portName)
+    {
+        return TryParseComPortNumber(portName, out var portNumber) ? portNumber : 0;
+    }
+
+    private HashSet<int> GetUsbSerialPortNumbers()
+    {
+        var usbPorts = new HashSet<int>();
+
+        try
+        {
+            using var serialCommKey = Registry.LocalMachine.OpenSubKey(@"HARDWARE\DEVICEMAP\SERIALCOMM");
+            if (serialCommKey == null)
+            {
+                return usbPorts;
+            }
+
+            foreach (var devicePath in serialCommKey.GetValueNames())
+            {
+                if (serialCommKey.GetValue(devicePath) is not string portName)
+                {
+                    continue;
+                }
+
+                if (!TryParseComPortNumber(portName, out var portNumber))
+                {
+                    continue;
+                }
+
+                // Common USB-serial signatures in Windows serial map entries.
+                if (devicePath.Contains("USBSER", StringComparison.OrdinalIgnoreCase)
+                    || devicePath.Contains("USB", StringComparison.OrdinalIgnoreCase)
+                    || devicePath.Contains("VCP", StringComparison.OrdinalIgnoreCase))
+                {
+                    usbPorts.Add(portNumber);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Unable to classify USB serial ports from registry");
+        }
+
+        return usbPorts;
+    }
+
     /// <summary>
     /// Executes a potentially blocking synchronous COM probe with timeout guard.
     /// If timeout is reached, returns false and allows scan to continue.
@@ -425,26 +494,6 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         {
             return false;
         }
-    }
-
-    /// <summary>
-    /// Native Win32 methods for port validation
-    /// </summary>
-    private static class NativeMethods
-    {
-        [DllImport("kernel32.dll", CharSet = CharSet.Auto, SetLastError = true)]
-        public static extern IntPtr CreateFile(
-            string lpFileName,
-            uint dwDesiredAccess,
-            uint dwShareMode,
-            IntPtr lpSecurityAttributes,
-            uint dwCreationDisposition,
-            uint dwFlagsAndAttributes,
-            IntPtr hTemplateFile);
-
-        [DllImport("kernel32.dll", SetLastError = true)]
-        [return: MarshalAs(UnmanagedType.Bool)]
-        public static extern bool CloseHandle(IntPtr hObject);
     }
 }
 

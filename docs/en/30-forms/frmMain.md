@@ -116,6 +116,8 @@ Current scan safeguards include:
 
 - pre-scan cleanup of pending pipeline commands,
 - defensive serial port close before scan start,
+- candidate port list built at scan time from installed COM ports (`SerialPort.GetPortNames()`),
+- USB/Serial ports prioritized first via `HARDWARE\DEVICEMAP\SERIALCOMM` registry mapping,
 - scan execution off the UI thread,
 - progress updates through the status bar,
 - cancellation support through `_scanCts`.
