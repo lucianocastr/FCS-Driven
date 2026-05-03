@@ -15,6 +15,15 @@ public class HttpCommandEventArgs : EventArgs
     /// <summary>Gets the name of the command being requested.</summary>
     public string CommandName { get; }
 
+    /// <summary>Gets the HTTP method associated with the request.</summary>
+    public string HttpMethod { get; }
+
+    /// <summary>Gets the original request path.</summary>
+    public string RequestPath { get; }
+
+    /// <summary>Gets the selected POST value for legacy form submissions.</summary>
+    public string CommandValue { get; }
+
     /// <summary>Gets the dictionary of parameters passed with the command.</summary>
     public Dictionary<string, string?> Parameters { get; }
 
@@ -31,10 +40,21 @@ public class HttpCommandEventArgs : EventArgs
     /// </summary>
     /// <param name="commandName">The name of the command.</param>
     /// <param name="parameters">The command parameters.</param>
-    public HttpCommandEventArgs(string commandName, Dictionary<string, string?> parameters)
+    /// <param name="httpMethod">The HTTP method.</param>
+    /// <param name="requestPath">The original request path.</param>
+    /// <param name="commandValue">The selected POST value for legacy form submissions.</param>
+    public HttpCommandEventArgs(
+        string commandName,
+        Dictionary<string, string?> parameters,
+        string httpMethod = "GET",
+        string requestPath = "",
+        string? commandValue = null)
     {
         CommandName = commandName;
         Parameters = parameters;
+        HttpMethod = httpMethod;
+        RequestPath = requestPath;
+        CommandValue = commandValue ?? string.Empty;
     }
 
     /// <summary>

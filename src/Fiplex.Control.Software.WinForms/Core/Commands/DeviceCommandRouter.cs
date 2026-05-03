@@ -696,14 +696,9 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
             _logger.LogDebug("Serial ? HTTP: {Response}", finalResponse);
             
-            // 7. Store response for previousans/dpreviousans
-            lock (_previousAnswerLock)
-            {
-                _previousAnswer = response;  // Raw response (not decoded)
-                _decodedPreviousAnswer = finalResponse;  // Processed/formatted response
-            }
-            _logger.LogDebug("Response stored for previousans ({RawLen} chars) and dpreviousans ({DecodedLen} chars)", 
-                response.Length, finalResponse.Length);
+            // NOTE: _previousAnswer/_decodedPreviousAnswer are intentionally NOT updated here.
+            // They are only written by ProcessPostRequestAsync so that dpreviousans/previousans
+            // always reflect the result of the last POST serial command, not a regular GET poll.
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, status, stopwatch.Elapsed.TotalSeconds, retries);
@@ -791,7 +786,27 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             return "ERROR: Command name is empty";
         }
 
-        // Normalize page
+        // Build robust lookup candidates (legacy POST keys are often declared without '/')
+        var lookupCandidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(page))
+        {
+            lookupCandidates.Add(page);
+
+            if (page.StartsWith("/"))
+            {
+                var withoutSlash = page.TrimStart('/');
+                if (!string.IsNullOrWhiteSpace(withoutSlash))
+                {
+                    lookupCandidates.Add(withoutSlash);
+                }
+            }
+            else
+            {
+                lookupCandidates.Add($"/{page}");
+            }
+        }
+
+        // Normalized page for logs/metrics (keeps old convention with leading '/')
         var normalizedPage = page.StartsWith("/") ? page : $"/{page}";
         
         // STAGE 8: Start time measurement
@@ -799,10 +814,21 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         int retries = 0;
         string status = "success";
 
-        // Look up command in cache
-        if (!_postCommandCache.TryGetValue(normalizedPage, out var postCommand))
+        // Look up command in cache (try both with and without slash)
+        PostCommand? postCommand = null;
+        foreach (var candidate in lookupCandidates.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            _logger.LogWarning("POST command not found: {Page}", normalizedPage);
+            if (_postCommandCache.TryGetValue(candidate, out var matchedCommand))
+            {
+                postCommand = matchedCommand;
+                normalizedPage = candidate.StartsWith("/") ? candidate : $"/{candidate}";
+                break;
+            }
+        }
+
+        if (postCommand == null)
+        {
+            _logger.LogWarning("POST command not found: {Page}. Candidates: {Candidates}", page, string.Join(", ", lookupCandidates));
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "not_found", stopwatch.Elapsed.TotalSeconds, 0);
@@ -863,6 +889,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             int maxRetries = 3;
             int attempt = 0;
             string currentPayload = serialCommandPayload;
+            bool commandSucceeded = false;
             
             while (attempt < maxRetries)
             {
@@ -906,6 +933,8 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                             
                             continue;
                         }
+
+                        commandSucceeded = true;
                         
                         RecordSuccess();
                         status = "success";
@@ -926,9 +955,20 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             }
             
             retries = attempt - 1;
+
+            void UpdatePostCaches(string dataResponse)
+            {
+                lock (_previousAnswerLock)
+                {
+                    _previousAnswer = commandSucceeded ? "0" : "-1";
+                    _decodedPreviousAnswer = dataResponse;
+                }
+            }
             
             if (attempt >= maxRetries && !postCommand.WaitResponse)
             {
+                UpdatePostCaches(response);
+
                 _logger.LogDebug("POST without response wait completed after retries");
                 
                 stopwatch.Stop();
@@ -949,6 +989,8 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
             if (!postCommand.WaitResponse)
             {
+                UpdatePostCaches(response);
+
                 _logger.LogDebug("POST without response wait: {Page}", normalizedPage);
                 
                 stopwatch.Stop();
@@ -961,6 +1003,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             {
                 var decoded = DecodeFromHex(response);
                 _logger.LogDebug("Serial ? HTTP: {Response} ? {Decoded} (decoded)", response, decoded);
+                UpdatePostCaches(decoded);
                 
                 stopwatch.Stop();
                 _metrics?.RecordCommand(normalizedPage, status, stopwatch.Elapsed.TotalSeconds, retries);
@@ -969,6 +1012,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             }
 
             _logger.LogDebug("Serial ? HTTP: {Response}", response);
+            UpdatePostCaches(response);
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, status, stopwatch.Elapsed.TotalSeconds, retries);

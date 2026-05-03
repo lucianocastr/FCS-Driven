@@ -191,7 +191,11 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
                         // Distinguish command routes vs static files
                         // Supports /api/*.html and /command/*
                         var path = request.Url?.AbsolutePath ?? "";
-                        if (IsCommandRoute(path))
+                        if (IsLegacyPostbackRoute(request))
+                        {
+                            await HandleLegacyPostbackAsync(context, ct);
+                        }
+                        else if (IsCommandRoute(path))
                         {
                             // Fire CommandReceived event for commands
                             await HandleCommandRequestAsync(context, ct);
@@ -249,6 +253,31 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             return true;
         
         return false;
+    }
+
+    private static bool IsLegacyPostbackRoute(HttpListenerRequest request)
+    {
+        var path = request.Url?.AbsolutePath ?? string.Empty;
+
+        return request.HttpMethod.Equals("POST", StringComparison.OrdinalIgnoreCase)
+            && request.HasEntityBody
+            && path.EndsWith(".zhtml", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static string? SelectLegacyPostCommandKey(Dictionary<string, string?> parameters)
+    {
+        foreach (var kvp in parameters)
+        {
+            if (string.IsNullOrWhiteSpace(kvp.Key))
+                continue;
+
+            if (kvp.Key.EndsWith("_req", StringComparison.OrdinalIgnoreCase))
+                continue;
+
+            return kvp.Key;
+        }
+
+        return null;
     }
 
     /// <summary>
@@ -336,7 +365,7 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
             commandName, path, request.HttpMethod, parameters.Count);
         
         // Create HttpCommandEventArgs with data
-        var eventArgs = new HttpCommandEventArgs(commandName, parameters);
+        var eventArgs = new HttpCommandEventArgs(commandName, parameters, request.HttpMethod, path);
         
         // Fire event
         CommandReceived?.Invoke(this, eventArgs);
@@ -373,6 +402,60 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
         _logger.LogDebug("Response sent ({Size} bytes, ContentType={ContentType}): {Preview}", 
             buffer.Length, response.ContentType, 
             responseText.Length > 100 ? responseText.Substring(0, 100) + "..." : responseText);
+    }
+
+    private async Task HandleLegacyPostbackAsync(HttpListenerContext context, CancellationToken ct)
+    {
+        var request = context.Request;
+        var path = request.Url?.AbsolutePath ?? string.Empty;
+        var parameters = new Dictionary<string, string?>();
+
+        using (var reader = new StreamReader(request.InputStream, request.ContentEncoding))
+        {
+            var body = await reader.ReadToEndAsync();
+            if (!string.IsNullOrWhiteSpace(body))
+            {
+                // Parse as query string regardless of Content-Type.
+                // Legacy device pages use xhr.send("key=value") without setting Content-Type,
+                // so the body arrives as text/plain but is still form-encoded (key=value&key2=value2).
+                var formData = HttpUtility.ParseQueryString(body);
+                foreach (string? key in formData.Keys)
+                {
+                    if (key != null)
+                        parameters[key] = formData[key];
+                }
+            }
+        }
+
+        var commandKey = SelectLegacyPostCommandKey(parameters);
+        if (!string.IsNullOrWhiteSpace(commandKey))
+        {
+            _logger.LogDebug("Processing legacy POST back {Path} using command key {CommandKey}", path, commandKey);
+
+            var eventArgs = new HttpCommandEventArgs(
+                commandKey,
+                parameters,
+                request.HttpMethod,
+                path,
+                parameters.TryGetValue(commandKey, out var commandValue) ? commandValue : string.Empty);
+
+            CommandReceived?.Invoke(this, eventArgs);
+
+            try
+            {
+                await eventArgs.GetResponseAsync(TimeSpan.FromSeconds(10));
+            }
+            catch (TimeoutException)
+            {
+                _logger.LogWarning("Timeout waiting for legacy POST response {CommandKey}", commandKey);
+            }
+        }
+        else
+        {
+            _logger.LogDebug("Legacy POST back {Path} has no mapped command key, serving static file only", path);
+        }
+
+        await ServeStaticFileAsync(context);
     }
 
     private async Task ServeStaticFileAsync(HttpListenerContext context)

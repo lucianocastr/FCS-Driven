@@ -885,8 +885,10 @@ public partial class frmMain : Form
     {
         try
         {
-            _logger.LogDebug("HTTP command received: {Command}, Params: {Params}",
-                e.CommandName, string.Join(", ", e.Parameters.Select(kvp => $"{kvp.Key}={kvp.Value}")));
+            _logger.LogDebug("HTTP command received: {Method} {Command}, Params: {Params}",
+                e.HttpMethod,
+                e.CommandName,
+                string.Join(", ", e.Parameters.Select(kvp => $"{kvp.Key}={kvp.Value}")));
 
             // Validate that we are connected
             if (_sessionContext.State != ConnectionState.Connected)
@@ -896,11 +898,21 @@ public partial class frmMain : Form
                 return;
             }
 
-            // Delegate to IDeviceCommandRouter
-            var response = await _commandRouter.ProcessGetRequestAsync(
-                e.CommandName,
-                e.Parameters,
-                _cts?.Token ?? default);
+            string response;
+            if (e.HttpMethod.Equals("POST", StringComparison.OrdinalIgnoreCase))
+            {
+                response = await _commandRouter.ProcessPostRequestAsync(
+                    e.CommandName,
+                    e.CommandValue,
+                    _cts?.Token ?? default);
+            }
+            else
+            {
+                response = await _commandRouter.ProcessGetRequestAsync(
+                    e.CommandName,
+                    e.Parameters,
+                    _cts?.Token ?? default);
+            }
 
             e.SetResponse(response);
 
