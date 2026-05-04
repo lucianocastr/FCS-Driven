@@ -347,6 +347,17 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
                     if (ackResult != TokenType.Ack)
                     {
+                        // When the device sends NACK instead of ACK on a data-read command,
+                        // propagate the literal "NACK" string so that dpreviousans consumers
+                        // (e.g. spect.js load_spectrum) can detect and handle the NACK case.
+                        if (ackResult == TokenType.Nack && cmd.ExpectsData)
+                        {
+                            _logger.LogWarning("NACK received instead of ACK for data command {CmdId}, propagating as NACK response", cmd.Id);
+                            _pendingAnswer = false;
+                            CompleteCommand(ctx, CommandResultStatus.Success, "NACK", bytesSent);
+                            return;
+                        }
+
                         _logger.LogWarning("ACK timeout {CmdId} retry {Retry}/{Max}", 
                             cmd.Id, ctx.RetryCount, cmd.MaxRetries);
                         continue;
@@ -376,6 +387,16 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                             return;
                         }
                         continue;
+                    }
+
+                    // When the device sends NACK as the data frame (after ACK),
+                    // propagate the literal "NACK" string so dpreviousans consumers
+                    // (e.g. spect.js load_spectrum: if (serverResponse == "NACK")) work correctly.
+                    if (dataResult == TokenType.Nack)
+                    {
+                        _logger.LogWarning("NACK received as data response for {CmdId}, propagating as NACK response", cmd.Id);
+                        CompleteCommand(ctx, CommandResultStatus.Success, "NACK", bytesSent);
+                        return;
                     }
 
                     ctx.LastResponse = data;
