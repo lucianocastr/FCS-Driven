@@ -56,6 +56,9 @@ public sealed class SimulatedSerialPort : ISerialPort
         // Simulated values: mask=00, powerDL0=0A(10dB), powerDL1=0F(15dB)
         ["M1"] = "000A0F",  // 2-band license options response
         
+        // A1 - Spectrum data: 28800 channels × 2 hex chars = 57600 chars at -112 dBm (0x90)
+        ["A1"] = GenerateSpectrumResponse(),
+
         // Write commands return ACK
         ["*0"] = "ACK", // Authentication
         ["M0"] = "ACK", // Write License Options (frmLicenseOptions, frmLicenseMaster)
@@ -236,21 +239,76 @@ public sealed class SimulatedSerialPort : ISerialPort
     }
 
     /// <summary>
-    /// Generates F1 (Factory Parameters) response with 6 fields.
+    /// Generates F1 (Factory Parameters) response: 482-char hex string compatible with
+    /// objfactory.js factory.parse() (requires s.length >= 482).
+    /// Simulates DAS Master 5DM with:
+    ///   - chBandEnabled[0,1] = true, adjBandEnabled[0,1] = true
+    ///   - agcModeUSA[0,1]   = true
+    ///   - fstart[1] = 200 000 Hz  (0.2 MHz  — DL band-0 start)
+    ///   - fstop[1]  = 2 880 100 000 Hz (2880.1 MHz — DL band-0 stop)
+    ///   - Band names: "700MHz Band", "800MHz Band"
+    /// Layout mirrors the objfactory.js parse() byte-offset map.
     /// </summary>
     private static string GenerateFactoryResponse()
     {
-        // 6 factory fields
-        var fields = new[]
-        {
-            "3F7000",   // Cal value 1
-            "3F8000",   // Cal value 2
-            "00",       // Factory mode
-            "01",       // Production flag
-            "FIPLEX",   // Manufacturer
-            "2025"      // Year
-        };
-        return string.Join("\t", fields);
+        var sb = new System.Text.StringBuilder(482);
+
+        // ind 0-1   : chBandEnabled[0,1]=true (bits 0,2), adjBandEnabled[0,1]=true (bits 1,3) → 0x0F
+        sb.Append("0F");
+        // ind 2-3   : agcModeUSA[0]=true (bit4), agcModeUSA[1]=true (bit5) → 0x30
+        sb.Append("30");
+        // ind 4-59  : DACFTW, DCOFFSET, fdummy, fmodulo, fstep, fmoduloadj, fstepAdj — all zero (56 chars)
+        sb.Append('0', 56);
+
+        // ind 60-135: band-0 fields before fstart[] — all zero (76 chars)
+        //   levelOffset[0,1]:8  sQOffset[0,1]:8  gainOffset[0,1]:8  powerOffset[0,1]:8
+        //   singleBandEnabled+flags:2  padding:2  gainBandCorrection[0]:4
+        //   paCurrentMin[0,1]:4  paCurrentMax[0,1]:4  attout[0,1]:4
+        //   powerlimit[0,1]:4  gainlimit[0,1]:4  NCO_Rx[0,1]:8  NCO_Tx[0,1]:8  = 76
+        sb.Append('0', 76);
+
+        // ind 136-143: fstart[0] = 0 Hz  (UL — unused in default DL simulation)
+        sb.Append("00000000");
+        // ind 144-151: fstart[1] = 200 000 Hz = 0x00030D40  (DL band-0 start → 0.2 MHz)
+        sb.Append("00030D40");
+        // ind 152-159: fstop[0]  = 0 Hz  (UL)
+        sb.Append("00000000");
+        // ind 160-167: fstop[1]  = 2 880 100 000 Hz = 0xABAAD6A0  (DL band-0 stop → 2880.1 MHz)
+        sb.Append("ABAAD6A0");
+        // ind 168-191: fref[0], fref[1], rfoutSpecOffset[0,1] — zero (24 chars)
+        sb.Append('0', 24);
+
+        // ind 192-323: band-1 data — all zero (132 chars)
+        sb.Append('0', 132);
+
+        // ind 324-347: agcThresholdUp/Down (16 chars) + previsionThreshold (8 chars) — zero (24 chars)
+        sb.Append('0', 24);
+
+        // ind 348-362: band-0 name as raw ASCII, padded to BANDNAMELEN=15
+        sb.Append("700MHz Band    ");   // 11 chars + 4 spaces
+        // ind 363-377: band-1 name
+        sb.Append("800MHz Band    ");   // 11 chars + 4 spaces
+
+        // ind 378-481: calDlPowerDetector, powerBandCorrection, gainBandCorrection,
+        //              calPaCurrentDetector, calBoardCurrentDetector, relay fields — zero (104 chars)
+        sb.Append('0', 104);
+
+        return sb.ToString(); // 482 chars total
+    }
+
+    /// <summary>
+    /// Generates A1 (Spectrum) response: 57600-char hex string representing
+    /// 28800 channels of spectrum data at a flat -112 dBm level (0x90 per channel).
+    /// Compatible with the load_spectrum() check: serverResponse.length >= nchannels * 2.
+    /// </summary>
+    private static string GenerateSpectrumResponse()
+    {
+        // 28800 channels × "90" = 57600 chars
+        // cSignedByte(0x90=144) = 144-256 = -112 dBm  (visible mid-lower in the inYscale -130..0)
+        var sb = new System.Text.StringBuilder(57600);
+        for (int i = 0; i < 28800; i++)
+            sb.Append("90");
+        return sb.ToString();
     }
 
     /// <summary>

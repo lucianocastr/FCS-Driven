@@ -266,18 +266,25 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
 
     private static string? SelectLegacyPostCommandKey(Dictionary<string, string?> parameters)
     {
+        string? reqFallback = null;
         foreach (var kvp in parameters)
         {
             if (string.IsNullOrWhiteSpace(kvp.Key))
                 continue;
 
             if (kvp.Key.EndsWith("_req", StringComparison.OrdinalIgnoreCase))
+            {
+                // Keep the first _req key as fallback in case no other key is found
+                reqFallback ??= kvp.Key;
                 continue;
+            }
 
             return kvp.Key;
         }
 
-        return null;
+        // When the body contains only _req trigger parameters (e.g. fact_req=1),
+        // return the trigger key so the router can resolve the backing command.
+        return reqFallback;
     }
 
     /// <summary>
