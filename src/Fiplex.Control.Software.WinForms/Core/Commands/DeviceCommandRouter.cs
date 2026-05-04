@@ -828,6 +828,26 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
         if (postCommand == null)
         {
+            // When the key ends with _req (e.g. "fact_req") it is a trigger-only parameter
+            // with no direct mapping in settings.cfg.  Resolve it to the corresponding _fw
+            // command (e.g. "fact_fw") so the device read command executes and stores its
+            // response in _decodedPreviousAnswer, making dpreviousans work correctly.
+            if (page.EndsWith("_req", StringComparison.OrdinalIgnoreCase))
+            {
+                var baseName = page[..^"_req".Length];          // "fact_req" → "fact"
+                var fwKey    = baseName + "_fw";                // → "fact_fw"
+                if (_postCommandCache.ContainsKey(fwKey))
+                {
+                    _logger.LogDebug(
+                        "_req trigger '{Page}' resolved to '{FwKey}', executing with empty body",
+                        page, fwKey);
+                    stopwatch.Stop();
+                    // Execute the _fw command with an empty body so no extra data is
+                    // appended to the serial command (e.g. F1, not F11).
+                    return await ProcessPostRequestAsync(fwKey, string.Empty, ct);
+                }
+            }
+
             _logger.LogWarning("POST command not found: {Page}. Candidates: {Candidates}", page, string.Join(", ", lookupCandidates));
             
             stopwatch.Stop();
