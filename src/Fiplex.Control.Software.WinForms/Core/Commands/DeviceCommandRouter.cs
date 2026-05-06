@@ -982,7 +982,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 {
                     // WaitResponse=false → fire-and-forget: assume OK regardless of ACK
                     bool effectiveSuccess = commandSucceeded || !postCommand.WaitResponse;
-                    _previousAnswer = effectiveSuccess ? "0" : "1";
+                    _previousAnswer = effectiveSuccess ? "0" : "-1";
                     _decodedPreviousAnswer = dataResponse;
                 }
             }
