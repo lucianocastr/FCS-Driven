@@ -980,7 +980,9 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             {
                 lock (_previousAnswerLock)
                 {
-                    _previousAnswer = commandSucceeded ? "0" : "1";
+                    // WaitResponse=false → fire-and-forget: assume OK regardless of ACK
+                    bool effectiveSuccess = commandSucceeded || !postCommand.WaitResponse;
+                    _previousAnswer = effectiveSuccess ? "0" : "1";
                     _decodedPreviousAnswer = dataResponse;
                 }
             }

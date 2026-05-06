@@ -544,7 +544,7 @@ public partial class frmMain : Form
             AutoScaleMode = AutoScaleMode.None,
             BackColor = Color.White,
             Size = new Size(900, 600),
-            MinimumSize = new Size(480, 320)
+            MinimumSize = new Size(820, 520)
         };
 
         var popupWebView = new WebView2
@@ -776,11 +776,11 @@ public partial class frmMain : Form
         var chromeWidth = _filterInfoPopupForm.Width - _filterInfoPopupForm.ClientSize.Width;
         var chromeHeight = _filterInfoPopupForm.Height - _filterInfoPopupForm.ClientSize.Height;
 
-        var maxPopupWidth = Math.Max(420, hostBounds.Width - 16);
-        var desiredWidth = Math.Clamp(contentWidth + chromeWidth + 32, 420, maxPopupWidth);
+        var maxPopupWidth = Math.Max(820, hostBounds.Width - 16);
+        var desiredWidth = Math.Clamp(contentWidth + chromeWidth + 32, 820, maxPopupWidth);
 
-        var maxPopupHeight = Math.Max(320, hostBounds.Height - 16);
-        var desiredHeight = Math.Clamp(contentHeight + chromeHeight + 16, 320, maxPopupHeight);
+        var maxPopupHeight = Math.Max(520, hostBounds.Height - 16);
+        var desiredHeight = Math.Clamp(contentHeight + chromeHeight + 16, 520, maxPopupHeight);
 
         _filterInfoPopupForm.Size = new Size(desiredWidth, desiredHeight);
         CenterFilterInfoPopup(_filterInfoPopupForm);
