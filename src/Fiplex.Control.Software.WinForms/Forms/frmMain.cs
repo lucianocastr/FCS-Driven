@@ -661,6 +661,16 @@ public partial class frmMain : Form
 
         try
         {
+            // ftool.zhtml uses fixed outer dimensions matching v1.9 window.open specs (820x520).
+            // Skip DOM measurement and CSS injection — they are designed for fhelp.html only.
+            var source = _filterInfoPopupWebView.CoreWebView2.Source ?? string.Empty;
+            if (source.Contains("/ftool.zhtml", StringComparison.OrdinalIgnoreCase))
+            {
+                _filterInfoPopupForm.Size = new Size(820, 520);
+                CenterFilterInfoPopup(_filterInfoPopupForm);
+                return;
+            }
+
             await ApplyFilterInfoPopupLayoutAsync();
             await Task.Delay(150);
             await ApplyFilterInfoPopupLayoutAsync();
