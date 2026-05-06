@@ -427,6 +427,22 @@ public partial class frmMain : Form
                 return;
             }
 
+            // Bug #1 fix: WebView2/Chromium fires NewWindowRequested for target="content" from a subframe.
+            // Navigate the named frame via JS to keep the frameset intact.
+            if (e.Name == "content" &&
+                !string.IsNullOrWhiteSpace(e.Uri) &&
+                Uri.TryCreate(e.Uri, UriKind.Absolute, out var frameNavUri) &&
+                frameNavUri.IsLoopback &&
+                webView?.CoreWebView2 != null)
+            {
+                var safeUri = e.Uri.Replace("\\", "\\\\").Replace("'", "\\'");
+                _ = webView.CoreWebView2.ExecuteScriptAsync(
+                    $"(function(){{var f=top.frames['content'];if(f)f.location.href='{safeUri}';}})();"
+                );
+                _logger.LogDebug("Frame navigation via JS: target='content' uri={Uri}", e.Uri);
+                return;
+            }
+
             // Filter Info / Filter Tool use window.open(...).
             // Ensure popup navigation keeps the in-session token to avoid 403 Forbidden.
             if (webView?.CoreWebView2 != null &&
@@ -461,7 +477,8 @@ public partial class frmMain : Form
     private static bool IsFilterInfoPopupUri(Uri popupUri)
     {
         return popupUri.IsLoopback &&
-               popupUri.AbsolutePath.EndsWith("/fhelp.html", StringComparison.OrdinalIgnoreCase);
+               (popupUri.AbsolutePath.EndsWith("/fhelp.html", StringComparison.OrdinalIgnoreCase) ||
+                popupUri.AbsolutePath.EndsWith("/ftool.zhtml", StringComparison.OrdinalIgnoreCase));
     }
 
     private async Task ShowFilterInfoPopupAsync(string uri)
@@ -586,6 +603,32 @@ public partial class frmMain : Form
 
         _filterInfoPopupWebView.CoreWebView2.WebResourceRequested -= CoreWebView2_WebResourceRequested;
         _filterInfoPopupWebView.CoreWebView2.WebResourceRequested += CoreWebView2_WebResourceRequested;
+
+        _filterInfoPopupWebView.CoreWebView2.WebMessageReceived -= FilterToolPopup_WebMessageReceived;
+        _filterInfoPopupWebView.CoreWebView2.WebMessageReceived += FilterToolPopup_WebMessageReceived;
+    }
+
+    private void FilterToolPopup_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        try
+        {
+            var msg = e.TryGetWebMessageAsString();
+            if (string.IsNullOrEmpty(msg) || !msg.StartsWith("ftool-apply:", StringComparison.Ordinal))
+                return;
+
+            var frmsJson = msg["ftool-apply:".Length..];
+            if (string.IsNullOrWhiteSpace(frmsJson) || webView?.CoreWebView2 == null)
+                return;
+
+            // Sanitize frmsJson: it's already a JSON array from localStorage, pass it directly to toolSubmit
+            var script = $"(function(){{try{{var frms={frmsJson};top.frames['content'].toolSubmit(frms);}}catch(e){{}}}})()" ;
+            _ = webView.CoreWebView2.ExecuteScriptAsync(script);
+            _logger.LogDebug("Filter Tool Apply Proposal relayed to content frame");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error relaying Filter Tool Apply Proposal to content frame");
+        }
     }
 
     private void NavigatePopupWithSessionToken(WebView2 targetWebView, string uri)
