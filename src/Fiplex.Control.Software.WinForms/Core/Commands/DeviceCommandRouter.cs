@@ -923,7 +923,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                         Payload = currentPayload,
                         ExpectsAck = true,
                         ExpectsData = postCommand.WaitResponse,
-                        AckTimeout = TimeSpan.FromMilliseconds(800),
+                        AckTimeout = TimeSpan.FromMilliseconds(3000),
                         DataTimeout = TimeSpan.FromSeconds(10),
                         MaxRetries = 1,
                         CancellationToken = ct
@@ -980,7 +980,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             {
                 lock (_previousAnswerLock)
                 {
-                    _previousAnswer = commandSucceeded ? "0" : "-1";
+                    _previousAnswer = commandSucceeded ? "0" : "1";
                     _decodedPreviousAnswer = dataResponse;
                 }
             }
