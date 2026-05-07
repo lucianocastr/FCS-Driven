@@ -532,10 +532,16 @@ public partial class frmMain : Form
             return;
         }
 
+        // Scale popup content area by DPI factor so WebView2 renders 820x520 CSS pixels
+        // on any DPI setting, matching v1.9's window.open("height=520,width=820") viewport.
+        var dpiScale = DeviceDpi / 96f;
+        var popupClientW = (int)(820 * dpiScale);
+        var popupClientH = (int)(520 * dpiScale);
+
         var popupForm = new Form
         {
             Owner = this,
-            Text = "Filter Info",
+            Text = "Filter Tool",
             StartPosition = FormStartPosition.Manual,
             ShowInTaskbar = false,
             FormBorderStyle = FormBorderStyle.SizableToolWindow,
@@ -543,8 +549,8 @@ public partial class frmMain : Form
             MaximizeBox = false,
             AutoScaleMode = AutoScaleMode.None,
             BackColor = Color.White,
-            ClientSize = new Size(820, 520),
-            MinimumSize = new Size(820, 520)
+            ClientSize = new Size(popupClientW, popupClientH),
+            MinimumSize = new Size(popupClientW, popupClientH)
         };
 
         var popupWebView = new WebView2
@@ -661,14 +667,14 @@ public partial class frmMain : Form
 
         try
         {
-            // ftool.zhtml uses fixed content-area dimensions matching v1.9 window.open specs.
-            // window.open("height=520,width=820") sets the viewport (content area), not outer window.
-            // Use ClientSize so WebView2 gets exactly 820x520 CSS pixels, matching v1.9.
-            // Skip DOM measurement and CSS injection — they are designed for fhelp.html only.
+            // ftool.zhtml: fixed viewport matching v1.9 window.open("height=520,width=820").
+            // Scaled by DPI so WebView2 renders exactly 820x520 CSS pixels regardless of display DPI.
+            // Skip DOM measurement and CSS injection — designed for fhelp.html only.
             var source = _filterInfoPopupWebView.CoreWebView2.Source ?? string.Empty;
             if (source.Contains("/ftool.zhtml", StringComparison.OrdinalIgnoreCase))
             {
-                _filterInfoPopupForm.ClientSize = new Size(820, 520);
+                var dpi = DeviceDpi / 96f;
+                _filterInfoPopupForm.ClientSize = new Size((int)(820 * dpi), (int)(520 * dpi));
                 CenterFilterInfoPopup(_filterInfoPopupForm);
                 return;
             }
