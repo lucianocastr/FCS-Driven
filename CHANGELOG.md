@@ -1,5 +1,15 @@
 #
 
+## [3.0.3] - 2026-05-06
+
+### Fixed
+- **Signal Booster — Save from Device no descargaba el archivo** (`DeviceCommandRouter.cs`)
+  - GET encode=1 enviaba el comando hex-encodeado al dispositivo (`!1` → `"2131"`) y hex-decodeaba la respuesta (sentido invertido). Dispositivo recibía comando desconocido → timeout → XHR 10s → `getDataEnd()` silencioso. Fix: se elimina el hex-encoding del comando GET; se cambia `DecodeFromHex` → `EncodeToHex` para la respuesta (semántica v1.9: enviar comando sin modificar, encodear la respuesta).
+- **Signal Booster — Load to Device mostraba FAIL aunque la config se aplicaba** (`DeviceCommandRouter.cs` + `htdocs_2c2/settings.cfg`)
+  - POST encode=1 (`proj_str !0`, `ctl_tags_str T0`) hacía `DecodeBody` (correcto) y luego re-encodeaba todo con `EncodeToHex` (destruía el paso anterior). Fix: se elimina el bloque `EncodeToHex` de `ProcessPostRequestAsync`.
+  - Todos los POST write-only (`proj_str`, `nfpa_str`, `np_settings_str`, etc.) usaban `WaitResponse=true` por defecto (faltaba 4ta columna en settings.cfg) → pipeline esperaba datos que nunca llegan → timeout → FAIL. Fix: se agrega columna `0` (WaitResponse=false) a todos los comandos write-only en `settings.cfg`.
+- Actualización de versión de ensamblado, producto y archivo a 3.0.3.
+
 ## [3.0.2] - 2026-05-03
 
 ### Changed
