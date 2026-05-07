@@ -553,13 +553,6 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             var serialCommandPayload = BuildSerialCommand(getCommand.Command, queryParams);
             _logger.LogDebug("HTTP ? Serial: {Page} ? {Command}", normalizedPage, serialCommandPayload);
 
-            // 2. Apply hex encoding if required
-            if (getCommand.Encode)
-            {
-                serialCommandPayload = EncodeToHex(serialCommandPayload);
-                _logger.LogDebug("Command encoded to hex: {Command}", serialCommandPayload);
-            }
-
             // 3. Send command with retry logic (3 intentos)
             string response = string.Empty;
             int maxRetries = 3;
@@ -603,12 +596,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                                 ? serialCommandPayload.Substring(2) 
                                 : string.Empty;
                             currentPayload = $"*0{_storedPassword}{commandSuffix}";
-                            
-                            if (getCommand.Encode)
-                            {
-                                currentPayload = EncodeToHex(currentPayload);
-                            }
-                            
+
                             continue; // Retry with the new command
                         }
                         
@@ -660,12 +648,12 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 response = _responseProcessor.ProcessResponse(getCommand.Command, response);
             }
 
-            // 5. Decode response if necessary
+            // 5. Hex-encode response if required (v1.9 semantics: send command as-is, encode response)
             var finalResponse = response;
             if (getCommand.Encode && !string.IsNullOrEmpty(response))
             {
-                finalResponse = DecodeFromHex(response);
-                _logger.LogDebug("Serial ? HTTP: {Response} ? {Decoded} (decoded)", response, finalResponse);
+                finalResponse = EncodeToHex(response);
+                _logger.LogDebug("Serial ? HTTP: {Response} ? {Encoded} (hex-encoded)", response, finalResponse);
             }
 
             // 6. Apply splitwith3tabs format if required
