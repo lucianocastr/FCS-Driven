@@ -543,7 +543,7 @@ public partial class frmMain : Form
             MaximizeBox = false,
             AutoScaleMode = AutoScaleMode.None,
             BackColor = Color.White,
-            Size = new Size(900, 600),
+            ClientSize = new Size(820, 520),
             MinimumSize = new Size(820, 520)
         };
 
@@ -661,12 +661,14 @@ public partial class frmMain : Form
 
         try
         {
-            // ftool.zhtml uses fixed outer dimensions matching v1.9 window.open specs (820x520).
+            // ftool.zhtml uses fixed content-area dimensions matching v1.9 window.open specs.
+            // window.open("height=520,width=820") sets the viewport (content area), not outer window.
+            // Use ClientSize so WebView2 gets exactly 820x520 CSS pixels, matching v1.9.
             // Skip DOM measurement and CSS injection — they are designed for fhelp.html only.
             var source = _filterInfoPopupWebView.CoreWebView2.Source ?? string.Empty;
             if (source.Contains("/ftool.zhtml", StringComparison.OrdinalIgnoreCase))
             {
-                _filterInfoPopupForm.Size = new Size(820, 520);
+                _filterInfoPopupForm.ClientSize = new Size(820, 520);
                 CenterFilterInfoPopup(_filterInfoPopupForm);
                 return;
             }
