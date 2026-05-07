@@ -885,13 +885,6 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
             _logger.LogDebug("HTTP → Serial: {Page} → {Command}", normalizedPage, serialCommandPayload);
 
-            // Apply hex encoding to the complete command if required
-            if (postCommand.Encode)
-            {
-                serialCommandPayload = EncodeToHex(serialCommandPayload);
-                _logger.LogDebug("POST command encoded to hex: {Command}", serialCommandPayload);
-            }
-
             // Retry logic con manejo de INVALID CREDENTIALS
             string response = string.Empty;
             int maxRetries = 3;
@@ -933,12 +926,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                                 ? serialCommandPayload.Substring(2) 
                                 : string.Empty;
                             currentPayload = $"*0{_storedPassword}{commandSuffix}";
-                            
-                            if (postCommand.Encode)
-                            {
-                                currentPayload = EncodeToHex(currentPayload);
-                            }
-                            
+
                             continue;
                         }
 
