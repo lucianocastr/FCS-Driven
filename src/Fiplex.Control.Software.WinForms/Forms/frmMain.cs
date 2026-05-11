@@ -394,7 +394,7 @@ public partial class frmMain : Form
         {
             if (File.Exists(DefaultPagePath))
             {
-                var defaultUrl = $"file:///{DefaultPagePath.Replace("\\", "/")}";
+                var defaultUrl = new Uri(DefaultPagePath).AbsoluteUri;
                 webView.CoreWebView2.Navigate(defaultUrl);
                 _logger.LogInformation("Navigating to default page: {Url}", defaultUrl);
             }
