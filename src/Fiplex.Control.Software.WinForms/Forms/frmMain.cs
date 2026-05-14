@@ -2351,20 +2351,7 @@ public partial class frmMain : Form
         if (!_hasMaximized)
         {
             _hasMaximized = true;
-            BeginInvoke(() =>
-            {
-                this.WindowState = FormWindowState.Maximized;
-                // Force native Win32 ComboBox HWND to repaint its button at the new width.
-                // Without this, the dropdown button renders at the pre-maximize position.
-                BeginInvoke(() =>
-                {
-                    if (cmbCOM != null && !cmbCOM.IsDisposed)
-                    {
-                        cmbCOM.Visible = false;
-                        cmbCOM.Visible = true;
-                    }
-                });
-            });
+            BeginInvoke(() => this.WindowState = FormWindowState.Maximized);
         }
     }
 
@@ -2434,13 +2421,18 @@ public partial class frmMain : Form
     }
 
     // Replicates VB 1.9 frmMain_Resize: cmbCOM.Width = ClientRectangle.Width - 16
+    // When maximizing, the native Win32 ComboBox HWND button does not reposition
+    // on a programmatic resize — a Visible toggle forces it to repaint at the new width.
     protected override void OnResize(EventArgs e)
     {
         base.OnResize(e);
-        if (cmbCOM != null)
+        if (cmbCOM == null) return;
+        var w = ClientSize.Width - 16;
+        if (w > 0) cmbCOM.Width = w;
+        if (WindowState == FormWindowState.Maximized)
         {
-            var w = ClientSize.Width - 16;
-            if (w > 0) cmbCOM.Width = w;
+            cmbCOM.Visible = false;
+            cmbCOM.Visible = true;
         }
     }
 
