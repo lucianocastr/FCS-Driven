@@ -2421,16 +2421,17 @@ public partial class frmMain : Form
     }
 
     // Replicates VB 1.9 frmMain_Resize: cmbCOM.Width = ClientRectangle.Width - 16
-    // No Anchor.Right is used — Anchor.Right causes a native/managed HWND mismatch
-    // on the Win32 ComboBox, producing two visible dropdown arrows.
+    // BeginInvoke defers the resize after all TLP layout passes complete,
+    // ensuring the native Win32 ComboBox HWND button repositions correctly.
     protected override void OnResize(EventArgs e)
     {
         base.OnResize(e);
-        if (cmbCOM != null)
+        BeginInvoke(() =>
         {
+            if (cmbCOM == null || cmbCOM.IsDisposed) return;
             var w = ClientSize.Width - 16;
             if (w > 0) cmbCOM.Width = w;
-        }
+        });
     }
 
     /// <summary>
