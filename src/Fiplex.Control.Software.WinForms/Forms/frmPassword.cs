@@ -165,9 +165,20 @@ public partial class frmPassword : Form
             return;
         }
 
-        // Match validation in edit mode
+        // Edit mode validation
         if (_isEditMode)
         {
+            // Length validation — VB 1.9: 8 ≤ length ≤ 16
+            var len = txtPassword.Text.Length;
+            if (len < 8 || len > 16)
+            {
+                ShowValidationError("Invalid length. Password length must be greater than or equal to 8 and less than or equal to 16");
+                DialogResult = DialogResult.None;
+                txtPassword.Focus();
+                txtPassword.SelectAll();
+                return;
+            }
+
             if (string.IsNullOrWhiteSpace(txtConfirmPassword.Text))
             {
                 ShowValidationError("Please confirm the new password.");
@@ -175,10 +186,10 @@ public partial class frmPassword : Form
                 txtConfirmPassword.Focus();
                 return;
             }
-            
+
             if (txtPassword.Text != txtConfirmPassword.Text)
             {
-                ShowValidationError("Passwords are different");
+                ShowValidationError("Passwords do not match.");
                 DialogResult = DialogResult.None;
                 txtConfirmPassword.Focus();
                 txtConfirmPassword.SelectAll();
