@@ -2416,6 +2416,19 @@ public partial class frmMain : Form
         }
     }
 
+    // Native Win32 ComboBox does not always honour Dock.Fill when the parent
+    // TableLayoutPanel resizes (e.g. on maximize). Force the width explicitly.
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (tlpMainLayout != null && cmbCOM != null)
+        {
+            var targetWidth = tlpMainLayout.ClientSize.Width - cmbCOM.Margin.Left - cmbCOM.Margin.Right;
+            if (targetWidth > 0 && cmbCOM.Width != targetWidth)
+                cmbCOM.Width = targetWidth;
+        }
+    }
+
     /// <summary>
     /// Centers the form on the current screen.
     /// </summary>
