@@ -123,11 +123,12 @@ public partial class frmMain : Form
 
         InitializeComponent();
 
-        // Dock.Fill on ComboBox inside TableLayoutPanel conflicts with the TLP's own
-        // layout pass — the TLP resets the width after OnResize sets it. Use Anchor
-        // Left|Top|Right so the TLP stretches the control natively without conflict.
+        // VB 1.9 sized cmbCOM manually in frmMain_Resize (ClientWidth - 16).
+        // Dock.Fill and Anchor.Right both conflict with the native Win32 ComboBox HWND,
+        // producing a split rendering (two visible dropdown arrows). Use no Anchor.Right
+        // and replicate VB 1.9's explicit OnResize sizing instead.
         cmbCOM.Dock = DockStyle.None;
-        cmbCOM.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
+        cmbCOM.Anchor = AnchorStyles.Left | AnchorStyles.Top;
 
         // Configure Debug/Tools menu for logging and diagnostics
         ConfigureDebugMenu();
@@ -2350,7 +2351,14 @@ public partial class frmMain : Form
         if (!_hasMaximized)
         {
             _hasMaximized = true;
-            BeginInvoke(() => this.WindowState = FormWindowState.Maximized);
+            BeginInvoke(() =>
+            {
+                this.WindowState = FormWindowState.Maximized;
+                BeginInvoke(() =>
+                {
+                    this.Text = $"[DBG] Form={ClientSize.Width} TLP={tlpMainLayout.Width} cmb={cmbCOM.Width} State={WindowState} Screen={Screen.FromControl(this).Bounds.Width}";
+                });
+            });
         }
     }
 
@@ -2416,6 +2424,19 @@ public partial class frmMain : Form
             ResumeLayout(true);
             // Force full redraw to remove artifacts
             Refresh();
+        }
+    }
+
+    // Replicates VB 1.9 frmMain_Resize: cmbCOM.Width = ClientRectangle.Width - 16
+    // No Anchor.Right is used — Anchor.Right causes a native/managed HWND mismatch
+    // on the Win32 ComboBox, producing two visible dropdown arrows.
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (cmbCOM != null)
+        {
+            var w = ClientSize.Width - 16;
+            if (w > 0) cmbCOM.Width = w;
         }
     }
 
