@@ -2351,14 +2351,7 @@ public partial class frmMain : Form
         if (!_hasMaximized)
         {
             _hasMaximized = true;
-            BeginInvoke(() =>
-            {
-                this.WindowState = FormWindowState.Maximized;
-                BeginInvoke(() =>
-                {
-                    this.Text = $"[DBG] Form={ClientSize.Width} TLP={tlpMainLayout.Width} cmb={cmbCOM.Width} State={WindowState} Screen={Screen.FromControl(this).Bounds.Width}";
-                });
-            });
+            BeginInvoke(() => this.WindowState = FormWindowState.Maximized);
         }
     }
 
