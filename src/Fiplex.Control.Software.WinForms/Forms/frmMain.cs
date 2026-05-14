@@ -2329,14 +2329,7 @@ public partial class frmMain : Form
             cmdIDPort.Enabled = false;
             cmbCOM.Enabled = false;
             cmdRefresh.Enabled = true;
-
-            // Maximize on first connection per session, matching VB 1.9 behaviour
             this.MinimumSize = new Size(1024, 720);
-            if (!_hasMaximized)
-            {
-                this.WindowState = FormWindowState.Maximized;
-                _hasMaximized = true;
-            }
 
             // Update firmware information in menu
             UpdateFirmwareInfo();
@@ -2345,8 +2338,16 @@ public partial class frmMain : Form
         {
             tlpMainLayout.ResumeLayout(true);
             ResumeLayout(true);
-            // Force full redraw to remove artifacts
             Refresh();
+        }
+
+        // Maximize after layout is fully settled so Dock.Fill controls (cmbCOM) recalculate
+        // their width correctly. Setting WindowState inside SuspendLayout prevents the resize
+        // event from being processed while layout is suspended.
+        if (!_hasMaximized)
+        {
+            this.WindowState = FormWindowState.Maximized;
+            _hasMaximized = true;
         }
     }
 
