@@ -2347,9 +2347,6 @@ public partial class frmMain : Form
             Refresh();
         }
 
-        // Defer maximize to next message loop tick so the native ComboBox control
-        // receives the WM_SIZE event after the current layout pass is complete,
-        // ensuring Dock.Fill recalculates the full width correctly.
         if (!_hasMaximized)
         {
             _hasMaximized = true;
