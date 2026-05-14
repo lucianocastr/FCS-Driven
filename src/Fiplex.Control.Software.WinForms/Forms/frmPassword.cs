@@ -97,9 +97,9 @@ public partial class frmPassword : Form
             lblPasswordError.Text = string.Empty;
 
             // Adjust button position for edit mode
-            Height = 220;
-            btnOK.Top = 150;
-            btnCancel.Top = 150;
+            Height = 235;
+            btnOK.Top = 162;
+            btnCancel.Top = 162;
         }
         else
         {
