@@ -3020,7 +3020,7 @@ public partial class frmMain : Form
     /// <remarks>
     /// Allows changing the password of the connected device using ^0 command.
     /// </remarks>
-    private async void mnuPassword_Click(object sender, EventArgs e)
+    private void mnuPassword_Click(object sender, EventArgs e)
     {
         if (_sessionContext.State != ConnectionState.Connected)
         {
@@ -3032,101 +3032,72 @@ public partial class frmMain : Form
             return;
         }
 
-        // Create dialog in edit mode
         using var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>();
-        passwordDialog.IsEditMode = true;  // Configures title, prompt and hides chkRemember
-        passwordDialog.ShowCancel = true;  // Allow cancellation
+        passwordDialog.IsEditMode = true;
+        passwordDialog.ShowCancel = true;
 
-        if (passwordDialog.ShowDialog(this) != DialogResult.OK)
+        // Delegate: dialog stays open while sending to device (VB 1.9 parity).
+        // Returns null on success, error message on failure.
+        passwordDialog.ChangePasswordCommand = async (newPassword) =>
         {
-            _logger.LogDebug("Password change cancelled by user");
-            return;
-        }
-
-        var newPassword = passwordDialog.Password;
-
-        if (string.IsNullOrWhiteSpace(newPassword))
-        {
-            MessageBox.Show(
-                "Password cannot be empty.",
-                "Invalid Password",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-            return;
-        }
-
-        try
-        {
-            LogStatus("Changing device password...");
-            cmdConnect.Enabled = false;
-            mnuPassword.Enabled = false;
-
-            // Command ^0 = Password change (not to be confused with *0 which is authentication)
-            var serialCommand = new SerialCommand
+            try
             {
-                Payload = $"^0{newPassword}",
-                ExpectsAck = true,
-                ExpectsData = false,  // Device only sends ACK, no additional data frame
-                MaxRetries = 2,
-                AckTimeout = TimeSpan.FromSeconds(2),
-                CancellationToken = _cts?.Token ?? default
-            };
-            var result = await _pipeline.EnqueueCommandAsync(serialCommand);
+                LogStatus("Changing device password...");
+                cmdConnect.Enabled = false;
+                mnuPassword.Enabled = false;
 
-            // VB 1.9: device responds "ACK" on success, or a hex bitmask on failure.
-            // The pipeline may classify the bitmask as a DataFrame and mark Success=true,
-            // so we must inspect result.Data: empty = genuine ACK, non-empty = error payload.
-            var responsePayload = result.Data?.Trim() ?? string.Empty;
-            var isGenuineAck = result.Success && string.IsNullOrEmpty(responsePayload);
+                // ^0 = Password change (distinct from *0 = authentication)
+                var serialCommand = new SerialCommand
+                {
+                    Payload = $"^0{newPassword}",
+                    ExpectsAck = true,
+                    ExpectsData = false,
+                    MaxRetries = 2,
+                    AckTimeout = TimeSpan.FromSeconds(2),
+                    CancellationToken = _cts?.Token ?? default
+                };
+                var result = await _pipeline.EnqueueCommandAsync(serialCommand);
 
-            if (isGenuineAck)
-            {
-                _validatedPassword = newPassword;
-                _pipeline.SetStoredPassword(newPassword);
-                _commandRouter.SetStoredPassword(newPassword);
+                // Device responds "ACK" on success, hex bitmask on failure.
+                // Pipeline classifies bitmask as DataFrame → result.Data non-empty.
+                // Genuine ACK → result.Data empty.
+                var responsePayload = result.Data?.Trim() ?? string.Empty;
+                var isGenuineAck = result.Success && string.IsNullOrEmpty(responsePayload);
 
-                LogStatus("Password changed successfully");
-                MessageBox.Show(
-                    "Device password has been changed successfully.",
-                    "Password Changed",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
-
-                _logger.LogInformation("Device password changed successfully");
+                if (isGenuineAck)
+                {
+                    _validatedPassword = newPassword;
+                    _pipeline.SetStoredPassword(newPassword);
+                    _commandRouter.SetStoredPassword(newPassword);
+                    LogStatus("Password changed successfully");
+                    _logger.LogInformation("Device password changed successfully");
+                    return null;
+                }
+                else
+                {
+                    var errorDetail = !string.IsNullOrEmpty(responsePayload)
+                        ? ParsePasswordValidationError(responsePayload)
+                        : "The device did not accept the new password.";
+                    _logger.LogWarning("Password change failed: {Status} Response: {Data}", result.Status, responsePayload);
+                    LogStatus("Password change failed");
+                    return errorDetail;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                var errorDetail = !string.IsNullOrEmpty(responsePayload)
-                    ? ParsePasswordValidationError(responsePayload)
-                    : "The device did not accept the new password.";
+                _logger.LogError(ex, "Error changing device password");
+                LogStatus("Password change error");
+                return $"An error occurred: {ex.Message}";
+            }
+            finally
+            {
+                cmdConnect.Enabled = true;
+                if (_sessionContext.State == ConnectionState.Connected)
+                    mnuPassword.Enabled = true;
+            }
+        };
 
-                _logger.LogWarning("Password change failed: {Status} Response: {Data}", result.Status, responsePayload);
-                LogStatus("Password change failed");
-                MessageBox.Show(
-                    $"Failed to change password.\n\n{errorDetail}",
-                    "Password Change Failed",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error changing device password");
-            LogStatus("Password change error");
-            MessageBox.Show(
-                $"An error occurred while changing the password.\n\n{ex.Message}",
-                "Error",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
-        }
-        finally
-        {
-            cmdConnect.Enabled = true;
-            if (_sessionContext.State == ConnectionState.Connected)
-            {
-                mnuPassword.Enabled = true;
-            }
-        }
+        passwordDialog.ShowDialog(this);
     }
 
     /// <summary>

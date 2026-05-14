@@ -15,14 +15,19 @@ namespace Fiplex.Control.Software.WinForms.Forms;
 public partial class frmPassword : Form
 {
     private bool _isEditMode;
-    
+
+    // Delegate set by caller in edit mode. Sends password to device.
+    // Returns null on success, error message string on failure (VB 1.9 parity).
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Func<string, Task<string?>>? ChangePasswordCommand { get; set; }
+
     /// <summary>
     /// Gets or sets the password entered by the user.
     /// Allows pre-population of the field for improved UX.
     /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
-    public string Password 
-    { 
+    public string Password
+    {
         get => txtPassword.Text;
         set => txtPassword.Text = value ?? string.Empty;
     }
@@ -121,13 +126,13 @@ public partial class frmPassword : Form
     }
 
     /// <summary>
-    /// Displays a validation error message.
+    /// Displays a validation error message in red.
     /// </summary>
-    /// <param name="errorMessage">Error message to display.</param>
     public void ShowValidationError(string errorMessage)
     {
         if (_isEditMode && lblPasswordError != null)
         {
+            lblPasswordError.ForeColor = Color.Red;
             lblPasswordError.Text = errorMessage;
             lblPasswordError.Visible = true;
         }
@@ -144,36 +149,44 @@ public partial class frmPassword : Form
         }
     }
 
+    private void SetControlsEnabled(bool enabled)
+    {
+        txtPassword.Enabled = enabled;
+        txtConfirmPassword.Enabled = enabled;
+        btnOK.Enabled = enabled;
+        btnCancel.Enabled = enabled;
+    }
+
     /// <summary>
     /// Handles OK button click with validation.
     /// </summary>
     /// <remarks>
-    /// In edit mode validates that passwords match before closing.
+    /// In edit mode validates that passwords match, then delegates to device
+    /// via ChangePasswordCommand (VB 1.9 parity: dialog stays open, errors inline).
     /// </remarks>
-    private void btnOK_Click(object sender, EventArgs e)
+    private async void btnOK_Click(object sender, EventArgs e)
     {
         ClearValidationError();
-        
+
         // Validate that the password is not empty
         if (string.IsNullOrWhiteSpace(txtPassword.Text))
         {
             MessageBox.Show(
-                _isEditMode 
-                    ? "New password cannot be empty." 
-                    : "Password cannot be empty.", 
-                "Validation Error", 
-                MessageBoxButtons.OK, 
+                _isEditMode
+                    ? "New password cannot be empty."
+                    : "Password cannot be empty.",
+                "Validation Error",
+                MessageBoxButtons.OK,
                 MessageBoxIcon.Warning);
-            
-            // Prevent dialog close
+
             DialogResult = DialogResult.None;
             txtPassword.Focus();
             return;
         }
 
-        // Edit mode validation — match check only; complexity is validated by the device
         if (_isEditMode)
         {
+            // Client-side: only check passwords match (VB 1.9 — device validates complexity)
             if (string.IsNullOrWhiteSpace(txtConfirmPassword.Text))
             {
                 ShowValidationError("Please confirm the new password.");
@@ -190,9 +203,38 @@ public partial class frmPassword : Form
                 txtConfirmPassword.SelectAll();
                 return;
             }
+
+            // Send to device; dialog stays open while awaiting (VB 1.9 parity)
+            if (ChangePasswordCommand != null)
+            {
+                SetControlsEnabled(false);
+                lblPasswordError.ForeColor = SystemColors.GrayText;
+                lblPasswordError.Text = "Sending...";
+
+                string? error = await ChangePasswordCommand(txtPassword.Text);
+
+                if (error == null)
+                {
+                    // Success: green feedback for 1.5s, then close (VB 1.9 parity)
+                    lblPasswordError.ForeColor = Color.Green;
+                    lblPasswordError.Text = "Password changed successfully.";
+                    await Task.Delay(1500);
+                    DialogResult = DialogResult.OK;
+                    Close();
+                }
+                else
+                {
+                    // Device rejected — show inline, stay open (VB 1.9 parity)
+                    SetControlsEnabled(true);
+                    ShowValidationError(error);
+                    DialogResult = DialogResult.None;
+                    txtPassword.Focus();
+                }
+                return;
+            }
         }
 
-        // Successful validation - allow close
+        // Capture mode or no delegate — standard close
         DialogResult = DialogResult.OK;
     }
 
