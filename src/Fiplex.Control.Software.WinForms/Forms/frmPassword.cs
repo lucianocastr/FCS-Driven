@@ -84,29 +84,35 @@ public partial class frmPassword : Form
             // Edit mode: Change device password
             Text = "Change Device Password";
             lblPrompt.Text = "Enter new password:";
-            
+            txtPassword.MaxLength = 16;  // device hard limit
+
+            // Label must not overflow dialog width
+            lblPasswordError.AutoSize = false;
+            lblPasswordError.Size = new Size(318, 32);
+
             // Show confirmation field and adjust height
             lblConfirm.Visible = true;
             txtConfirmPassword.Visible = true;
             lblPasswordError.Visible = true;
             lblPasswordError.Text = string.Empty;
-            
+
             // Adjust button position for edit mode
-            Height = 210;
-            btnOK.Top = 135;
-            btnCancel.Top = 135;
+            Height = 220;
+            btnOK.Top = 150;
+            btnCancel.Top = 150;
         }
         else
         {
             // Capture mode: Standard authentication
             Text = "Device Authentication";
             lblPrompt.Text = "Enter device password:";
-            
+            txtPassword.MaxLength = 50;
+
             // Hide confirmation field
             lblConfirm.Visible = false;
             txtConfirmPassword.Visible = false;
             lblPasswordError.Visible = false;
-            
+
             // Adjust height for authentication mode
             Height = 160;
             btnOK.Top = 85;
@@ -165,20 +171,9 @@ public partial class frmPassword : Form
             return;
         }
 
-        // Edit mode validation
+        // Edit mode validation — match check only; complexity is validated by the device
         if (_isEditMode)
         {
-            // Length validation — VB 1.9: 8 ≤ length ≤ 16
-            var len = txtPassword.Text.Length;
-            if (len < 8 || len > 16)
-            {
-                ShowValidationError("Invalid length. Password length must be greater than or equal to 8 and less than or equal to 16");
-                DialogResult = DialogResult.None;
-                txtPassword.Focus();
-                txtPassword.SelectAll();
-                return;
-            }
-
             if (string.IsNullOrWhiteSpace(txtConfirmPassword.Text))
             {
                 ShowValidationError("Please confirm the new password.");

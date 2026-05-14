@@ -3073,10 +3073,14 @@ public partial class frmMain : Form
             };
             var result = await _pipeline.EnqueueCommandAsync(serialCommand);
 
-            // Verify successful response
-            if (result.Success)
+            // VB 1.9: device responds "ACK" on success, or a hex bitmask on failure.
+            // The pipeline may classify the bitmask as a DataFrame and mark Success=true,
+            // so we must inspect result.Data: empty = genuine ACK, non-empty = error payload.
+            var responsePayload = result.Data?.Trim() ?? string.Empty;
+            var isGenuineAck = result.Success && string.IsNullOrEmpty(responsePayload);
+
+            if (isGenuineAck)
             {
-                // Update stored password
                 _validatedPassword = newPassword;
                 _pipeline.SetStoredPassword(newPassword);
                 _commandRouter.SetStoredPassword(newPassword);
@@ -3092,11 +3096,14 @@ public partial class frmMain : Form
             }
             else
             {
-                // If device returns NACK or error, result.Success will be false
-                _logger.LogWarning("Password change failed: {Status}", result.Status);
+                var errorDetail = !string.IsNullOrEmpty(responsePayload)
+                    ? ParsePasswordValidationError(responsePayload)
+                    : "The device did not accept the new password.";
+
+                _logger.LogWarning("Password change failed: {Status} Response: {Data}", result.Status, responsePayload);
                 LogStatus("Password change failed");
                 MessageBox.Show(
-                    "Failed to change password.\n\nThe device did not accept the new password.",
+                    $"Failed to change password.\n\n{errorDetail}",
                     "Password Change Failed",
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
