@@ -2341,13 +2341,13 @@ public partial class frmMain : Form
             Refresh();
         }
 
-        // Maximize after layout is fully settled so Dock.Fill controls (cmbCOM) recalculate
-        // their width correctly. Setting WindowState inside SuspendLayout prevents the resize
-        // event from being processed while layout is suspended.
+        // Defer maximize to next message loop tick so the native ComboBox control
+        // receives the WM_SIZE event after the current layout pass is complete,
+        // ensuring Dock.Fill recalculates the full width correctly.
         if (!_hasMaximized)
         {
-            this.WindowState = FormWindowState.Maximized;
             _hasMaximized = true;
+            BeginInvoke(() => this.WindowState = FormWindowState.Maximized);
         }
     }
 
