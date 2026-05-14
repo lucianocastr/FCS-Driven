@@ -63,6 +63,9 @@ public partial class frmMain : Form
     // Counter for factory mode key combination
     private short _cntmode = 0;
 
+    // Tracks whether the window has been maximized on first connection (resets on disconnect)
+    private bool _hasMaximized = false;
+
     // Validated password for INVALID CREDENTIALS retries
     private string? _validatedPassword;
 
@@ -2327,12 +2330,13 @@ public partial class frmMain : Form
             cmbCOM.Enabled = false;
             cmdRefresh.Enabled = true;
 
-            // Set fixed size and center form on connect
-            // Size: 1350 x 800 px
-            this.WindowState = FormWindowState.Normal;
-            this.Size = new Size(1350, 800);
+            // Maximize on first connection per session, matching VB 1.9 behaviour
             this.MinimumSize = new Size(1024, 720);
-            CenterFormOnScreen();
+            if (!_hasMaximized)
+            {
+                this.WindowState = FormWindowState.Maximized;
+                _hasMaximized = true;
+            }
 
             // Update firmware information in menu
             UpdateFirmwareInfo();
@@ -2395,8 +2399,8 @@ public partial class frmMain : Form
             cmbCOM.Enabled = true;
             cmdRefresh.Enabled = false;
 
-            // Set minimum size and center form on disconnect
-            // Minimum size: 1024 x 720 px
+            // Restore fixed size on disconnect and reset maximize flag
+            _hasMaximized = false;
             this.WindowState = FormWindowState.Normal;
             this.MinimumSize = new Size(1024, 720);
             this.Size = new Size(1024, 720);
