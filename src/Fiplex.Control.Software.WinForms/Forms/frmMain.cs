@@ -123,6 +123,12 @@ public partial class frmMain : Form
 
         InitializeComponent();
 
+        // Dock.Fill on ComboBox inside TableLayoutPanel conflicts with the TLP's own
+        // layout pass — the TLP resets the width after OnResize sets it. Use Anchor
+        // Left|Top|Right so the TLP stretches the control natively without conflict.
+        cmbCOM.Dock = DockStyle.None;
+        cmbCOM.Anchor = AnchorStyles.Left | AnchorStyles.Top | AnchorStyles.Right;
+
         // Configure Debug/Tools menu for logging and diagnostics
         ConfigureDebugMenu();
 
@@ -2413,19 +2419,6 @@ public partial class frmMain : Form
             ResumeLayout(true);
             // Force full redraw to remove artifacts
             Refresh();
-        }
-    }
-
-    // Native Win32 ComboBox does not always honour Dock.Fill when the parent
-    // TableLayoutPanel resizes (e.g. on maximize). Force the width explicitly.
-    protected override void OnResize(EventArgs e)
-    {
-        base.OnResize(e);
-        if (tlpMainLayout != null && cmbCOM != null)
-        {
-            var targetWidth = tlpMainLayout.ClientSize.Width - cmbCOM.Margin.Left - cmbCOM.Margin.Right;
-            if (targetWidth > 0 && cmbCOM.Width != targetWidth)
-                cmbCOM.Width = targetWidth;
         }
     }
 
