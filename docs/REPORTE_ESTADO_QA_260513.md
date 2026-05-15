@@ -5,7 +5,7 @@
 |---|---|
 | Referencia | `260513_New FCS_Findings_V1.xlsx` |
 | Fecha de apertura | 13/05/2026 |
-| Última actualización | 14/05/2026 |
+| Última actualización | 15/05/2026 |
 | Rama activa | `fix/v303-client-issues` |
 | Repositorio | `E:\Ikarus\Proyecto C#\FCS302OK\FCSDev` |
 | Referencia funcional | FCS 1.9 VB.NET — `E:\Ikarus\Proyecto C#\FCS` |
@@ -19,10 +19,10 @@
 | Categoría | Cant. |
 |---|---|
 | Issues totales reportados | 21 |
-| Validados en hardware | 12 |
+| Validados en hardware | 13 |
 | Fix aplicado — pendiente validación | 0 |
 | En análisis | 0 |
-| Pendientes | 8 |
+| Pendientes | 7 |
 
 ---
 
@@ -37,7 +37,7 @@
 | #3 | No se puede acceder al menú factory | Bug | Alta | Pendiente | — |
 | #19 | Selection box invisible en login form | Cosmético | Media | ✅ Validado | `41629c7` |
 | #17 | Requisitos de complejidad de password no se muestran | UX | Media | ✅ Validado | `c173310` |
-| #13 | Sin feedback si el USB se desconecta | Bug | Media | Pendiente | — |
+| #13 | Sin feedback si el USB se desconecta | Bug | Media | ✅ Validado | `af604f4` |
 | #7 | Spectrum no funciona en Assisted GUI | Bug | Media | ✅ No reproducible | — |
 | #8 | Tag setting no funciona en Assisted GUI | Bug | Media | ✅ Validado | `313bae6` |
 | #9 | Save Config falla con 18 filtros por banda | Bug | Media | ✅ No reproducible | — |
@@ -241,6 +241,31 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 
 ---
 
+### Issue #13 — Sin feedback si el USB se desconecta
+
+**Descripción del cliente:** Cuando la placa es desconectada físicamente, C# 3.0.3 no hace nada — la UI queda en estado conectado indefinidamente. VB 1.9 regresa a la pantalla inicial.
+
+**Comportamiento VB 1.9:**
+- `tmrWatchdogCommands` (25s) envía `N1` como keep-alive
+- MSCOMM control detecta desconexión física y pone `comComm1.PortOpen = False` automáticamente
+- `tmrReq_Tick` recibe `instRx = ""` → llama `StopBrowser()` → regresa a pantalla inicial
+
+**Root cause:**
+- Primer intento: suscribir a `_serialPort.ErrorOccurred` — falló porque el evento solo se dispara desde `ReadAsync`/`WriteAsync`. En pantallas idle el pipeline nunca llama esas funciones, por lo que el evento nunca se dispara.
+- La UI quedaba en estado conectado indefinidamente al remover el USB.
+
+**Fix aplicado:**
+- `System.Windows.Forms.Timer` (`_portHealthTimer`, intervalo 1s) arranca en `ConnectAsync` después de abrir el puerto (excluido en modo `noUSB`)
+- Tick handler: lee `_serialPort.BytesToRead` — cuando el dispositivo es removido, Win32 `ClearCommError` lanza `IOException`
+- Catch: detiene y descarta el timer, llama `DisconnectAsync()` (UI thread, sin BeginInvoke necesario)
+- `DisconnectAsync` también detiene y descarta el timer como primera acción (idempotencia)
+
+**Archivo:** `Forms\frmMain.cs`
+**Commit:** `af604f4`
+**Validado:** ✅ Hardware — 15/05/2026
+
+---
+
 ## Historial de cambios del documento
 
 | Fecha | Cambio |
@@ -256,4 +281,5 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issue #19 validado — commit 41629c7 (cmbCOM FlatStyle.Standard, borde visible en estado desconectado) |
 | 15/05/2026 | Issue #16 validado — commit 490e481 (DisplayLabel muestra COM{N} - nombre en selector) |
 | 15/05/2026 | Issue #7 — no reproducible en hardware actual, Spectrum Analyzer funciona correctamente |
+| 15/05/2026 | Issue #13 validado — commit af604f4 (timer polling BytesToRead, detección USB disconnect en 1s) |
 
