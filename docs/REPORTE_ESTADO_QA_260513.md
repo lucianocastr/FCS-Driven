@@ -20,9 +20,9 @@
 |---|---|
 | Issues totales reportados | 21 |
 | Validados en hardware | 13 |
-| Fix aplicado — pendiente validación | 0 |
+| Fix aplicado — pendiente validación | 1 |
 | En análisis | 0 |
-| Pendientes | 7 |
+| Pendientes | 6 |
 
 ---
 
@@ -45,7 +45,7 @@
 | #4 | Clear EEPROM error | Bug | Media | Pendiente | — |
 | #2 | Ethernet module installation fails | Bug | Baja | ✅ Validado | `572060b` |
 | #16 | COM port number no listado en selector | Mejora | Baja | ✅ Validado | `490e481` |
-| #12 | Unsupported devices no mostrados | Mejora | Baja | Pendiente | — |
+| #12 | Unsupported devices no mostrados | Mejora | Baja | Fix aplicado — pendiente validación | `062012a` |
 | #18 | Wrong license key sin mensaje de error | Mejora | Baja | Pendiente | — |
 | #14 | Shortcut para USB log / factory / license | Mejora | Baja | Pendiente | — |
 | #5 | Config save descarga sin pedir ruta | Revisión | — | ✅ Validado | `5e644c5` |
@@ -266,6 +266,29 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 
 ---
 
+### Issue #12 — Unsupported devices no mostrados
+
+**Descripción del cliente:** Dispositivos muy nuevos o muy viejos (no en el catálogo `fdevices.tsv`) no aparecen en el selector. En VB 1.9 se muestran como "COM{N} - Unknown device".
+
+**Comportamiento VB 1.9:**
+- `SetDeviceType(strIdn)` busca el ID en `fdevices.tsv`
+- Si no lo encuentra (label `lberror`): `NameTypeDevice = "Unknown device"`, `PathShared = htdocs_default`
+- El scan loop igualmente agrega `"COM{N} - Unknown device"` al combo
+- `deviceSelection()`: si el texto contiene "Unknown" → `cmdConnect.Enabled = False`
+
+**Root cause:**
+`DeviceDiscoveryService.TryIdentifyDeviceAsync` llamaba `_catalog.ResolveDevice(response)` y cuando devolvía `null` (dispositivo no en catálogo), descartaba silenciosamente el dispositivo — retornaba `null` al caller sin agregarlo a la lista.
+
+**Fix aplicado:**
+- `DeviceDiscoveryService.cs`: cuando el catálogo devuelve `null` para un ID Fiplex válido, retorna `new DeviceInfo { NameTypeDevice = "Unknown device", Id = response, ComPort = portNumber }` en lugar de `null`
+- `frmMain.cs` — `cmbCOM_SelectedIndexChanged`: si `device.NameTypeDevice == "Unknown device"` → `cmdConnect.Enabled = false` (paridad VB 1.9)
+
+**Archivos:** `Core/Devices/DeviceDiscoveryService.cs`, `Forms/frmMain.cs`
+**Commit:** `062012a`
+**Validado:** Pendiente — sin dispositivo no catalogado disponible
+
+---
+
 ## Historial de cambios del documento
 
 | Fecha | Cambio |
@@ -282,4 +305,5 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issue #16 validado — commit 490e481 (DisplayLabel muestra COM{N} - nombre en selector) |
 | 15/05/2026 | Issue #7 — no reproducible en hardware actual, Spectrum Analyzer funciona correctamente |
 | 15/05/2026 | Issue #13 validado — commit af604f4 (timer polling BytesToRead, detección USB disconnect en 1s) |
+| 15/05/2026 | Issue #12 fix aplicado — commit 062012a (Unknown device en selector, pendiente validación con hardware) |
 
