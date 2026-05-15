@@ -19,10 +19,10 @@
 | Categoría | Cant. |
 |---|---|
 | Issues totales reportados | 21 |
-| Validados en hardware | 6 |
+| Validados en hardware | 7 |
 | Fix aplicado — pendiente validación | 0 |
 | En análisis | 0 |
-| Pendientes | 15 |
+| Pendientes | 14 |
 
 ---
 
@@ -40,7 +40,7 @@
 | #13 | Sin feedback si el USB se desconecta | Bug | Media | Pendiente | — |
 | #7 | Spectrum no funciona en Assisted GUI | Bug | Media | Pendiente | — |
 | #8 | Tag setting no funciona en Assisted GUI | Bug | Media | ✅ Validado | `313bae6` |
-| #9 | Save Config falla con 18 filtros por banda | Bug | Media | Pendiente | — |
+| #9 | Save Config falla con 18 filtros por banda | Bug | Media | ✅ No reproducible | — |
 | #10 | Isolation Measurement falla | Bug | Media | ✅ Validado | `313bae6` |
 | #4 | Clear EEPROM error | Bug | Media | Pendiente | — |
 | #2 | Ethernet module installation fails | Bug | Baja | ✅ Validado | `572060b` |
@@ -173,6 +173,17 @@ En C# 3.0.3, `IsLegacyPostbackRoute` en `EmbeddedHttpServer.cs` solo aceptaba PO
 
 ---
 
+### Issue #9 — Save Config falla con 18 filtros por banda
+
+**Descripción del cliente:** Save from Device no termina de descargar el archivo de configuración. Fiplex indica posible relación con la instalación del módulo Ethernet.
+
+**Resultado de reproducción:** No reproducible al 15/05/2026. Save from Device descarga el archivo `.cfgr` correctamente. Posible relación con el fix #2 (Ethernet module, commit `572060b`) que corrigió el pipeline de escritura/lectura del factory string.
+
+**Estado:** ✅ No reproducible — funciona correctamente en hardware actual.
+**Fecha de verificación:** 15/05/2026
+
+---
+
 ## Historial de cambios del documento
 
 | Fecha | Cambio |
@@ -182,4 +193,5 @@ En C# 3.0.3, `IsLegacyPostbackRoute` en `EmbeddedHttpServer.cs` solo aceptaba PO
 | 14/05/2026 | Issue #2 validado — commit 572060b |
 | 15/05/2026 | Issue #10 validado — commit 313bae6 |
 | 15/05/2026 | Issue #8 validado — mismo fix (313bae6), resuelto por el mismo root cause |
+| 15/05/2026 | Issue #9 — no reproducible en hardware actual, Save from Device descarga correctamente |
 
