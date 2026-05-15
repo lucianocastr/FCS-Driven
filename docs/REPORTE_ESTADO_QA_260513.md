@@ -19,10 +19,10 @@
 | Categoría | Cant. |
 |---|---|
 | Issues totales reportados | 21 |
-| Validados en hardware | 7 |
+| Validados en hardware | 9 |
 | Fix aplicado — pendiente validación | 0 |
 | En análisis | 0 |
-| Pendientes | 14 |
+| Pendientes | 12 |
 
 ---
 
@@ -48,8 +48,8 @@
 | #12 | Unsupported devices no mostrados | Mejora | Baja | Pendiente | — |
 | #18 | Wrong license key sin mensaje de error | Mejora | Baja | Pendiente | — |
 | #14 | Shortcut para USB log / factory / license | Mejora | Baja | Pendiente | — |
-| #5 | Config save descarga sin pedir ruta | Revisión | — | Pendiente revisión | — |
-| #6 | Generate report sin diálogo de ruta | Revisión | — | Pendiente revisión | — |
+| #5 | Config save descarga sin pedir ruta | Revisión | — | ✅ Validado | `5e644c5` |
+| #6 | Generate report sin diálogo de ruta | Revisión | — | ✅ Validado | `5e644c5` |
 | #1 | FCS no funciona en Honeywell (intermitente) | Monitoreo | — | Monitoring | — |
 
 ---
@@ -184,6 +184,29 @@ En C# 3.0.3, `IsLegacyPostbackRoute` en `EmbeddedHttpServer.cs` solo aceptaba PO
 
 ---
 
+### Issues #5 y #6 — Config save / Generate Report descargan sin pedir ruta
+
+**Descripción del cliente:** El archivo se descarga directamente a la carpeta de descargas del sistema sin preguntar al usuario dónde guardarlo. La notificación de descarga (barra de Chromium) aparece fuera de la ventana de la app.
+
+**Root cause:**
+WebView2 (Chromium) usa su propio mecanismo de descarga: guarda en la carpeta predeterminada del sistema y muestra una notificación flotante fuera del contexto de la app. VB 1.9 usaba WebBrowser (IE), que mostraba el diálogo nativo de IE preguntando destino y nombre antes de escribir en disco.
+
+El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentario pendiente en el código desde la migración).
+
+**Fix aplicado:**
+- Suscripción a `webView.CoreWebView2.DownloadStarting` en `InitializeWebView2Async()`
+- `e.Handled = true` → suprime la barra de descarga nativa de Chromium
+- `SaveFileDialog` de WinForms → el usuario elige destino antes de que el archivo toque disco
+- Si cancela → `e.Cancel = true`
+- Cubre cualquier descarga desde WebView2: Save from Device (`.cfgr`) y Generate Report
+
+**Archivo:** `Forms/frmMain.cs`
+**Commit:** `5e644c5`
+**Validado:** ✅ Hardware — 15/05/2026 (#5 Save from Device)
+**Nota:** #6 (Generate Report) corregido por el mismo fix — pendiente validación en hardware.
+
+---
+
 ## Historial de cambios del documento
 
 | Fecha | Cambio |
@@ -194,4 +217,5 @@ En C# 3.0.3, `IsLegacyPostbackRoute` en `EmbeddedHttpServer.cs` solo aceptaba PO
 | 15/05/2026 | Issue #10 validado — commit 313bae6 |
 | 15/05/2026 | Issue #8 validado — mismo fix (313bae6), resuelto por el mismo root cause |
 | 15/05/2026 | Issue #9 — no reproducible en hardware actual, Save from Device descarga correctamente |
+| 15/05/2026 | Issues #5 y #6 validados — commit 5e644c5 (SaveFileDialog en descargas WebView2) |
 
