@@ -257,11 +257,23 @@ public class EmbeddedHttpServer : IEmbeddedHttpServer
 
     private static bool IsLegacyPostbackRoute(HttpListenerRequest request)
     {
+        if (!request.HttpMethod.Equals("POST", StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (!request.HasEntityBody)
+            return false;
+
         var path = request.Url?.AbsolutePath ?? string.Empty;
 
-        return request.HttpMethod.Equals("POST", StringComparison.OrdinalIgnoreCase)
-            && request.HasEntityBody
-            && path.EndsWith(".zhtml", StringComparison.OrdinalIgnoreCase);
+        // Exclude modern command routes — those go through HandleCommandRequestAsync
+        if (path.StartsWith("/command/", StringComparison.OrdinalIgnoreCase))
+            return false;
+        if (path.StartsWith("/api/", StringComparison.OrdinalIgnoreCase))
+            return false;
+
+        // Any other POST with a body is a legacy device postback.
+        // VB 1.9 processed ctl_conf_str (and any other command key) regardless of URL —
+        // both /start.zhtml and home.html POSTs carry device commands in the body.
+        return true;
     }
 
     private static string? SelectLegacyPostCommandKey(Dictionary<string, string?> parameters)
