@@ -19,10 +19,10 @@
 | Categoría | Cant. |
 |---|---|
 | Issues totales reportados | 21 |
-| Validados en hardware | 9 |
+| Validados en hardware | 10 |
 | Fix aplicado — pendiente validación | 0 |
 | En análisis | 0 |
-| Pendientes | 12 |
+| Pendientes | 11 |
 
 ---
 
@@ -36,7 +36,7 @@
 | #15 | Password change muestra éxito pero no se aplica | Bug crítico | Alta | ✅ Validado | `c173310` |
 | #3 | No se puede acceder al menú factory | Bug | Alta | Pendiente | — |
 | #19 | Selection box invisible en login form | Cosmético | Media | Pendiente | — |
-| #17 | Requisitos de complejidad de password no se muestran | UX | Media | Pendiente | — |
+| #17 | Requisitos de complejidad de password no se muestran | UX | Media | ✅ Validado | `c173310` |
 | #13 | Sin feedback si el USB se desconecta | Bug | Media | Pendiente | — |
 | #7 | Spectrum no funciona en Assisted GUI | Bug | Media | Pendiente | — |
 | #8 | Tag setting no funciona en Assisted GUI | Bug | Media | ✅ Validado | `313bae6` |
@@ -218,4 +218,5 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issue #8 validado — mismo fix (313bae6), resuelto por el mismo root cause |
 | 15/05/2026 | Issue #9 — no reproducible en hardware actual, Save from Device descarga correctamente |
 | 15/05/2026 | Issues #5 y #6 validados — commit 5e644c5 (SaveFileDialog en descargas WebView2) |
+| 15/05/2026 | Issue #17 validado — resuelto por fix #15 (c173310), ParsePasswordValidationError muestra requisito fallido |
 
