@@ -19,10 +19,9 @@
 | Categoría | Cant. |
 |---|---|
 | Issues totales reportados | 21 |
-| Validados en hardware | 13 |
+| Validados en hardware | 14 |
 | Fix aplicado — pendiente validación | 1 |
 | En análisis | 0 |
-| Fix aplicado — pendiente validación | 2 |
 | Pendientes | 5 |
 
 ---
@@ -35,7 +34,7 @@
 | #21 | Product selector no resiza al maximizar | UI | Alta | ✅ Validado | `7b47f09` |
 | #11 | Clear EEPROM visible para customers | Seguridad | Alta | Pendiente | — |
 | #15 | Password change muestra éxito pero no se aplica | Bug crítico | Alta | ✅ Validado | `c173310` |
-| #3 | No se puede acceder al menú factory | Bug | Alta | Fix aplicado — pendiente validación | `e9094b6` |
+| #3 | No se puede acceder al menú factory | Bug | Alta | ✅ Validado | `e9094b6` |
 | #19 | Selection box invisible en login form | Cosmético | Media | ✅ Validado | `41629c7` |
 | #17 | Requisitos de complejidad de password no se muestran | UX | Media | ✅ Validado | `c173310` |
 | #13 | Sin feedback si el USB se desconecta | Bug | Media | ✅ Validado | `af604f4` |
@@ -337,4 +336,5 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issue #13 validado — commit af604f4 (timer polling BytesToRead, detección USB disconnect en 1s) |
 | 15/05/2026 | Issue #12 fix aplicado — commit 062012a (Unknown device en selector, pendiente validación con hardware) |
 | 15/05/2026 | Issue #3 fix aplicado — commit e9094b6 (factory menu: Shift+Click sequence + time digits en Refresh, JS navega navi frame) |
+| 15/05/2026 | Issue #3 validado — Production Tests + Calibrations ocultos hasta secuencia; sidebar Factory/SerialNr/Equalizer aparece correctamente |
 
