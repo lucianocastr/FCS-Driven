@@ -1878,7 +1878,9 @@ public partial class frmMain : Form
             mnuFWInfo.Visible = false;
             mnuFWVer.Visible = false;
 
-            // Hide calibration menus (added in connection based on device type)
+            // Hide calibration menus (only visible in factory mode)
+            mnuCal.Visible = false;
+            mnuCal.Enabled = false;
             mnuLoadCal.Visible = false;
             mnuSaveCal.Visible = false;
 
@@ -2600,6 +2602,7 @@ public partial class frmMain : Form
                     _ => false
                 };
                 mnuCal.Visible = showCal;
+                mnuCal.Enabled = showCal;
                 mnuLoadCal.Visible = showCal;
                 mnuSaveCal.Visible = showCal;
             }
