@@ -22,7 +22,8 @@
 | Validados en hardware | 13 |
 | Fix aplicado — pendiente validación | 1 |
 | En análisis | 0 |
-| Pendientes | 6 |
+| Fix aplicado — pendiente validación | 2 |
+| Pendientes | 5 |
 
 ---
 
@@ -34,7 +35,7 @@
 | #21 | Product selector no resiza al maximizar | UI | Alta | ✅ Validado | `7b47f09` |
 | #11 | Clear EEPROM visible para customers | Seguridad | Alta | Pendiente | — |
 | #15 | Password change muestra éxito pero no se aplica | Bug crítico | Alta | ✅ Validado | `c173310` |
-| #3 | No se puede acceder al menú factory | Bug | Alta | Pendiente | — |
+| #3 | No se puede acceder al menú factory | Bug | Alta | Fix aplicado — pendiente validación | `e9094b6` |
 | #19 | Selection box invisible en login form | Cosmético | Media | ✅ Validado | `41629c7` |
 | #17 | Requisitos de complejidad de password no se muestran | UX | Media | ✅ Validado | `c173310` |
 | #13 | Sin feedback si el USB se desconecta | Bug | Media | ✅ Validado | `af604f4` |
@@ -289,6 +290,35 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 
 ---
 
+### Issue #3 — No se puede acceder al menú factory
+
+**Descripción del cliente:** El menú factory no es accesible en C# 3.0.3. En VB 1.9, el menú factory se activa con una secuencia de clicks en el botón Refresh + teclas dependientes de la hora.
+
+**Comportamiento VB 1.9:**
+- `cmdRefresh_MouseDown`: Shift+RightClick → `cntmode=1`, Shift+LeftClick → `cntmode=2`
+- `cmdRefresh_KeyPress` con `cntmode=2`: teclear dígito `Minute(TimeOfDay) Mod 10` → `cntmode=50`
+- `cmdRefresh_KeyPress` con `cntmode=50`: teclear dígito `Day(Today) Mod 10` → `factWindow()` (navega a `/factory/fmenu.html`)
+
+**Mecanismo en web (htdocs_2c2):**
+`navi.html` contiene los links factory/serialNr/equalizer con `style="display:none"`. `navi.js` → `showFactory()` los muestra cuando la URL del frame navi contiene `?isFactory=true`.
+
+**Root cause:**
+`_cntmode` estaba declarado en `frmMain.cs` (línea 64) pero nunca usado. No había handlers para `cmdRefresh.MouseDown` ni `cmdRefresh.KeyPress`. La función `NavigateToFactoryMenuAsync()` existía pero nunca era invocada por interacción de usuario.
+
+**Fix aplicado:**
+- Campo `_eButton = [MouseButtons.Right, MouseButtons.Left]` para la secuencia de clicks
+- Suscripción de `cmdRefresh.MouseDown` y `cmdRefresh.KeyPress` en el constructor
+- `cmdRefresh_MouseDown`: Shift+RightClick → `_cntmode=1`, Shift+LeftClick → `_cntmode=2`
+- `cmdRefresh_KeyPress` con `_cntmode=2`: dígito `DateTime.Now.Minute % 10` → `_cntmode=50`
+- `cmdRefresh_KeyPress` con `_cntmode=50`: dígito `DateTime.Now.Day % 10` → `ShowFactoryMenuAsync()`
+- `ShowFactoryMenuAsync()`: ExecuteScriptAsync navega el frame `navi` a `navi.html?isFactory=true`, exponiendo Factory/SerialNr/Equalizer en la sidebar sin recargar el frame de contenido
+
+**Archivo:** `Forms/frmMain.cs`
+**Commit:** `e9094b6`
+**Validado:** Pendiente validación en hardware
+
+---
+
 ## Historial de cambios del documento
 
 | Fecha | Cambio |
@@ -306,4 +336,5 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issue #7 — no reproducible en hardware actual, Spectrum Analyzer funciona correctamente |
 | 15/05/2026 | Issue #13 validado — commit af604f4 (timer polling BytesToRead, detección USB disconnect en 1s) |
 | 15/05/2026 | Issue #12 fix aplicado — commit 062012a (Unknown device en selector, pendiente validación con hardware) |
+| 15/05/2026 | Issue #3 fix aplicado — commit e9094b6 (factory menu: Shift+Click sequence + time digits en Refresh, JS navega navi frame) |
 
