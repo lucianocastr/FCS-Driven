@@ -2048,28 +2048,10 @@ public partial class frmMain : Form
         // mnuProd: hidden until factory sequence is entered (ShowFactoryMenuAsync)
         mnuProd.Visible = false;
 
-        // mnuCal (Calibration): Visible for 2c, 4dm, 5dm
-        var showCalibration = device.TDev switch
-        {
-            "2c" => true,
-            "4dm" => true,
-            "5dm" => true,
-            _ => false
-        };
-
-        if (showCalibration)
-        {
-            mnuCal.Visible = true;
-            mnuLoadCal.Visible = true;
-            mnuSaveCal.Visible = true;
-            _logger.LogDebug("Calibration menus enabled for {DeviceType}", device.TDev);
-        }
-        else
-        {
-            mnuCal.Visible = false;
-            mnuLoadCal.Visible = false;
-            mnuSaveCal.Visible = false;
-        }
+        // mnuCal (Calibration): hidden until factory sequence is entered (ShowFactoryMenuAsync)
+        mnuCal.Visible = false;
+        mnuLoadCal.Visible = false;
+        mnuSaveCal.Visible = false;
     }
 
     /// <summary>
@@ -2606,10 +2588,21 @@ public partial class frmMain : Form
         {
             _logger.LogInformation("Factory mode activated");
 
-            // Show Production Tests menu now that factory is unlocked
+            // Show factory-only menus now that the sequence was entered
             var device = _sessionContext.Device;
             if (device != null)
+            {
                 UpdateProductionMenuVisibility(device);
+
+                bool showCal = device.TDev switch
+                {
+                    "2c" or "4dm" or "5dm" => true,
+                    _ => false
+                };
+                mnuCal.Visible = showCal;
+                mnuLoadCal.Visible = showCal;
+                mnuSaveCal.Visible = showCal;
+            }
 
             // Navigate the navi frame (std.html frameset) to expose factory sidebar links
             await webView.CoreWebView2.ExecuteScriptAsync(
