@@ -202,8 +202,7 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 
 **Archivo:** `Forms/frmMain.cs`
 **Commit:** `5e644c5`
-**Validado:** ✅ Hardware — 15/05/2026 (#5 Save from Device)
-**Nota:** #6 (Generate Report) corregido por el mismo fix — pendiente validación en hardware.
+**Validado:** ✅ Hardware — 15/05/2026 (#5 Save from Device · #6 Generate Report)
 
 ---
 
