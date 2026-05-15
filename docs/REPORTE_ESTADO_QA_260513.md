@@ -19,10 +19,10 @@
 | Categoría | Cant. |
 |---|---|
 | Issues totales reportados | 21 |
-| Validados en hardware | 10 |
+| Validados en hardware | 11 |
 | Fix aplicado — pendiente validación | 0 |
 | En análisis | 0 |
-| Pendientes | 11 |
+| Pendientes | 10 |
 
 ---
 
@@ -35,7 +35,7 @@
 | #11 | Clear EEPROM visible para customers | Seguridad | Alta | Pendiente | — |
 | #15 | Password change muestra éxito pero no se aplica | Bug crítico | Alta | ✅ Validado | `c173310` |
 | #3 | No se puede acceder al menú factory | Bug | Alta | Pendiente | — |
-| #19 | Selection box invisible en login form | Cosmético | Media | Pendiente | — |
+| #19 | Selection box invisible en login form | Cosmético | Media | ✅ Validado | `41629c7` |
 | #17 | Requisitos de complejidad de password no se muestran | UX | Media | ✅ Validado | `c173310` |
 | #13 | Sin feedback si el USB se desconecta | Bug | Media | Pendiente | — |
 | #7 | Spectrum no funciona en Assisted GUI | Bug | Media | Pendiente | — |
@@ -207,6 +207,23 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 
 ---
 
+### Issue #19 — Selection box invisible en login form
+
+**Descripción del cliente:** El combo selector de placa (`cmbCOM`) no es visible en el estado inicial (desconectado) de C# 3.0.3. En VB 1.9 y en el estado conectado de C# 3.0.3 el control se ve correctamente con borde y flecha dropdown.
+
+**Root cause:**
+`cmbCOM.FlatStyle = FlatStyle.Flat` en el designer. `FlatStyle.Flat` elimina el borde del ComboBox cuando está habilitado (`Enabled = true`), haciendo que el control se funda con el fondo de la ventana. En estado desconectado el combo está habilitado → invisible. En estado conectado está deshabilitado (`Enabled = false`) → Windows lo renderiza con un estilo diferente que sí resulta visible.
+
+**Fix aplicado:**
+- `cmbCOM.FlatStyle = FlatStyle.Standard` en el constructor de `frmMain.cs`, junto a las otras propiedades de `cmbCOM` sobreescritas desde el fix #21
+- `FlatStyle.Standard` restaura el borde y la flecha dropdown en todos los estados
+
+**Archivo:** `Forms\frmMain.cs`
+**Commit:** `41629c7`
+**Validado:** ✅ Hardware — 15/05/2026
+
+---
+
 ## Historial de cambios del documento
 
 | Fecha | Cambio |
@@ -219,4 +236,5 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issue #9 — no reproducible en hardware actual, Save from Device descarga correctamente |
 | 15/05/2026 | Issues #5 y #6 validados — commit 5e644c5 (SaveFileDialog en descargas WebView2) |
 | 15/05/2026 | Issue #17 validado — resuelto por fix #15 (c173310), ParsePasswordValidationError muestra requisito fallido |
+| 15/05/2026 | Issue #19 validado — commit 41629c7 (cmbCOM FlatStyle.Standard, borde visible en estado desconectado) |
 
