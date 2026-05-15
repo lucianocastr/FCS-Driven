@@ -1070,8 +1070,15 @@ public partial class frmMain : Form
         {
             var device = _foundDevices[cmbCOM.SelectedIndex];
 
-            // Enable Connect button only if training is valid
-            cmdConnect.Enabled = _trainingValidation.IsTrainingValid;
+            // VB 1.9 parity: Unknown device is shown but Connect is disabled
+            if (device.NameTypeDevice == "Unknown device")
+            {
+                cmdConnect.Enabled = false;
+            }
+            else
+            {
+                cmdConnect.Enabled = _trainingValidation.IsTrainingValid;
+            }
 
             _logger.LogDebug("Selected device: {Device} on COM{Port}",
                 device.NameTypeDevice, device.ComPort);
