@@ -2045,8 +2045,8 @@ public partial class frmMain : Form
             mnuFactDefault.Visible = false;
         }
 
-        // mnuProd: Production menu - Configure visibility based on device type
-        UpdateProductionMenuVisibility(device);
+        // mnuProd: hidden until factory sequence is entered (ShowFactoryMenuAsync)
+        mnuProd.Visible = false;
 
         // mnuCal (Calibration): Visible for 2c, 4dm, 5dm
         var showCalibration = device.TDev switch
@@ -2605,6 +2605,12 @@ public partial class frmMain : Form
         try
         {
             _logger.LogInformation("Factory mode activated");
+
+            // Show Production Tests menu now that factory is unlocked
+            var device = _sessionContext.Device;
+            if (device != null)
+                UpdateProductionMenuVisibility(device);
+
             // Navigate the navi frame (std.html frameset) to expose factory sidebar links
             await webView.CoreWebView2.ExecuteScriptAsync(
                 "try { window.frames['navi'].location.href = '/navi.html?isFactory=true'; } catch(e) {}");
