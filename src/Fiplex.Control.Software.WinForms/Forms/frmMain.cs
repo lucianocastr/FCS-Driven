@@ -129,6 +129,7 @@ public partial class frmMain : Form
         // and replicate VB 1.9's explicit OnResize sizing instead.
         cmbCOM.Dock = DockStyle.None;
         cmbCOM.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+        cmbCOM.FlatStyle = FlatStyle.Standard;
 
         // Configure Debug/Tools menu for logging and diagnostics
         ConfigureDebugMenu();
