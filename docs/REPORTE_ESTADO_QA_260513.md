@@ -44,7 +44,7 @@
 | #10 | Isolation Measurement falla | Bug | Media | ✅ Validado | `313bae6` |
 | #4 | Clear EEPROM error | Bug | Media | Pendiente | — |
 | #2 | Ethernet module installation fails | Bug | Baja | ✅ Validado | `572060b` |
-| #16 | COM port number no listado en selector | Mejora | Baja | ✅ Validado | `b1e6f3a` |
+| #16 | COM port number no listado en selector | Mejora | Baja | ✅ Validado | `490e481` |
 | #12 | Unsupported devices no mostrados | Mejora | Baja | Pendiente | — |
 | #18 | Wrong license key sin mensaje de error | Mejora | Baja | Pendiente | — |
 | #14 | Shortcut para USB log / factory / license | Mejora | Baja | Pendiente | — |
@@ -219,7 +219,7 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 - Sin impacto en `ValueMember` (sigue siendo `ComPort`) ni en la lógica de selección
 
 **Archivos:** `Models\DeviceInfo.cs`, `Forms\frmMain.cs`
-**Commit:** `b1e6f3a`
+**Commit:** `490e481`
 **Validado:** ✅ Hardware — 15/05/2026
 
 ---
@@ -254,5 +254,5 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issues #5 y #6 validados — commit 5e644c5 (SaveFileDialog en descargas WebView2) |
 | 15/05/2026 | Issue #17 validado — resuelto por fix #15 (c173310), ParsePasswordValidationError muestra requisito fallido |
 | 15/05/2026 | Issue #19 validado — commit 41629c7 (cmbCOM FlatStyle.Standard, borde visible en estado desconectado) |
-| 15/05/2026 | Issue #16 validado — commit b1e6f3a (DisplayLabel muestra COM{N} - nombre en selector) |
+| 15/05/2026 | Issue #16 validado — commit 490e481 (DisplayLabel muestra COM{N} - nombre en selector) |
 
