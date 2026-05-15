@@ -2559,12 +2559,12 @@ public partial class frmMain : Form
         await RefreshDeviceUIAsync();
     }
 
-    private void cmdRefresh_MouseDown(object sender, MouseEventArgs e)
+    private void cmdRefresh_MouseDown(object? sender, MouseEventArgs e)
     {
         if (_sessionContext.State != ConnectionState.Connected) return;
         if (_cntmode >= _eButton.Length) return;
 
-        if (e.Button == _eButton[_cntmode] && (Control.ModifierKeys & Keys.Shift) != 0)
+        if (e.Button == _eButton[_cntmode] && (System.Windows.Forms.Control.ModifierKeys & Keys.Shift) != 0)
         {
             cmdRefresh.Focus();
             _cntmode++;
@@ -2575,7 +2575,7 @@ public partial class frmMain : Form
         }
     }
 
-    private void cmdRefresh_KeyPress(object sender, KeyPressEventArgs e)
+    private void cmdRefresh_KeyPress(object? sender, KeyPressEventArgs e)
     {
         if (_cntmode == 50)
         {
