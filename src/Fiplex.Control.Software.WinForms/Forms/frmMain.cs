@@ -66,6 +66,8 @@ public partial class frmMain : Form
     // Tracks whether the window has been maximized on first connection (resets on disconnect)
     private bool _hasMaximized = false;
 
+    private System.Windows.Forms.Timer? _portHealthTimer;
+
     // Validated password for INVALID CREDENTIALS retries
     private string? _validatedPassword;
 
@@ -1385,6 +1387,13 @@ public partial class frmMain : Form
                 throw new InvalidOperationException($"Failed to open serial port {portName}");
             }
 
+            if (_devModeSettings?.NoUSB != true)
+            {
+                _portHealthTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+                _portHealthTimer.Tick += PortHealthTimer_Tick;
+                _portHealthTimer.Start();
+            }
+
             _logger.LogInformation("Serial port {Status}",
                 _devModeSettings?.NoUSB == true ? "simulated" : "opened successfully");
 
@@ -1728,6 +1737,21 @@ public partial class frmMain : Form
         }
     }
 
+    private async void PortHealthTimer_Tick(object? sender, EventArgs e)
+    {
+        try
+        {
+            _ = _serialPort.BytesToRead;
+        }
+        catch
+        {
+            _portHealthTimer?.Stop();
+            _portHealthTimer?.Dispose();
+            _portHealthTimer = null;
+            await DisconnectAsync();
+        }
+    }
+
     /// <summary>
     /// Disconnects from the device and releases all resources
     /// PROMPT 6: Complete disconnection implementation
@@ -1736,6 +1760,10 @@ public partial class frmMain : Form
     {
         try
         {
+            _portHealthTimer?.Stop();
+            _portHealthTimer?.Dispose();
+            _portHealthTimer = null;
+
             _logger.LogInformation("=== STARTING DISCONNECTION ===");
             LogStatus("Disconnecting...");
 
