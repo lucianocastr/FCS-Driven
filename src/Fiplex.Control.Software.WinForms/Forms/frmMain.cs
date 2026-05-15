@@ -365,7 +365,7 @@ public partial class frmMain : Form
             webView.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
             webView.CoreWebView2.NavigationCompleted += CoreWebView2_NavigationCompleted;
             webView.CoreWebView2.NewWindowRequested += CoreWebView2_NewWindowRequested;
-            // Note: We don't subscribe to DownloadStarting because .zhtml is now served as text/html
+            webView.CoreWebView2.DownloadStarting += CoreWebView2_DownloadStarting;
 
             // Disable features we don't need
             webView.AllowExternalDrop = false;
@@ -821,6 +821,36 @@ public partial class frmMain : Form
         var y = hostBounds.Top + Math.Max(0, (hostBounds.Height - popupForm.Height) / 2);
 
         popupForm.Location = new Point(x, y);
+    }
+
+    private void CoreWebView2_DownloadStarting(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2DownloadStartingEventArgs e)
+    {
+        // Suppress default Chromium download notification (floats outside the app window)
+        // and show a WinForms SaveFileDialog instead — VB 1.9 parity.
+        e.Handled = true;
+
+        var suggestedName = Path.GetFileName(e.DownloadOperation.ResultFilePath);
+        var ext = Path.GetExtension(suggestedName).TrimStart('.');
+
+        var filter = ext.Length > 0
+            ? $"{ext.ToUpper()} files (*.{ext})|*.{ext}|All files (*.*)|*.*"
+            : "All files (*.*)|*.*";
+
+        using var dlg = new SaveFileDialog
+        {
+            FileName = suggestedName,
+            Filter = filter,
+            Title = "Save file"
+        };
+
+        if (dlg.ShowDialog(this) == DialogResult.OK)
+        {
+            e.ResultFilePath = dlg.FileName;
+        }
+        else
+        {
+            e.Cancel = true;
+        }
     }
 
     private void CoreWebView2_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
