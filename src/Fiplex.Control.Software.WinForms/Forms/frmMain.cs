@@ -1226,7 +1226,7 @@ public partial class frmMain : Form
             // Use BindingList for better behavior with ComboBox
             var bindingList = new System.ComponentModel.BindingList<DeviceInfo>(_foundDevices);
             cmbCOM.DataSource = bindingList;
-            cmbCOM.DisplayMember = nameof(DeviceInfo.NameTypeDevice);
+            cmbCOM.DisplayMember = nameof(DeviceInfo.DisplayLabel);
             cmbCOM.ValueMember = nameof(DeviceInfo.ComPort);
 
             // Auto-select last used port

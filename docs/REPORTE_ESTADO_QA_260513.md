@@ -19,10 +19,10 @@
 | Categoría | Cant. |
 |---|---|
 | Issues totales reportados | 21 |
-| Validados en hardware | 11 |
+| Validados en hardware | 12 |
 | Fix aplicado — pendiente validación | 0 |
 | En análisis | 0 |
-| Pendientes | 10 |
+| Pendientes | 9 |
 
 ---
 
@@ -44,7 +44,7 @@
 | #10 | Isolation Measurement falla | Bug | Media | ✅ Validado | `313bae6` |
 | #4 | Clear EEPROM error | Bug | Media | Pendiente | — |
 | #2 | Ethernet module installation fails | Bug | Baja | ✅ Validado | `572060b` |
-| #16 | COM port number no listado en selector | Mejora | Baja | Pendiente | — |
+| #16 | COM port number no listado en selector | Mejora | Baja | ✅ Validado | `b1e6f3a` |
 | #12 | Unsupported devices no mostrados | Mejora | Baja | Pendiente | — |
 | #18 | Wrong license key sin mensaje de error | Mejora | Baja | Pendiente | — |
 | #14 | Shortcut para USB log / factory / license | Mejora | Baja | Pendiente | — |
@@ -206,6 +206,24 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 
 ---
 
+### Issue #16 — COM port number no listado en selector
+
+**Descripción del cliente:** El selector de dispositivo muestra solo el nombre ("Signal Booster") sin el número de puerto COM. En VB 1.9 se muestra "COM92 - Signal Booster".
+
+**Root cause:**
+`cmbCOM.DisplayMember = nameof(DeviceInfo.NameTypeDevice)` mostraba únicamente el nombre del dispositivo. El modelo `DeviceInfo` tenía `NameTypeDevice` y `ComPort` como propiedades separadas pero no exponía un label combinado.
+
+**Fix aplicado:**
+- `DeviceInfo.cs`: propiedad computada `DisplayLabel => $"COM{ComPort} - {NameTypeDevice}"`
+- `frmMain.cs`: `DisplayMember = nameof(DeviceInfo.DisplayLabel)`
+- Sin impacto en `ValueMember` (sigue siendo `ComPort`) ni en la lógica de selección
+
+**Archivos:** `Models\DeviceInfo.cs`, `Forms\frmMain.cs`
+**Commit:** `b1e6f3a`
+**Validado:** ✅ Hardware — 15/05/2026
+
+---
+
 ### Issue #19 — Selection box invisible en login form
 
 **Descripción del cliente:** El combo selector de placa (`cmbCOM`) no es visible en el estado inicial (desconectado) de C# 3.0.3. En VB 1.9 y en el estado conectado de C# 3.0.3 el control se ve correctamente con borde y flecha dropdown.
@@ -236,4 +254,5 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issues #5 y #6 validados — commit 5e644c5 (SaveFileDialog en descargas WebView2) |
 | 15/05/2026 | Issue #17 validado — resuelto por fix #15 (c173310), ParsePasswordValidationError muestra requisito fallido |
 | 15/05/2026 | Issue #19 validado — commit 41629c7 (cmbCOM FlatStyle.Standard, borde visible en estado desconectado) |
+| 15/05/2026 | Issue #16 validado — commit b1e6f3a (DisplayLabel muestra COM{N} - nombre en selector) |
 
