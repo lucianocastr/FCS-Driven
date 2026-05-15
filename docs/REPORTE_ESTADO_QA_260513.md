@@ -22,7 +22,7 @@
 | Validados en hardware | 12 |
 | Fix aplicado — pendiente validación | 0 |
 | En análisis | 0 |
-| Pendientes | 9 |
+| Pendientes | 8 |
 
 ---
 
@@ -38,7 +38,7 @@
 | #19 | Selection box invisible en login form | Cosmético | Media | ✅ Validado | `41629c7` |
 | #17 | Requisitos de complejidad de password no se muestran | UX | Media | ✅ Validado | `c173310` |
 | #13 | Sin feedback si el USB se desconecta | Bug | Media | Pendiente | — |
-| #7 | Spectrum no funciona en Assisted GUI | Bug | Media | Pendiente | — |
+| #7 | Spectrum no funciona en Assisted GUI | Bug | Media | ✅ No reproducible | — |
 | #8 | Tag setting no funciona en Assisted GUI | Bug | Media | ✅ Validado | `313bae6` |
 | #9 | Save Config falla con 18 filtros por banda | Bug | Media | ✅ No reproducible | — |
 | #10 | Isolation Measurement falla | Bug | Media | ✅ Validado | `313bae6` |
@@ -255,4 +255,5 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issue #17 validado — resuelto por fix #15 (c173310), ParsePasswordValidationError muestra requisito fallido |
 | 15/05/2026 | Issue #19 validado — commit 41629c7 (cmbCOM FlatStyle.Standard, borde visible en estado desconectado) |
 | 15/05/2026 | Issue #16 validado — commit 490e481 (DisplayLabel muestra COM{N} - nombre en selector) |
+| 15/05/2026 | Issue #7 — no reproducible en hardware actual, Spectrum Analyzer funciona correctamente |
 
