@@ -2555,7 +2555,7 @@ public partial class frmMain : Form
 
     private async void cmdRefresh_Click(object sender, EventArgs e)
     {
-        // Call RefreshDeviceUIAsync without forcing advanced mode
+        if (_cntmode > 0) return; // factory sequence in progress — ignore click
         await RefreshDeviceUIAsync();
     }
 
