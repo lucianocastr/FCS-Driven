@@ -19,10 +19,10 @@
 | Categoría | Cant. |
 |---|---|
 | Issues totales reportados | 21 |
-| Validados en hardware | 14 |
+| Validados en hardware | 16 |
 | Fix aplicado — pendiente validación | 1 |
 | En análisis | 0 |
-| Pendientes | 5 |
+| Pendientes | 3 |
 
 ---
 
@@ -32,7 +32,7 @@
 |---|---|---|---|---|---|
 | #20 | Ventana no maximiza después del login | UI | Alta | ✅ Validado | `8edf1ac` |
 | #21 | Product selector no resiza al maximizar | UI | Alta | ✅ Validado | `7b47f09` |
-| #11 | Clear EEPROM visible para customers | Seguridad | Alta | Pendiente | — |
+| #11 | Clear EEPROM visible para customers | Seguridad | Alta | ✅ Validado | `e9094b6` |
 | #15 | Password change muestra éxito pero no se aplica | Bug crítico | Alta | ✅ Validado | `c173310` |
 | #3 | No se puede acceder al menú factory | Bug | Alta | ✅ Validado | `e9094b6` |
 | #19 | Selection box invisible en login form | Cosmético | Media | ✅ Validado | `41629c7` |
@@ -304,17 +304,23 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 **Root cause:**
 `_cntmode` estaba declarado en `frmMain.cs` (línea 64) pero nunca usado. No había handlers para `cmdRefresh.MouseDown` ni `cmdRefresh.KeyPress`. La función `NavigateToFactoryMenuAsync()` existía pero nunca era invocada por interacción de usuario.
 
-**Fix aplicado:**
-- Campo `_eButton = [MouseButtons.Right, MouseButtons.Left]` para la secuencia de clicks
+**Fix aplicado — Factory Menu:**
+- Campo `_eButton = [MouseButtons.Right, MouseButtons.Left, MouseButtons.Right]` (3 clicks: factory en cntmode=2, licence en cntmode=3)
 - Suscripción de `cmdRefresh.MouseDown` y `cmdRefresh.KeyPress` en el constructor
 - `cmdRefresh_MouseDown`: Shift+RightClick → `_cntmode=1`, Shift+LeftClick → `_cntmode=2`
 - `cmdRefresh_KeyPress` con `_cntmode=2`: dígito `DateTime.Now.Minute % 10` → `_cntmode=50`
 - `cmdRefresh_KeyPress` con `_cntmode=50`: dígito `DateTime.Now.Day % 10` → `ShowFactoryMenuAsync()`
 - `ShowFactoryMenuAsync()`: ExecuteScriptAsync navega el frame `navi` a `navi.html?isFactory=true`, exponiendo Factory/SerialNr/Equalizer en la sidebar sin recargar el frame de contenido
+- `ConfigureDeviceSpecificMenus`: forzado `mnuProd.Visible = false` y `mnuCal.Visible = false` — no se muestran hasta secuencia factory (resuelve también #11)
+
+**Fix aplicado — License Manager (CLSS):**
+- Tercer Shift+RightClick → `_cntmode=3` + kickoff de `FetchLicenseCharactersAsync()` (envía U1, extrae `_serialFirstChar` = buff[3][0] y `_versionFirstChar` = primer dígito decimal de AsciiToInt(buff[5][0..1]))
+- `cmdRefresh_KeyPress` con `_cntmode=3/4/5/6`: Minute%10 → Day%10 → serialFirstChar → versionFirstChar → `ShowLicenseManager()`
+- `ShowLicenseManager()`: abre `frmLicenseMaster` (5dm) o `frmLicense` (2c y demás) vía DI
 
 **Archivo:** `Forms/frmMain.cs`
-**Commit:** `e9094b6`
-**Validado:** Pendiente validación en hardware
+**Commit:** `e9094b6` (factory) + fix/v303 branch (license manager)
+**Validado:** ✅ Hardware — 15/05/2026 — factory sidebar ✓ | mnuProd oculto ✓ | mnuClear oculto (#11) ✓ | frmLicense abre con datos M1 ✓
 
 ---
 
@@ -337,4 +343,7 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issue #12 fix aplicado — commit 062012a (Unknown device en selector, pendiente validación con hardware) |
 | 15/05/2026 | Issue #3 fix aplicado — commit e9094b6 (factory menu: Shift+Click sequence + time digits en Refresh, JS navega navi frame) |
 | 15/05/2026 | Issue #3 validado — Production Tests + Calibrations ocultos hasta secuencia; sidebar Factory/SerialNr/Equalizer aparece correctamente |
+| 15/05/2026 | Issue #11 validado — mnuClear hijo de mnuProd; al fijar mnuProd.Visible=false en #3, Clear EEPROM queda oculto para customers automáticamente |
+| 15/05/2026 | Issue #3 License Manager validado — frmLicense abre con secuencia Shift+3clicks + time + serial + version; datos M1 cargados del dispositivo |
+| 15/05/2026 | CLSS menu ocultado — FeatureFlags:EnableClssMenu=false (default); visible solo en deployments Honeywell/CLSS |
 

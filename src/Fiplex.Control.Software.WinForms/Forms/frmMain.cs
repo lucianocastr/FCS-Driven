@@ -60,10 +60,15 @@ public partial class frmMain : Form
     private string _confSCA = "";
     private bool _pendingAnswer = false;
 
-    // Counter for factory mode key combination (mirrors VB 1.9 cntmode)
+    // Counter for factory/license mode key combination (mirrors VB 1.9 cntmode)
     private short _cntmode = 0;
-    // Mouse button sequence: Right(2), Left(1) with Shift held on cmdRefresh
-    private readonly MouseButtons[] _eButton = [MouseButtons.Right, MouseButtons.Left];
+    // Mouse button sequence: Right, Left, Right with Shift held on cmdRefresh
+    // cntmode=2 → factory path (Minute,Day digits); cntmode=3 → license path (Minute,Day,Serial,Version)
+    private readonly MouseButtons[] _eButton = [MouseButtons.Right, MouseButtons.Left, MouseButtons.Right];
+
+    // Characters derived from U1 response for license manager sequence (VB 1.9: serialFirstChar, versionFirstChar)
+    private char _serialFirstChar = '\0';
+    private char _versionFirstChar = '\0';
 
     // Tracks whether the window has been maximized on first connection (resets on disconnect)
     private bool _hasMaximized = false;
@@ -220,6 +225,10 @@ public partial class frmMain : Form
 
             // Validate training and configure cmdConnect
             ValidateTrainingAndUpdateUI();
+
+            // CLSS menu: hidden unless explicitly enabled (FeatureFlags:EnableClssMenu)
+            CLSSToolStripMenuItem.Visible =
+                _configuration.GetValue<bool>("FeatureFlags:EnableClssMenu");
 
             _sessionContext = _sessionContext with { State = ConnectionState.Disconnected };
 
@@ -1884,6 +1893,10 @@ public partial class frmMain : Form
             mnuLoadCal.Visible = false;
             mnuSaveCal.Visible = false;
 
+            // Reset license manager characters (re-fetched on next license sequence attempt)
+            _serialFirstChar = '\0';
+            _versionFirstChar = '\0';
+
             // Restore base menus 
             mnuOneCH.Visible = true;
             mnuTwoCH.Visible = true;
@@ -2552,6 +2565,8 @@ public partial class frmMain : Form
         {
             cmdRefresh.Focus();
             _cntmode++;
+            if (_cntmode == 3)
+                _ = FetchLicenseCharactersAsync();
         }
         else
         {
@@ -2575,6 +2590,40 @@ public partial class frmMain : Form
             char expected = (char)('0' + DateTime.Now.Minute % 10);
             if (e.KeyChar == expected)
                 _cntmode = 50;
+            else
+                _cntmode = 0;
+            e.Handled = true;
+        }
+        else if (_cntmode == 6)
+        {
+            if (_versionFirstChar != '\0' && e.KeyChar == _versionFirstChar)
+                ShowLicenseManager();
+            else
+                _cntmode = 0;
+            e.Handled = true;
+        }
+        else if (_cntmode == 5)
+        {
+            if (_serialFirstChar != '\0' && e.KeyChar == _serialFirstChar)
+                _cntmode = 6;
+            else
+                _cntmode = 0;
+            e.Handled = true;
+        }
+        else if (_cntmode == 4)
+        {
+            char expected = (char)('0' + DateTime.Now.Day % 10);
+            if (e.KeyChar == expected)
+                _cntmode = 5;
+            else
+                _cntmode = 0;
+            e.Handled = true;
+        }
+        else if (_cntmode == 3)
+        {
+            char expected = (char)('0' + DateTime.Now.Minute % 10);
+            if (e.KeyChar == expected)
+                _cntmode = 4;
             else
                 _cntmode = 0;
             e.Handled = true;
@@ -2614,6 +2663,73 @@ public partial class frmMain : Form
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error activating factory mode");
+        }
+    }
+
+    // Fetches U1 response to derive serialFirstChar / versionFirstChar for the license sequence.
+    // Called when cntmode reaches 3 (third Shift+Right-click), giving the user time to type
+    // the time-based digits before the serial/version chars are needed at cntmode=5/6.
+    private async Task FetchLicenseCharactersAsync()
+    {
+        try
+        {
+            var device = _sessionContext.Device;
+            if (device == null) return;
+
+            var command = new SerialCommand
+            {
+                Payload = "U1",
+                ExpectsAck = true,
+                ExpectsData = true,
+                DataTimeout = TimeSpan.FromMilliseconds(5000),
+                MaxRetries = 1
+            };
+            var result = await _pipeline.EnqueueCommandAsync(command);
+
+            if (!result.Success || string.IsNullOrEmpty(result.Data)) return;
+
+            var buff = result.Data.Split('\t');
+
+            // VB 1.9 GetFromFileData: 2dm/3dm use buff[4]/buff[6]; all others use buff[3]/buff[5]
+            int serialIdx = (device.TDev == "2dm" || device.TDev == "3dm") ? 4 : 3;
+            int versionIdx = (device.TDev == "2dm" || device.TDev == "3dm") ? 6 : 5;
+
+            if (buff.Length > serialIdx && buff[serialIdx].Length > 0)
+                _serialFirstChar = buff[serialIdx][0];
+
+            if (buff.Length > versionIdx && buff[versionIdx].Length >= 2 &&
+                int.TryParse(buff[versionIdx].Substring(0, 2),
+                    System.Globalization.NumberStyles.HexNumber, null, out int versionInt))
+            {
+                var vStr = versionInt.ToString();
+                if (vStr.Length > 0)
+                    _versionFirstChar = vStr[0];
+            }
+
+            _logger.LogDebug("License chars: serial='{S}' version='{V}'", _serialFirstChar, _versionFirstChar);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to fetch license characters");
+        }
+    }
+
+    private void ShowLicenseManager()
+    {
+        _cntmode = 0;
+        try
+        {
+            _logger.LogInformation("License Manager activated");
+            var device = _sessionContext.Device;
+            Form licenseForm = device?.TDev == "5dm"
+                ? _serviceProvider.GetRequiredService<frmLicenseMaster>()
+                : _serviceProvider.GetRequiredService<frmLicense>();
+
+            licenseForm.Show(this);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error opening License Manager");
         }
     }
 
