@@ -60,8 +60,10 @@ public partial class frmMain : Form
     private string _confSCA = "";
     private bool _pendingAnswer = false;
 
-    // Counter for factory mode key combination
+    // Counter for factory mode key combination (mirrors VB 1.9 cntmode)
     private short _cntmode = 0;
+    // Mouse button sequence: Right(2), Left(1) with Shift held on cmdRefresh
+    private readonly MouseButtons[] _eButton = [MouseButtons.Right, MouseButtons.Left];
 
     // Tracks whether the window has been maximized on first connection (resets on disconnect)
     private bool _hasMaximized = false;
@@ -167,6 +169,10 @@ public partial class frmMain : Form
         // Subscribe to CLSS menu events
         LogoutToolStripMenuItem.Click += LogoutToolStripMenuItem_Click;
         SubscriptionInformationToolStripMenuItem.Click += SubscriptionInformationToolStripMenuItem_Click;
+
+        // Factory mode activation: mirrors VB 1.9 cmdRefresh_MouseDown / cmdRefresh_KeyPress
+        cmdRefresh.MouseDown += cmdRefresh_MouseDown;
+        cmdRefresh.KeyPress += cmdRefresh_KeyPress;
     }
 
     /// <summary>
@@ -2551,6 +2557,62 @@ public partial class frmMain : Form
     {
         // Call RefreshDeviceUIAsync without forcing advanced mode
         await RefreshDeviceUIAsync();
+    }
+
+    private void cmdRefresh_MouseDown(object sender, MouseEventArgs e)
+    {
+        if (_sessionContext.State != ConnectionState.Connected) return;
+        if (_cntmode >= _eButton.Length) return;
+
+        if (e.Button == _eButton[_cntmode] && (Control.ModifierKeys & Keys.Shift) != 0)
+        {
+            cmdRefresh.Focus();
+            _cntmode++;
+        }
+        else
+        {
+            _cntmode = 0;
+        }
+    }
+
+    private void cmdRefresh_KeyPress(object sender, KeyPressEventArgs e)
+    {
+        if (_cntmode == 50)
+        {
+            char expected = (char)('0' + DateTime.Now.Day % 10);
+            if (e.KeyChar == expected)
+                _ = ShowFactoryMenuAsync();
+            else
+                _cntmode = 0;
+            e.Handled = true;
+        }
+        else if (_cntmode == 2)
+        {
+            char expected = (char)('0' + DateTime.Now.Minute % 10);
+            if (e.KeyChar == expected)
+                _cntmode = 50;
+            else
+                _cntmode = 0;
+            e.Handled = true;
+        }
+    }
+
+    private async Task ShowFactoryMenuAsync()
+    {
+        _cntmode = 0;
+        if (webView?.CoreWebView2 == null) return;
+
+        try
+        {
+            _logger.LogInformation("Factory mode activated");
+            // Navigate the navi frame (std.html frameset) to expose factory sidebar links
+            await webView.CoreWebView2.ExecuteScriptAsync(
+                "try { window.frames['navi'].location.href = '/navi.html?isFactory=true'; } catch(e) {}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error activating factory mode");
+        }
     }
 
     /// <summary>
