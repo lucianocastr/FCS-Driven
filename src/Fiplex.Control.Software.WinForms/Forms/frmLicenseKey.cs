@@ -58,11 +58,19 @@ public partial class frmLicenseKey : Form
         txtKey.Text = string.Empty;
         btnEnableFeature.Enabled = false;
         btnDisableFeature.Enabled = false;
-        
+
+        // Ensure indicators are visible regardless of RESX image loading
+        pctOK.BackColor = Color.FromArgb(0, 155, 0);
+        pctOK.SizeMode = PictureBoxSizeMode.Zoom;
+        pctKO.BackColor = Color.FromArgb(210, 0, 0);
+        pctKO.SizeMode = PictureBoxSizeMode.Zoom;
+
         tmrKey.Interval = 200;
         tmrKey.Enabled = true;
-        
-        _logger.LogDebug("frmLicenseKey loaded");
+
+        _logger.LogDebug("frmLicenseKey loaded. pctOK.Image={OkImg} pctKO.Image={KoImg}",
+            pctOK.Image != null ? "loaded" : "null",
+            pctKO.Image != null ? "loaded" : "null");
     }
 
     /// <summary>
