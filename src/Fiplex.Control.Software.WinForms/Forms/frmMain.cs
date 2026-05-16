@@ -73,6 +73,8 @@ public partial class frmMain : Form
     // Tracks whether the window has been maximized on first connection (resets on disconnect)
     private bool _hasMaximized = false;
 
+    private bool _tracesOn = false;
+
     private System.Windows.Forms.Timer? _portHealthTimer;
 
     // Validated password for INVALID CREDENTIALS retries
@@ -1054,6 +1056,16 @@ public partial class frmMain : Form
     {
         // Full scan manually invoked by user
         await ExecuteDeviceScanAsync(DeviceScanMode.FullScan);
+    }
+
+    private void cmdIDPort_KeyDown(object sender, KeyEventArgs e)
+    {
+        // VB 1.9 parity: T key on Scan Devices button toggles diagnostic traces mode
+        if (e.KeyCode == Keys.T)
+        {
+            _tracesOn = !_tracesOn;
+            Text = _tracesOn ? "Fiplex Control Software (Traces ON)" : "Fiplex Control Software";
+        }
     }
 
     /// <summary>

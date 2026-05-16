@@ -108,6 +108,7 @@ namespace Fiplex.Control.Software.WinForms.Forms
             ToolTip1.SetToolTip(cmdIDPort, "Scan for available devices (Alt+S)");
             cmdIDPort.UseVisualStyleBackColor = false;
             cmdIDPort.Click += cmdIDPort_Click;
+            cmdIDPort.KeyDown += cmdIDPort_KeyDown;
             // 
             // cmdConnect
             // 
