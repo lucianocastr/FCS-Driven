@@ -22,6 +22,12 @@ public sealed class SerialPortAdapter : ISerialPort
 
     public bool IsOpen => _serialPort?.IsOpen ?? false;
     public int BytesToRead => _serialPort?.BytesToRead ?? 0;
+
+    public void DiscardInBuffer()
+    {
+        try { _serialPort?.DiscardInBuffer(); }
+        catch { }
+    }
     
     public event Action<Exception>? ErrorOccurred;
 

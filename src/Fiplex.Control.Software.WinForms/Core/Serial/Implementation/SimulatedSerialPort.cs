@@ -80,6 +80,12 @@ public sealed class SimulatedSerialPort : ISerialPort
 
     public bool IsOpen => _isOpen;
     public int BytesToRead => _pendingResponse.Length - _readPosition;
+
+    public void DiscardInBuffer()
+    {
+        _pendingResponse = Array.Empty<byte>();
+        _readPosition = 0;
+    }
     
     public event Action<Exception>? ErrorOccurred;
 

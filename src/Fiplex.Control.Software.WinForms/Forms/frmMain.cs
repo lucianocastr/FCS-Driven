@@ -3862,6 +3862,12 @@ public partial class frmMain : Form
                 LogStatus($"{operationName} completed successfully");
                 _logger.LogInformation("Production test completed: {Operation}", operationName);
 
+                MessageBox.Show(
+                    $"{operationName} completed successfully.",
+                    "Production Test",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Information);
+
                 // Refresh device UI
                 await NavigateToDeviceUIAsync(true);
             }
@@ -4043,13 +4049,77 @@ public partial class frmMain : Form
         _logger.LogInformation("SendProdConfig: tdev={TDev}, ndev={NDev}, nchannels={Channels}, mode={Mode}, clearROM={Clear}",
             tdev, ndev, nchannels, mode, clearROM);
 
+        var _prodLog = Path.Combine(Path.GetTempPath(), "fcs_prod_log.txt");
+        void ProdLog(string msg)
+        {
+            var line = $"{DateTime.Now:HH:mm:ss.fff} {msg}";
+            _logger.LogInformation("{Msg}", msg);
+            try { File.AppendAllText(_prodLog, line + Environment.NewLine); } catch { }
+        }
+
+        void OnPipelineDiag(string msg) => ProdLog($"[PIPE] {msg}");
+        _pipeline.CommandAttemptDiagnostic += OnPipelineDiag;
+
         try
         {
+            File.WriteAllText(_prodLog, $"=== FCS Production Log {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==={Environment.NewLine}");
+            ProdLog($"Device: tdev={tdev} ndev={ndev} nchannels={nchannels} mode={mode} clearROM={clearROM}");
+
             // Stabilization delay before sending commands
+            ProdLog($"[INIT] pipeline.IsWaitingAnswer={_pipeline.IsWaitingAnswer} _cts.IsCancellationRequested={_cts?.IsCancellationRequested}");
+
+            // VB 1.9: CancelCommands(True) waits for pendinganswer=False before starting production loop
+            // Wait for pipeline idle (up to 5s), then cancel any stuck command
+            var waitStart = DateTime.UtcNow;
+            while (_pipeline.IsWaitingAnswer && (DateTime.UtcNow - waitStart).TotalSeconds < 5)
+                await Task.Delay(100);
+
+            if (_pipeline.IsWaitingAnswer)
+            {
+                ProdLog("[INIT] Pipeline still busy after 5s — cancelling pending commands");
+                _pipeline.CancelPendingCommands();
+                await Task.Delay(200);
+            }
+
+            _pipeline.FlushInputBuffer();
+            ProdLog($"[INIT] Pipeline ready. Delay 2s...");
             await Task.Delay(2000);
 
+            // VB 1.9: for 2c/ndev>=2.0, reads C1 from device before sending config
+            // Required to obtain BBU byte (position 636) and MMS flag (position 635)
+            string? c1Response = null;
+            if (tdev == "2c" && ndev >= 2.0)
+            {
+                ProdLog("[C1] Sending C1 pre-read...");
+                var c1Cmd = new SerialCommand
+                {
+                    Payload = "C1",
+                    ExpectsAck = true,
+                    ExpectsData = true,
+                    AckTimeout = TimeSpan.FromSeconds(2),
+                    DataTimeout = TimeSpan.FromSeconds(10),
+                    MaxRetries = 1,
+                    CancellationToken = _cts?.Token ?? default
+                };
+                var c1Result = await _pipeline.EnqueueCommandAsync(c1Cmd);
+                ProdLog($"[C1] Result: Success={c1Result.Success} Status={c1Result.Status} DataLen={c1Result.Data?.Length ?? 0}");
+                if (!c1Result.Success || string.IsNullOrEmpty(c1Result.Data) || c1Result.Data.Length < 636)
+                {
+                    ProdLog($"[C1] FAILED — Status={c1Result.Status} DataLen={c1Result.Data?.Length ?? 0}");
+                    return false;
+                }
+                c1Response = c1Result.Data;
+                char bbuDbg = c1Response[635];
+                string mmsDbg = c1Response.Substring(634, 2);
+                int bbuBitsDbg = 0;
+                int.TryParse(mmsDbg, System.Globalization.NumberStyles.HexNumber, null, out bbuBitsDbg);
+                bool mmsValDbg = (bbuBitsDbg & 0x1) != 0;
+                int bbuTypeDbg = (bbuBitsDbg & 0xE) / 2;
+                ProdLog($"[C1] OK: len={c1Response.Length} raw[634..635]='{mmsDbg}' bbuByte='{bbuDbg}' mms={mmsValDbg} bbuType={bbuTypeDbg}");
+            }
+
             // Get production configuration for device
-            var prodConfig = GetProductionConfig(tdev, ndev, nchannels, mode, clearROM);
+            var prodConfig = GetProductionConfig(tdev, ndev, nchannels, mode, clearROM, c1Response);
 
             // If no hardcoded config, try dynamic build
             if (prodConfig == null || prodConfig.Commands.Count == 0)
@@ -4094,31 +4164,102 @@ public partial class frmMain : Form
             LogStatus("Applying production configuration...");
 
             // Send each command from configuration
+            int cmdIndex = 0;
+            string? lastSentPrefix = null;
             foreach (var cmdInfo in prodConfig.Commands)
             {
-                _logger.LogDebug("Sending production command: {Description}", cmdInfo.Description);
+                cmdIndex++;
+                var prefix = cmdInfo.Payload.Length >= 2 ? cmdInfo.Payload[..2] : cmdInfo.Payload;
+                ProdLog($"[#{cmdIndex}] Sending: {prefix} — {cmdInfo.Description} (timeout={cmdInfo.TimeoutSeconds}s payloadLen={cmdInfo.Payload.Length})");
+                LogStatus($"Production: sending {prefix} ({cmdInfo.Description})...");
+
+                // VB 1.9: CancelCommands(True) → instRx="" before each command
+                // Note: FlushRS232 (OS buffer discard) is skipped for deviceWithPass=true devices
+                _pipeline.FlushInputBuffer();
+
+                // After C0 (heavy EEPROM write ~1100ms RTT), wait 3s before next command.
+                // J0 NACKs immediately after C0 — device may need recovery time.
+                if (lastSentPrefix == "C0")
+                {
+                    ProdLog($"[#{cmdIndex}] Post-C0 delay 3s (device EEPROM recovery)...");
+                    await Task.Delay(3000);
+                    _pipeline.FlushInputBuffer();
+                }
+
+                // J1 pre-read before J0 (2c/ndev>=2): use J1 data as J0 payload.
+                // Root cause #4: device firmware 2c v2.0 uses extended J format (584 chars data)
+                // vs VB 1.9 hardcoded (557 chars data). Device NACKs J0 due to wrong payload length.
+                // Fix: read J1 first, write the same data back as J0 → exact length match guaranteed.
+                if (prefix == "J0" && tdev == "2c" && ndev >= 2.0)
+                {
+                    ProdLog($"[J1] Sending J1 pre-read...");
+                    var j1Cmd = new SerialCommand
+                    {
+                        Payload = "J1",
+                        ExpectsAck = true,
+                        ExpectsData = true,
+                        AckTimeout = TimeSpan.FromSeconds(3),
+                        DataTimeout = TimeSpan.FromSeconds(5),
+                        MaxRetries = 1,
+                        CancellationToken = _cts?.Token ?? default
+                    };
+                    var j1Result = await _pipeline.EnqueueCommandAsync(j1Cmd);
+                    ProdLog($"[J1] Result: Success={j1Result.Success} Status={j1Result.Status} DataLen={j1Result.Data?.Length ?? 0}");
+                    if (j1Result.Success && j1Result.Data?.Length > 0)
+                    {
+                        var j1Data = j1Result.Data;
+                        _pipeline.FlushInputBuffer();
+                        await Task.Delay(200);
+                        var correctedPayload = "J0" + j1Data;
+                        ProdLog($"[J1→J0] Using J1 data as J0 payload. payloadLen={correctedPayload.Length}");
+                        var j0Cmd = new SerialCommand
+                        {
+                            Payload = correctedPayload,
+                            ExpectsAck = true,
+                            ExpectsData = false,
+                            MaxRetries = 1,
+                            AckTimeout = TimeSpan.FromSeconds(cmdInfo.TimeoutSeconds),
+                            CancellationToken = _cts?.Token ?? default
+                        };
+                        var j0Result = await _pipeline.EnqueueCommandAsync(j0Cmd);
+                        ProdLog($"[J1→J0] Result: Success={j0Result.Success} Status={j0Result.Status} Retries={j0Result.Metrics?.RetryCount ?? -1} RTT={(int)(j0Result.Metrics?.TotalRoundTripTime.TotalMilliseconds ?? 0)}ms");
+                        if (!j0Result.Success)
+                        {
+                            ProdLog($"[J1→J0] FAILED: {cmdInfo.Description}");
+                            LogStatus($"Production FAILED at: {cmdInfo.Description} (Status={j0Result.Status})");
+                            return false;
+                        }
+                        lastSentPrefix = prefix;
+                        continue;
+                    }
+                    ProdLog($"[J1] J1 failed or no data — falling back to hardcoded J0 payload");
+                    _pipeline.FlushInputBuffer();
+                    await Task.Delay(200);
+                }
 
                 var command = new SerialCommand
                 {
                     Payload = cmdInfo.Payload,
                     ExpectsAck = cmdInfo.ExpectsAck,
                     ExpectsData = false,
-                    MaxRetries = 2,
+                    MaxRetries = 1,  // VB 1.9: 1 retry only (initial + 1)
                     AckTimeout = TimeSpan.FromSeconds(cmdInfo.TimeoutSeconds),
                     CancellationToken = _cts?.Token ?? default
                 };
 
                 var result = await _pipeline.EnqueueCommandAsync(command);
 
-                // Pipeline already handles retries, we verify the final result
+                ProdLog($"[#{cmdIndex}] Result: Success={result.Success} Status={result.Status} Retries={result.Metrics?.RetryCount ?? -1} RTT={(int)(result.Metrics?.TotalRoundTripTime.TotalMilliseconds ?? 0)}ms");
+
                 if (!result.Success && cmdInfo.ExpectsAck)
                 {
-                    _logger.LogError("Production command failed: {Description}, Status: {Status}",
-                        cmdInfo.Description, result.Status);
+                    ProdLog($"[#{cmdIndex}] FAILED: {cmdInfo.Description} — Status={result.Status}");
+                    LogStatus($"Production FAILED at: {cmdInfo.Description} (Status={result.Status})");
                     return false;
                 }
 
-                // Small pause between commands 
+                lastSentPrefix = prefix;
+                // Small pause between commands
                 await Task.Delay(100);
             }
 
@@ -4127,8 +4268,13 @@ public partial class frmMain : Form
         }
         catch (Exception ex)
         {
+            ProdLog($"[EXCEPTION] {ex.GetType().Name}: {ex.Message}");
             _logger.LogError(ex, "Error in SendProdConfigAsync");
             return false;
+        }
+        finally
+        {
+            _pipeline.CommandAttemptDiagnostic -= OnPipelineDiag;
         }
     }
 
@@ -4168,7 +4314,7 @@ public partial class frmMain : Form
     /// This implementation includes configurations for common devices.
     /// Configurations are hexadecimal strings representing firmware parameters.
     /// </remarks>
-    private ProductionConfigData? GetProductionConfig(string tdev, double ndev, short nchannels, short mode, bool clearROM)
+    private ProductionConfigData? GetProductionConfig(string tdev, double ndev, short nchannels, short mode, bool clearROM, string? c1Response = null)
     {
         // Select configuration based on device type
         switch (tdev)
@@ -4180,7 +4326,7 @@ public partial class frmMain : Form
                 return GetProductionConfig_1C_V8(nchannels, mode, clearROM);
 
             case "2c":
-                return GetProductionConfig_2C(ndev, nchannels, mode, clearROM);
+                return GetProductionConfig_2C(ndev, nchannels, mode, clearROM, c1Response);
 
             case "2dr" or "2dr2":
                 return GetProductionConfig_2DR(nchannels, mode, clearROM);
@@ -4324,23 +4470,56 @@ public partial class frmMain : Form
     /// <summary>
     /// Production configuration for 2c device (BDA Dual).
     /// </summary>
-    private ProductionConfigData GetProductionConfig_2C(double ndev, short nchannels, short mode, bool clearROM)
+    private ProductionConfigData GetProductionConfig_2C(double ndev, short nchannels, short mode, bool clearROM, string? c1Response = null)
     {
         var config = new ProductionConfigData();
 
-        // 2c configuration is more complex with MMS detection and BBU preservation
-        // For now we implement the basic version
         string configPayload;
+        string jPayload;
 
         if (ndev >= 2.0)
         {
-            // Configuration for 2c v2+
-            configPayload = "C000000914003C000CB09C5518EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A3E3FD5302A300FD5302A3D8FD5302A3000";
+            // VB 1.9: reads C1 to extract BBU byte (Mid(confstr,636,1)) and MMS flag
+            // C1 pre-read done in SendProdConfigAsync; c1Response passed here
+            char bbuByte = '0';
+            bool mms = false;
+            bool bbuTypeNonZero = false;
+
+            if (!string.IsNullOrEmpty(c1Response) && c1Response.Length >= 636)
+            {
+                bbuByte = c1Response[635]; // VB: Mid(confstr, 636, 1) = [635] 0-indexed
+                if (int.TryParse(c1Response.Substring(634, 2),
+                    System.Globalization.NumberStyles.HexNumber, null, out int bbuBits))
+                {
+                    mms = (bbuBits & 0x1) != 0;
+                    int bbuType = (bbuBits & 0xE) / 2;
+                    bbuTypeNonZero = bbuType != 0;
+                }
+            }
+
+            // VB 1.9: frmToSend(0) = part1 & Mid(confstr,636,1) & part2
+            // Mid(confstr,636,1) = second hex digit of BBU byte (bits: MMS=0, bbuType=0→ "0")
+            // For factory reset "0" is the correct default (no BBU, no MMS)
+            const string cPart1 = "C000000914003C000CB09C5518EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A3E3FD5302A300FD5302A3D8FD5302A3000";
+            const string cPart2 = "1480000000B09C5518EF008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0E0005521EF00800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFF00008DA1A1A1A18DA1A1A1A12B009C002B009C002B009C0000500001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180";
+            configPayload = cPart1 + bbuByte + cPart2;
+            // VB 1.9: J command selected per MMS flag and bbuType (lines 2697-2705)
+            if (mms)
+            {
+                jPayload = bbuTypeNonZero
+                    ? "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB003F003F007FFFFFFFFF0F40400040401000000000000000000000404040404020400001020408808080800480808080808080000000000000000000000000000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  Annunciator 1                 Annunciator 2                 Annunciator 3                 Annunciator 4                 "
+                    : "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB003F003F007FFFFFFFFF0F04040004040200000000000000000000040404040408040001104020808080804080808080808080000000000000000000000000000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  Annunciator 1                 Annunciator 2                 Annunciator 3                 Annunciator 4                 ";
+            }
+            else
+            {
+                jPayload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB003F003F007FFFFFFFFF0F08080008080400000000000000000000080808080201080001104020808080804080808080808080000000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  Annunciator 1                 Annunciator 2                 Annunciator 3                 Annunciator 4                 ";
+            }
         }
         else
         {
-            // Configuration for 2c v1.x
-            configPayload = "C000000914003C000CB09C5518E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3";
+            // ndev < 2.0: full hardcoded payload (same C command for ndev >= 1 and ndev < 1)
+            configPayload = "C000000914003C000CB09C5518E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3000914003C0001B09C5518E300800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0E0005521E300800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFF00008DA1A1A1A18DA1A1A1A12B009C002B009C002B009C0000500001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180";
+            jPayload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB083F003F007F7F0808000808040000000000804050504058484848224148500001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  ";
         }
 
         config.Commands.Add(new ProductionCommand
@@ -4354,7 +4533,7 @@ public partial class frmMain : Form
         // J Command
         config.Commands.Add(new ProductionCommand
         {
-            Payload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB083F003F007F7F0808000808040000000000804050504058484848224148500001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  ",
+            Payload = jPayload,
             Description = "2c Params (J command)",
             ExpectsAck = true,
             TimeoutSeconds = 10
@@ -4367,6 +4546,16 @@ public partial class frmMain : Form
             Description = "Clear log (O command)",
             ExpectsAck = true,
             TimeoutSeconds = 5
+        });
+
+        // VB 1.9: frmToSend(3) = "!0" & Space(700) — always present for 2c, not conditional on clearROM
+        // Clears the EEPROM user data area before applying factory config
+        config.Commands.Add(new ProductionCommand
+        {
+            Payload = "!0" + new string(' ', 700),
+            Description = "Clear EEPROM (! command)",
+            ExpectsAck = true,
+            TimeoutSeconds = 15
         });
 
         if (clearROM)

@@ -52,7 +52,8 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     public event Action<Guid, CommandState>? CommandStateChanged;
     public event Action<Guid, SerialResult>? CommandCompleted;
     public event Action<ProtocolToken>? TokenReceived;
-    
+    public event Action<string>? CommandAttemptDiagnostic;
+
     /// <summary>
     /// Event when INVALID CREDENTIALS is detected.
     /// Allows the caller to provide password for retry.
@@ -109,6 +110,18 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
         _storedPassword = null;
     }
     
+    /// <summary>
+    /// Resets the protocol parser internal buffer.
+    /// Mirrors VB 1.9 instRx="" from CancelCommands.
+    /// NOTE: VB 1.9 FlushRS232() only waits for waitingLF=false — it does NOT discard the OS buffer.
+    /// For deviceWithPass=true devices, VB skips FlushRS232 entirely (only instRx="").
+    /// </summary>
+    public void FlushInputBuffer()
+    {
+        _parser.Reset();
+        _logger.LogDebug("FlushInputBuffer: parser state reset (instRx=\"\" equivalent)");
+    }
+
     /// <summary>
     /// Cancels all pending commands in the queue.
     /// Used when loading base.js and during disconnection.
@@ -347,9 +360,11 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
                     if (ackResult != TokenType.Ack)
                     {
-                        // When the device sends NACK instead of ACK on a data-read command,
-                        // propagate the literal "NACK" string so that dpreviousans consumers
-                        // (e.g. spect.js load_spectrum) can detect and handle the NACK case.
+                        var diagData = ackData?.Length > 0 ? ackData[..Math.Min(30, ackData.Length)] : "(empty)";
+                        var diagMsg = $"cmd={cmd.Payload[..Math.Min(2,cmd.Payload.Length)]} retry={ctx.RetryCount}/{cmd.MaxRetries} ackResult={ackResult} data='{diagData}'";
+                        _logger.LogWarning("ACK failed: {Diag}", diagMsg);
+                        CommandAttemptDiagnostic?.Invoke(diagMsg);
+
                         if (ackResult == TokenType.Nack && cmd.ExpectsData)
                         {
                             _logger.LogWarning("NACK received instead of ACK for data command {CmdId}, propagating as NACK response", cmd.Id);
@@ -358,8 +373,6 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                             return;
                         }
 
-                        _logger.LogWarning("ACK timeout {CmdId} retry {Retry}/{Max}", 
-                            cmd.Id, ctx.RetryCount, cmd.MaxRetries);
                         continue;
                     }
                 }

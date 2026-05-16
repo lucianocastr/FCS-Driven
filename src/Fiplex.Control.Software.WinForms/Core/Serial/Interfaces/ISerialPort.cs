@@ -50,6 +50,12 @@ public interface ISerialPort : IDisposable
     Task<int> ReadAsync(Memory<byte> buffer, CancellationToken ct = default);
 
     /// <summary>
+    /// Discards data in the receive buffer, resetting it to empty.
+    /// Mirrors VB 1.9 FlushRS232() — called before each production command.
+    /// </summary>
+    void DiscardInBuffer();
+
+    /// <summary>
     /// Event raised when a serial port error occurs.
     /// </summary>
     event Action<Exception>? ErrorOccurred;

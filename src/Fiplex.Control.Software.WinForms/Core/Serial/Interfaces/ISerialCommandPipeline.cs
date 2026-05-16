@@ -96,6 +96,13 @@ public interface ISerialCommandPipeline : IDisposable
     void CancelPendingCommands();
 
     /// <summary>
+    /// Flushes the serial input buffer and resets the protocol parser.
+    /// Mirrors VB 1.9 CancelCommands(True) → FlushRS232() + instRx="".
+    /// Called before each production command to avoid residual-byte contamination.
+    /// </summary>
+    void FlushInputBuffer();
+
+    /// <summary>
     /// Raised when a command transitions between states in the pipeline.
     /// </summary>
     /// <example>
@@ -129,4 +136,10 @@ public interface ISerialCommandPipeline : IDisposable
     /// </code>
     /// </example>
     event Func<Task<string?>>? CredentialsRequired;
+
+    /// <summary>
+    /// Fires on each command attempt with the token type received (ACK/NACK/Timeout/etc.).
+    /// Used for production-test diagnostics.
+    /// </summary>
+    event Action<string>? CommandAttemptDiagnostic;
 }
