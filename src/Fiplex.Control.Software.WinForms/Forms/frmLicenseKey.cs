@@ -129,7 +129,7 @@ public partial class frmLicenseKey : Form
                     index, result.Status);
             }
 
-            Update(); // Force immediate repaint before blocking delay
+            Frame1.Refresh(); // Force repaint of GroupBox and its children (pctOK/pctKO)
             await Task.Delay(2000, ct);
             
             pctOK.Visible = false;
@@ -155,7 +155,8 @@ public partial class frmLicenseKey : Form
         {
             _logger.LogError(ex, "Error sending license command");
             pctKO.Visible = true;
-            
+            Frame1.Refresh();
+
             try
             {
                 await Task.Delay(2000, ct);
