@@ -14,6 +14,7 @@ This document describes the main operational flows of the Fiplex Control Softwar
 | 4 | [Device Discovery / Port Scan](#device-discovery-port-scan-flow) | COM scan with non-Fiplex tolerance |
 | 5 | [HTTP-Serial Commands](#http-serial-command-flow) | Command processing |
 | 6 | [Watchdog](#watchdog-flow) | Device keepalive |
+| 7 | [Production Test — Clear EEPROM](production-test-clear-eeprom.md) | Signal Booster 2c/BDA factory reset sequence |
 
 ---
 
