@@ -394,12 +394,16 @@ function getData(num,postget,format) {
 						return;
 					}else{
 						var serverResponse = this.responseText;
-						if ((serverResponse.length!=saveFileCmd[num].len) && (nretr<10)){
+						// For global_conf (num==0/U1): accept any response >=500 chars;
+						// fileParseGlobalConfig validates the structure (7 tab-separated fields).
+						// Newer firmware may return a different total length than the hardcoded 3174.
+						var lenOk = (num==0) ? (serverResponse.length>=500) : (serverResponse.length==saveFileCmd[num].len);
+						if (!lenOk && (nretr<10)){
 							nretr++;
 							fileTimerId = setTimeout(function() { getData(num,postget,format); }, 2000);
 							return;
 						}
-						if (serverResponse.length!=saveFileCmd[num].len){
+						if (!lenOk){
 							alert("Error generating CFG File");
 							showResultIcon(ERR_NONE);
 							return;

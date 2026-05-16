@@ -659,8 +659,17 @@ public partial class frmMain : Form
             if (string.IsNullOrWhiteSpace(frmsJson) || webView?.CoreWebView2 == null)
                 return;
 
-            // Sanitize frmsJson: it's already a JSON array from localStorage, pass it directly to toolSubmit
-            var script = $"(function(){{try{{var frms={frmsJson};top.frames['content'].toolSubmit(frms);}}catch(e){{}}}})()" ;
+            // Clear the filterToolCheckApply flag before relaying to toolSubmit.
+            // Both navi.js polling and this C# handler would otherwise both call toolSubmit,
+            // sending C0 twice and potentially leaving the device in a confused state.
+            var script = $@"(function(){{try{{
+                var ks=Object.keys(localStorage);
+                for(var i=0;i<ks.length;i++){{
+                    if(ks[i].indexOf('filterToolCheckApply')===0)localStorage.setItem(ks[i],'0');
+                }}
+                var frms={frmsJson};
+                top.frames['content'].toolSubmit(frms);
+            }}catch(e){{}}}})()" ;
             _ = webView.CoreWebView2.ExecuteScriptAsync(script);
             _logger.LogDebug("Filter Tool Apply Proposal relayed to content frame");
         }
