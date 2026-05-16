@@ -134,6 +134,9 @@ public partial class frmMain : Form
 
         InitializeComponent();
 
+        // Route pipeline retry events to trace log when Traces ON is active
+        _pipeline.CommandAttemptDiagnostic += (msg) => { if (_tracesOn) WriteTraceLog($"--- Retry: {msg}"); };
+
         // VB 1.9 sized cmbCOM manually in frmMain_Resize (ClientWidth - 16).
         // Dock.Fill and Anchor.Right both conflict with the native Win32 ComboBox HWND,
         // producing a split rendering (two visible dropdown arrows). Use no Anchor.Right
@@ -1065,9 +1068,31 @@ public partial class frmMain : Form
         {
             _tracesOn = !_tracesOn;
             Text = _tracesOn ? "Fiplex Control Software (Traces ON)" : "Fiplex Control Software";
+            WriteTraceLog(_tracesOn ? "=== Traces ON ===" : "=== Traces OFF ===");
             return true;
         }
         return base.ProcessCmdKey(ref msg, keyData);
+    }
+
+    /// <summary>
+    /// Writes a timestamped trace line to %APPDATA%\Fiplex\USBmessages_YYYYMMDD.txt.
+    /// Mirrors VB 1.9 WriteLog(). Only called when _tracesOn = true.
+    /// </summary>
+    private void WriteTraceLog(string msg)
+    {
+        try
+        {
+            var dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Fiplex");
+            Directory.CreateDirectory(dir);
+            var file = Path.Combine(dir, $"USBmessages_{DateTime.Now:yyyyMMdd}.txt");
+            var line = $"{DateTime.Now:HH:mm:ss.fff}\t{msg}{Environment.NewLine}";
+            File.AppendAllText(file, line, System.Text.Encoding.UTF8);
+        }
+        catch
+        {
+            // Silent fail — trace must never affect normal operation
+        }
     }
 
     /// <summary>
@@ -1243,6 +1268,7 @@ public partial class frmMain : Form
 
         // Only update the status bar, not the ComboBox
         LogStatus($"Scanning {p.CurrentPort} ({p.Completed}/{p.Total}) - Found: {p.DevicesFound}");
+        if (_tracesOn) WriteTraceLog($"{p.CurrentPort} ({p.Completed}/{p.Total}) found={p.DevicesFound}");
     }
 
     private void UpdateDeviceList()
@@ -1261,6 +1287,10 @@ public partial class frmMain : Form
 
         if (_foundDevices.Any())
         {
+            if (_tracesOn)
+                foreach (var d in _foundDevices)
+                    WriteTraceLog($"Device is {d.TDev}{d.NDev:F1} on {d.ComPort}");
+
             // Use BindingList for better behavior with ComboBox
             var bindingList = new System.ComponentModel.BindingList<DeviceInfo>(_foundDevices);
             cmbCOM.DataSource = bindingList;
