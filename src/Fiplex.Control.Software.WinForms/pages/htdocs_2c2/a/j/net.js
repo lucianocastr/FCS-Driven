@@ -611,25 +611,26 @@ function submitform(isReset, isolVerif, isolClear, band, forceSend, forcePaOn, f
 	}
 
 	clearTimeout(tmrIdStat);
-	waitACK = true;
-	showResultIcon(ERR_PENDING);
-	xhrOnStart();
 
-	var frmcnf = page.readConfsFrm(doReset, doIsolVerif, doIsolClear, band, doForceSend, doForcePaOn, doForcePaOff, doSetDefaultRelay);
-	if (frmcnf.length == 0) {
-		guiBlocked(false);
-		return;
-	}
-	var frms = [];
-	if (doSetDefaultRelay){ 
-		var cnf = new ConfigBDA();
-		cnf.parse(frmcnf[0]); //to obtain new bbu connection mode
-		NFPAcfg.setDefaultRelayAssign(cnf.bbu_serial_mode, cnf.bbu_type);
-		NFPAcfg.setTimersFromConfig(cnf); //to avoid transitions in shared fields: timers for delay/latch
-		frms.push({type: 'nfpa_str=', frame: NFPAcfg.getFrm()});
-	}
-	frms.push({type: 'ctl_conf_str=', frame: frmcnf[0]});
-	submitFrms(frms);
+	page.readConfsFrm(doReset, doIsolVerif, doIsolClear, band, doForceSend, doForcePaOn, doForcePaOff, doSetDefaultRelay, function(frmcnf) {
+		if (frmcnf.length == 0) {
+			guiBlocked(false);
+			return;
+		}
+		waitACK = true;
+		showResultIcon(ERR_PENDING);
+		xhrOnStart();
+		var frms = [];
+		if (doSetDefaultRelay){
+			var cnf = new ConfigBDA();
+			cnf.parse(frmcnf[0]); //to obtain new bbu connection mode
+			NFPAcfg.setDefaultRelayAssign(cnf.bbu_serial_mode, cnf.bbu_type);
+			NFPAcfg.setTimersFromConfig(cnf); //to avoid transitions in shared fields: timers for delay/latch
+			frms.push({type: 'nfpa_str=', frame: NFPAcfg.getFrm()});
+		}
+		frms.push({type: 'ctl_conf_str=', frame: frmcnf[0]});
+		submitFrms(frms);
+	});
 }
 
 function toolSubmit(frms) {

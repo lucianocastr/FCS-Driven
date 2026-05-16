@@ -2890,6 +2890,67 @@ function Page() {
 		}
 		return true;
 	}
+	this._checkFreqsAsync = function(cnf, callback) {
+		var showdialog = 0;
+		var fov = [];
+		for (var band=0;band<2;band++) fov.push(self.computeFiltersOverlap(cnf, band));
+		for (var band=0;band<2;band++) fov.push(self.computeAdjFiltersOverlap(cnf, band));
+		for (var band=0;band<2;band++) fov.push(self.computeNBAdjFiltersOverlap(cnf, band));
+		for (var band=0;band<2;band++) fov.push(self.checkClassBFilters(cnf, band));
+		var filtSepKhz = self.FILTSEP90K;
+		var filtAdjSepKhz = self.FILTSEPADJKHZ;
+		var filtNbAdjSepKhz = self.FILTSEPNBADJKHZ;
+		var checkOv = false, checkB = false;
+		for (var i=0;i<6;i++) { if (fov[i]['check']) checkOv = true; }
+		for (var i=6;i<8;i++) { if (fov[i]['check']) checkB = true; }
+		if (checkOv || checkB) {
+			var uldlLinked = [self.isFreqSplitFixed(0), self.isFreqSplitFixed(1)];
+			self.warningBox.setWarningMessage(fov, filtSepKhz, filtAdjSepKhz, filtNbAdjSepKhz, self.maxChannels, self.factory, uldlLinked, true);
+			if (checkOv) showdialog |= 0x1;
+			if (checkB) showdialog |= 0x2;
+		}
+		if (showdialog == 0) {
+			self.warningBox.hide();
+			callback(true);
+			return;
+		}
+		self._showFreqWarningModal(showdialog, function() { callback(true); }, function() { callback(false); });
+	}
+	this._showFreqWarningModal = function(showdialog, onConfirm, onCancel) {
+		var overlay = document.getElementById('fcs-confirm-overlay');
+		if (!overlay) {
+			overlay = document.createElement('div');
+			overlay.id = 'fcs-confirm-overlay';
+			document.body.appendChild(overlay);
+		}
+		var both = ((showdialog & 0x3) == 0x3);
+		var html = '<b>NOTICE:</b><br/>';
+		if ((showdialog & 0x2) != 0) {
+			if (both) html += '<b>1.</b>&nbsp;';
+			html += 'You selected a filter wider than 75KHz. This unit will operate as a Class B unit.<br/>';
+		}
+		if ((showdialog & 0x1) != 0) {
+			if (both) html += '<b>2.</b>&nbsp;';
+			html += 'Filter overlapping detected.<br/>';
+		}
+		html += '<br/>See details below. Please confirm before applying.';
+		overlay.innerHTML = '<div style="background:#fff;border-radius:4px;min-width:340px;max-width:460px;box-shadow:0 4px 24px rgba(0,0,0,0.35);overflow:hidden;">'
+			+ '<div style="background:#004a98;color:#fff;padding:11px 16px;font-size:13px;font-weight:bold;font-family:Arial,sans-serif;">&#9888;&nbsp;Configuration Warning</div>'
+			+ '<div style="padding:16px 20px;font-size:13px;font-family:Arial,sans-serif;color:#222;line-height:1.7;">' + html + '</div>'
+			+ '<div style="padding:10px 20px 14px;text-align:right;background:#f4f4f4;border-top:1px solid #ddd;">'
+			+ '<button id="fcs-btn-cancel" style="margin-right:8px;padding:7px 20px;font-size:13px;background:#6b7280;color:#fff;border:none;border-radius:3px;cursor:pointer;font-family:Arial,sans-serif;">Cancel</button>'
+			+ '<button id="fcs-btn-ok" style="padding:7px 20px;font-size:13px;background:#004a98;color:#fff;border:none;border-radius:3px;cursor:pointer;font-family:Arial,sans-serif;">Apply</button>'
+			+ '</div></div>';
+		overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.45);z-index:9999;display:flex;align-items:center;justify-content:center;';
+		document.getElementById('fcs-btn-ok').addEventListener('click', function() {
+			overlay.style.display = 'none';
+			onConfirm();
+		});
+		document.getElementById('fcs-btn-cancel').addEventListener('click', function() {
+			overlay.style.display = 'none';
+			onCancel();
+		});
+	}
 	this.displayFilters = function(band) {
 		var shownb = false;
 		var showadj = false;
@@ -3297,29 +3358,33 @@ function Page() {
 		}
 		return null;
 	}
-	this.readConfsFrm = function(isReset, isIsolVerif, isIsolClear, band, forceSend, isForcePaOn, isForcePaOff, doSetDefaultRelay) {
+	this.readConfsFrm = function(isReset, isIsolVerif, isIsolClear, band, forceSend, isForcePaOn, isForcePaOff, doSetDefaultRelay, onResult) {
 		var cnf = new ConfigBDA();
 		cnf.parse(self.config.frm);
 		var frm = [];
 		if (isReset) {
 			cnf.resetSoft = true;
 			frm.push(cnf.getFrm());
+			if (onResult) { onResult(frm); return; }
 			return frm;
 		}
 		if (isIsolVerif) {
 			cnf.runIsolationMeas[band] = true;
 			cnf.forceDLMaxGain = false;
 			frm.push(cnf.getFrm());
+			if (onResult) { onResult(frm); return; }
 			return frm;
 		}
 		if (isIsolClear) {
 			cnf.clearOscAlarm[band] = true;
 			frm.push(cnf.getFrm());
+			if (onResult) { onResult(frm); return; }
 			return frm;
 		}
 		if (doSetDefaultRelay){
 			cnf.bbu_serial_mode = self.readBbuTypeOfConnection();
 			frm.push(cnf.getFrm());
+			if (onResult) { onResult(frm); return; }
 			return frm;
 		}
 		cnf.resetSoft = false;
@@ -3337,10 +3402,14 @@ function Page() {
 				if (cnf.forcePaOff[i][j]) cnf.paEnabled[i][j] = false;
 			}
 		}
-		
+
 		fr = cnf.getFrm();
 		if (self.config.frm != fr || forceSend) {
 			frm.push(fr);
+		}
+		if (onResult) {
+			self._checkFreqsAsync(cnf, function(ok) { onResult(ok ? frm : []); });
+			return;
 		}
 		if (!self.checkFreqs(true,cnf)) return [];
 		return frm;
