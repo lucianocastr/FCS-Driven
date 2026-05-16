@@ -134,8 +134,11 @@ public partial class frmMain : Form
 
         InitializeComponent();
 
-        // Route pipeline retry events to trace log when Traces ON is active
+        // Route pipeline events to trace log when Traces ON is active
         _pipeline.CommandAttemptDiagnostic += (msg) => { if (_tracesOn) WriteTraceLog($"--- Retry: {msg}"); };
+        _pipeline.TxDiagnostic  += (msg) => { if (_tracesOn) WriteTraceLog(msg); };
+        _pipeline.RxDiagnostic  += (msg) => { if (_tracesOn) WriteTraceLog(msg); };
+        _pipeline.AckDiagnostic += (msg) => { if (_tracesOn) WriteTraceLog(msg); };
 
         // VB 1.9 sized cmbCOM manually in frmMain_Resize (ClientWidth - 16).
         // Dock.Fill and Anchor.Right both conflict with the native Win32 ComboBox HWND,

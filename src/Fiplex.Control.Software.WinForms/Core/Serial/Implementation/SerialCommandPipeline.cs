@@ -53,6 +53,9 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     public event Action<Guid, SerialResult>? CommandCompleted;
     public event Action<ProtocolToken>? TokenReceived;
     public event Action<string>? CommandAttemptDiagnostic;
+    public event Action<string>? TxDiagnostic;
+    public event Action<string>? RxDiagnostic;
+    public event Action<string>? AckDiagnostic;
 
     /// <summary>
     /// Event when INVALID CREDENTIALS is detected.
@@ -311,6 +314,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 var payload = Encoding.ASCII.GetBytes(cmd.Payload + "\n");
                 var bytesSent = await _serialPort.WriteAsync(payload, ctx.Cts.Token);
                 _logger.LogDebug("TX: {Payload}", cmd.Payload);
+                TxDiagnostic?.Invoke($"Tx1 {cmd.Payload}");
                 _pendingAnswer = true;
                 
                 // Wait ACK
@@ -354,6 +358,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         }
                         
                         _logger.LogDebug("RX (direct DataFrame): {Data}", ackData.Length > 100 ? ackData[..100] + "..." : ackData);
+                        RxDiagnostic?.Invoke($"Rx1 {ackData.Length} chars \"{Preview(ackData)}\"");
                         CompleteCommand(ctx, CommandResultStatus.Success, ackData, bytesSent);
                         return;
                     }
@@ -364,6 +369,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         var diagMsg = $"cmd={cmd.Payload[..Math.Min(2,cmd.Payload.Length)]} retry={ctx.RetryCount}/{cmd.MaxRetries} ackResult={ackResult} data='{diagData}'";
                         _logger.LogWarning("ACK failed: {Diag}", diagMsg);
                         CommandAttemptDiagnostic?.Invoke(diagMsg);
+                        AckDiagnostic?.Invoke($"--- {(ackResult == TokenType.Timeout ? "ACK timeout" : $"ACK {ackResult}")} ({ctx.AckTimer.ElapsedMilliseconds}ms) retry {ctx.RetryCount}/{cmd.MaxRetries}");
 
                         if (ackResult == TokenType.Nack && cmd.ExpectsData)
                         {
@@ -375,6 +381,8 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
                         continue;
                     }
+
+                    AckDiagnostic?.Invoke($"ACK ok ({ctx.AckTimer.ElapsedMilliseconds}ms)");
                 }
 
                 // Wait Data
@@ -386,8 +394,9 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
                     if (dataResult == TokenType.Timeout)
                     {
-                        _logger.LogWarning("Data timeout {CmdId} retry {Retry}/{Max}", 
+                        _logger.LogWarning("Data timeout {CmdId} retry {Retry}/{Max}",
                             cmd.Id, ctx.RetryCount, cmd.MaxRetries);
+                        AckDiagnostic?.Invoke($"--- DATA timeout retry {ctx.RetryCount}/{cmd.MaxRetries}");
                         continue;
                     }
 
@@ -428,6 +437,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                     }
 
                     _logger.LogDebug("RX: {Data}", data.Length > 100 ? data[..100] + "..." : data);
+                    RxDiagnostic?.Invoke($"Rx1 {data.Length} chars \"{Preview(data)}\"");
                     CompleteCommand(ctx, CommandResultStatus.Success, data, bytesSent);
                     return;
                 }
@@ -450,6 +460,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
         _waitingAnswer = false;
         _pendingAnswer = false;
+        AckDiagnostic?.Invoke($"--- MaxRetries superado ({cmd.MaxRetries}/{cmd.MaxRetries}) IsWaitingAnswer=false");
         CompleteCommand(ctx, CommandResultStatus.MaxRetriesExceeded);
     }
 
@@ -840,5 +851,8 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     }
 
     public void Dispose() => StopAsync().GetAwaiter().GetResult();
+
+    private static string Preview(string s, int len = 20)
+        => string.IsNullOrEmpty(s) ? string.Empty : s.Length <= len ? s : s[..len];
 }
 

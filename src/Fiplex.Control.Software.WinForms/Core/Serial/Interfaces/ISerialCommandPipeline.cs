@@ -142,4 +142,13 @@ public interface ISerialCommandPipeline : IDisposable
     /// Used for production-test diagnostics.
     /// </summary>
     event Action<string>? CommandAttemptDiagnostic;
+
+    /// <summary>Fires when a command payload is sent to the device (TX).</summary>
+    event Action<string>? TxDiagnostic;
+
+    /// <summary>Fires when a complete response frame is received from the device (RX).</summary>
+    event Action<string>? RxDiagnostic;
+
+    /// <summary>Fires on ACK received, ACK/data timeout, or MaxRetries exceeded.</summary>
+    event Action<string>? AckDiagnostic;
 }
