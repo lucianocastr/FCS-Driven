@@ -107,15 +107,16 @@ public partial class frmLicenseKey : Form
                 Payload = $";0{indexHex}{txtKey.Text}",
                 ExpectsAck = true,
                 ExpectsData = false,
+                MaxRetries = 1,  // VB 1.9: single retry only
                 CancellationToken = ct
             };
-            
+
             var result = await _pipeline.EnqueueCommandAsync(command);
-            
+
             ct.ThrowIfCancellationRequested();
-            
+
             bool ucOk = result.Success;
-            
+
             if (ucOk)
             {
                 pctOK.Visible = true;
@@ -124,11 +125,11 @@ public partial class frmLicenseKey : Form
             else
             {
                 pctKO.Visible = true;
-                _logger.LogWarning("Error applying license (Index={Index}). Status: {Status}", 
+                _logger.LogWarning("License key rejected by device (Index={Index}). Status: {Status}",
                     index, result.Status);
             }
-            
-            Application.DoEvents();
+
+            Update(); // Force immediate repaint before blocking delay
             await Task.Delay(2000, ct);
             
             pctOK.Visible = false;
