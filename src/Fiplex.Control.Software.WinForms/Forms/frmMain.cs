@@ -1060,12 +1060,21 @@ public partial class frmMain : Form
 
     private void cmdIDPort_KeyDown(object sender, KeyEventArgs e)
     {
-        // VB 1.9 parity: T key on Scan Devices button toggles diagnostic traces mode
-        if (e.KeyCode == Keys.T)
-        {
-            _tracesOn = !_tracesOn;
-            Text = _tracesOn ? "Fiplex Control Software (Traces ON)" : "Fiplex Control Software";
-        }
+        ToggleTracesIfT(e);
+    }
+
+    private void frmMain_KeyDown(object sender, KeyEventArgs e)
+    {
+        // KeyPreview: intercept T only when Scan Devices has focus (VB 1.9 parity)
+        if (cmdIDPort.Focused)
+            ToggleTracesIfT(e);
+    }
+
+    private void ToggleTracesIfT(KeyEventArgs e)
+    {
+        if (e.KeyCode != Keys.T) return;
+        _tracesOn = !_tracesOn;
+        Text = _tracesOn ? "Fiplex Control Software (Traces ON)" : "Fiplex Control Software";
     }
 
     /// <summary>

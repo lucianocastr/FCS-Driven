@@ -544,10 +544,12 @@ namespace Fiplex.Control.Software.WinForms.Forms
             Controls.Add(MainMenu1);
             Icon = (Icon)resources.GetObject("$this.Icon");
             MinimumSize = new Size(1024, 720);
+            KeyPreview = true;
             Name = "frmMain";
             StartPosition = FormStartPosition.CenterScreen;
             Text = "Fiplex Control Software";
             FormClosing += frmMain2_FormClosing;
+            KeyDown += frmMain_KeyDown;
             MainMenu1.ResumeLayout(false);
             MainMenu1.PerformLayout();
             tlpMainLayout.ResumeLayout(false);
