@@ -88,7 +88,9 @@ Firmware versions differ in J payload length:
 
 The extended format in v2.0 adds 27 additional bytes in the hex parameter block (approximately at data positions 150–197). These bytes contain device-specific calibration values that are not present in the v1.x parameter set.
 
-Sending the v1.x-length payload to a v2.0 device causes a NACK response. There is no way to determine the required length from the device version alone without reading J1 first.
+**History of the hardcoded payloads:** The original VB 1.9 implementation hardcoded three J string variants (for MMS=True/bbuType=0, MMS=True/bbuType≠0, and MMS=False), all 557 chars of data. These strings were correct for the 2c v1.x hardware that existed at the time. The C# implementation initially copied those same hardcoded strings from VB 1.9. When tested against 2c v2.0 firmware (extended J format), both implementations would produce a NACK — the issue was not detected in VB 1.9 because that firmware version was not in the field when VB 1.9 was in active use.
+
+Sending a 557-char data payload to a v2.0 device causes a NACK response. There is no way to determine the required length from the device version alone without reading J1 first.
 
 ### Write-Back Approach
 
