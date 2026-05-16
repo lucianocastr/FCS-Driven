@@ -1058,23 +1058,16 @@ public partial class frmMain : Form
         await ExecuteDeviceScanAsync(DeviceScanMode.FullScan);
     }
 
-    private void cmdIDPort_KeyDown(object sender, KeyEventArgs e)
+    protected override bool ProcessCmdKey(ref Message msg, Keys keyData)
     {
-        ToggleTracesIfT(e);
-    }
-
-    private void frmMain_KeyDown(object sender, KeyEventArgs e)
-    {
-        // KeyPreview: intercept T only when Scan Devices has focus (VB 1.9 parity)
-        if (cmdIDPort.Focused)
-            ToggleTracesIfT(e);
-    }
-
-    private void ToggleTracesIfT(KeyEventArgs e)
-    {
-        if (e.KeyCode != Keys.T) return;
-        _tracesOn = !_tracesOn;
-        Text = _tracesOn ? "Fiplex Control Software (Traces ON)" : "Fiplex Control Software";
+        // VB 1.9 parity: T with Scan Devices focused toggles Traces ON
+        if (keyData == Keys.T && ActiveControl == cmdIDPort)
+        {
+            _tracesOn = !_tracesOn;
+            Text = _tracesOn ? "Fiplex Control Software (Traces ON)" : "Fiplex Control Software";
+            return true;
+        }
+        return base.ProcessCmdKey(ref msg, keyData);
     }
 
     /// <summary>
