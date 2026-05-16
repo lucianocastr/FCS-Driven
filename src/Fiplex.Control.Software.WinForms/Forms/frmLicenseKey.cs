@@ -1,4 +1,5 @@
-﻿using Fiplex.Control.Software.WinForms.Core.Configuration;
+﻿using System.Drawing.Drawing2D;
+using Fiplex.Control.Software.WinForms.Core.Configuration;
 using Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Serial.Models;
 using Microsoft.Extensions.Logging;
@@ -59,18 +60,19 @@ public partial class frmLicenseKey : Form
         btnEnableFeature.Enabled = false;
         btnDisableFeature.Enabled = false;
 
-        // Ensure indicators are visible regardless of RESX image loading
-        pctOK.BackColor = Color.FromArgb(0, 155, 0);
-        pctOK.SizeMode = PictureBoxSizeMode.Zoom;
-        pctKO.BackColor = Color.FromArgb(210, 0, 0);
-        pctKO.SizeMode = PictureBoxSizeMode.Zoom;
+        var bg = BackColor;
+        pctOK.Image = CreateStatusIcon(success: true,  bg);
+        pctOK.BackColor = bg;
+        pctOK.SizeMode = PictureBoxSizeMode.CenterImage;
+
+        pctKO.Image = CreateStatusIcon(success: false, bg);
+        pctKO.BackColor = bg;
+        pctKO.SizeMode = PictureBoxSizeMode.CenterImage;
 
         tmrKey.Interval = 200;
         tmrKey.Enabled = true;
 
-        _logger.LogDebug("frmLicenseKey loaded. pctOK.Image={OkImg} pctKO.Image={KoImg}",
-            pctOK.Image != null ? "loaded" : "null",
-            pctKO.Image != null ? "loaded" : "null");
+        _logger.LogDebug("frmLicenseKey loaded");
     }
 
     /// <summary>
@@ -183,6 +185,36 @@ public partial class frmLicenseKey : Form
             btnEnableFeature.Enabled = keyOk;
             btnDisableFeature.Enabled = keyOk;
         }
+    }
+
+    private static Bitmap CreateStatusIcon(bool success, Color background)
+    {
+        const int size = 32;
+        var bmp = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        using var g = Graphics.FromImage(bmp);
+        g.Clear(background);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+
+        var circleColor = success ? Color.FromArgb(40, 167, 69) : Color.FromArgb(220, 53, 69);
+        using var fill = new SolidBrush(circleColor);
+        g.FillEllipse(fill, 1, 1, size - 2, size - 2);
+
+        using var pen = new Pen(Color.White, 3.5f)
+        {
+            StartCap = LineCap.Round,
+            EndCap   = LineCap.Round,
+            LineJoin = LineJoin.Round
+        };
+
+        if (success)
+            g.DrawLines(pen, new PointF[] { new(9, 17), new(14, 23), new(23, 11) });
+        else
+        {
+            g.DrawLine(pen, 10, 10, 22, 22);
+            g.DrawLine(pen, 22, 10, 10, 22);
+        }
+
+        return bmp;
     }
 
     /// <summary>
