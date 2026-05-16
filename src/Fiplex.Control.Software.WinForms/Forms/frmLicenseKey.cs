@@ -43,7 +43,21 @@ public partial class frmLicenseKey : Form
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         
         InitializeComponent();
-        
+
+        // FlatStyle.Flat ignores ForeColor when Enabled=false; redraw text manually
+        btnEnableFeature.Paint += (s, e) =>
+        {
+            if (btnEnableFeature.Enabled) return;
+            var r = btnEnableFeature.ClientRectangle;
+            using var bg     = new SolidBrush(Color.FromArgb(0, 88, 155));
+            using var border = new Pen(Color.FromArgb(0, 58, 112));
+            e.Graphics.FillRectangle(bg, r);
+            e.Graphics.DrawRectangle(border, 0, 0, r.Width - 1, r.Height - 1);
+            TextRenderer.DrawText(e.Graphics, btnEnableFeature.Text, btnEnableFeature.Font,
+                r, Color.FromArgb(160, 200, 230),
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        };
+
         // Subscribe to button events
         btnEnableFeature.Click += (s, e) => CmdLicense_Click(1);
         btnDisableFeature.Click += (s, e) => CmdLicense_Click(0);
