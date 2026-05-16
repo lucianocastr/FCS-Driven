@@ -5,7 +5,7 @@
 |---|---|
 | Referencia | `260513_New FCS_Findings_V1.xlsx` |
 | Fecha de apertura | 13/05/2026 |
-| Última actualización | 15/05/2026 |
+| Última actualización | 16/05/2026 — #9 validado, logging design doc agregado |
 | Rama activa | `fix/v303-client-issues` |
 | Repositorio | `E:\Ikarus\Proyecto C#\FCS302OK\FCSDev` |
 | Referencia funcional | FCS 1.9 VB.NET — `E:\Ikarus\Proyecto C#\FCS` |
@@ -19,7 +19,7 @@
 | Categoría | Cant. |
 |---|---|
 | Issues totales reportados | 21 |
-| Validados en hardware | 16 |
+| Validados en hardware | 17 |
 | Fix aplicado — pendiente validación | 1 |
 | En análisis | 0 |
 | Pendientes | 3 |
@@ -40,7 +40,7 @@
 | #13 | Sin feedback si el USB se desconecta | Bug | Media | ✅ Validado | `af604f4` |
 | #7 | Spectrum no funciona en Assisted GUI | Bug | Media | ✅ No reproducible | — |
 | #8 | Tag setting no funciona en Assisted GUI | Bug | Media | ✅ Validado | `313bae6` |
-| #9 | Save Config falla con 18 filtros por banda | Bug | Media | ✅ No reproducible | — |
+| #9 | Save Config falla con 18 filtros por banda | Bug | Media | ✅ Validado | `4bc0fdf` |
 | #10 | Isolation Measurement falla | Bug | Media | ✅ Validado | `313bae6` |
 | #4 | Clear EEPROM error | Bug | Media | Pendiente | — |
 | #2 | Ethernet module installation fails | Bug | Baja | ✅ Validado | `572060b` |
