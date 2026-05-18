@@ -1,5 +1,6 @@
 using Fiplex.Control.Software.WinForms.Core.Commands.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Commands;
+using Fiplex.Control.Software.WinForms.Core.Diagnostics;
 using Fiplex.Control.Software.WinForms.Core.Config.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Config;
 using Fiplex.Control.Software.WinForms.Core.Configuration;
@@ -73,7 +74,7 @@ public partial class frmMain : Form
     // Tracks whether the window has been maximized on first connection (resets on disconnect)
     private bool _hasMaximized = false;
 
-    private bool _tracesOn = false;
+    private SerialTraceLogger _traceLogger = null!;
 
     private System.Windows.Forms.Timer? _portHealthTimer;
 
@@ -112,7 +113,8 @@ public partial class frmMain : Form
         IVersionCheckService versionCheck,
         IServiceProvider serviceProvider,
         IConfiguration configuration,
-        ILogger<frmMain> logger)
+        ILogger<frmMain> logger,
+        SerialTraceLogger traceLogger)
     {
         _pipeline = pipeline;
         _discovery = discovery;
@@ -131,14 +133,14 @@ public partial class frmMain : Form
         _serviceProvider = serviceProvider;
         _configuration = configuration;
         _logger = logger;
+        _traceLogger = traceLogger;
 
         InitializeComponent();
 
-        // Route pipeline events to trace log when Traces ON is active
-        _pipeline.CommandAttemptDiagnostic += (msg) => { if (_tracesOn) WriteTraceLog($"--- Retry: {msg}"); };
-        _pipeline.TxDiagnostic  += (msg) => { if (_tracesOn) WriteTraceLog(msg); };
-        _pipeline.RxDiagnostic  += (msg) => { if (_tracesOn) WriteTraceLog(msg); };
-        _pipeline.AckDiagnostic += (msg) => { if (_tracesOn) WriteTraceLog(msg); };
+        // Route pipeline TX/RX/ACK events to non-blocking trace logger (VB 1.9 parity)
+        _pipeline.TxDiagnostic  += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
+        _pipeline.RxDiagnostic  += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
+        _pipeline.AckDiagnostic += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
 
         // VB 1.9 sized cmbCOM manually in frmMain_Resize (ClientWidth - 16).
         // Dock.Fill and Anchor.Right both conflict with the native Win32 ComboBox HWND,
@@ -1078,33 +1080,19 @@ public partial class frmMain : Form
         // VB 1.9 parity: T with Scan Devices focused toggles Traces ON
         if (keyData == Keys.T && ActiveControl == cmdIDPort)
         {
-            _tracesOn = !_tracesOn;
-            Text = _tracesOn ? "Fiplex Control Software (Traces ON)" : "Fiplex Control Software";
-            WriteTraceLog(_tracesOn ? "=== Traces ON ===" : "=== Traces OFF ===");
+            if (_traceLogger.IsEnabled)
+            {
+                _traceLogger.Disable();
+                Text = "Fiplex Control Software";
+            }
+            else
+            {
+                _traceLogger.Enable(SoftwareVersion, Environment.MachineName);
+                Text = "Fiplex Control Software (Traces ON)";
+            }
             return true;
         }
         return base.ProcessCmdKey(ref msg, keyData);
-    }
-
-    /// <summary>
-    /// Writes a timestamped trace line to %APPDATA%\Fiplex\USBmessages_YYYYMMDD.txt.
-    /// Mirrors VB 1.9 WriteLog(). Only called when _tracesOn = true.
-    /// </summary>
-    private void WriteTraceLog(string msg)
-    {
-        try
-        {
-            var dir = Path.Combine(
-                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Fiplex");
-            Directory.CreateDirectory(dir);
-            var file = Path.Combine(dir, $"USBmessages_{DateTime.Now:yyyyMMdd}.txt");
-            var line = $"{DateTime.Now:HH:mm:ss.fff}\t{msg}{Environment.NewLine}";
-            File.AppendAllText(file, line, System.Text.Encoding.UTF8);
-        }
-        catch
-        {
-            // Silent fail — trace must never affect normal operation
-        }
     }
 
     /// <summary>
@@ -1279,7 +1267,7 @@ public partial class frmMain : Form
 
         // Only update the status bar, not the ComboBox
         LogStatus($"Scanning {p.CurrentPort} ({p.Completed}/{p.Total}) - Found: {p.DevicesFound}");
-        if (_tracesOn) WriteTraceLog($"{p.CurrentPort} ({p.Completed}/{p.Total}) found={p.DevicesFound}");
+        if (_traceLogger.IsEnabled) _traceLogger.Log($"{p.CurrentPort} ({p.Completed}/{p.Total}) found={p.DevicesFound}");
     }
 
     private void UpdateDeviceList()
@@ -1298,9 +1286,9 @@ public partial class frmMain : Form
 
         if (_foundDevices.Any())
         {
-            if (_tracesOn)
+            if (_traceLogger.IsEnabled)
                 foreach (var d in _foundDevices)
-                    WriteTraceLog($"Device is {d.TDev}{d.NDev:F1} on {d.ComPort}");
+                    _traceLogger.Log($"Device is {d.TDev}{d.NDev:F1} on COM{d.ComPort}");
 
             // Use BindingList for better behavior with ComboBox
             var bindingList = new System.ComponentModel.BindingList<DeviceInfo>(_foundDevices);
@@ -1850,6 +1838,13 @@ public partial class frmMain : Form
             // Cancel pending/blocked serial commands before stopping services.
             // This prevents scan deadlocks after reconnect/disconnect cycles.
             _pipeline.CancelPendingCommands();
+
+            // Flush and close trace log if active (VB 1.9: traces stop on disconnect)
+            if (_traceLogger.IsEnabled)
+            {
+                _traceLogger.Disable();
+                Text = "Fiplex Control Software";
+            }
 
             // Stop watchdog
             if (_watchdog != null)

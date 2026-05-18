@@ -358,7 +358,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         }
                         
                         _logger.LogDebug("RX (direct DataFrame): {Data}", ackData.Length > 100 ? ackData[..100] + "..." : ackData);
-                        RxDiagnostic?.Invoke($"Rx1 {ackData.Length} chars \"{Preview(ackData)}\"");
+                        RxDiagnostic?.Invoke($"Rx1 {ackData}");
                         CompleteCommand(ctx, CommandResultStatus.Success, ackData, bytesSent);
                         return;
                     }
@@ -437,7 +437,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                     }
 
                     _logger.LogDebug("RX: {Data}", data.Length > 100 ? data[..100] + "..." : data);
-                    RxDiagnostic?.Invoke($"Rx1 {data.Length} chars \"{Preview(data)}\"");
+                    RxDiagnostic?.Invoke($"Rx1 {data}");
                     CompleteCommand(ctx, CommandResultStatus.Success, data, bytesSent);
                     return;
                 }
@@ -851,8 +851,5 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     }
 
     public void Dispose() => StopAsync().GetAwaiter().GetResult();
-
-    private static string Preview(string s, int len = 20)
-        => string.IsNullOrEmpty(s) ? string.Empty : s.Length <= len ? s : s[..len];
 }
 
