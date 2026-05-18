@@ -1108,12 +1108,11 @@ public partial class frmMain : Form
     }
 
     /// <summary>
-    /// Quick scan for form initial load.
-    /// Stops when first valid device is found.
+    /// Full scan for form initial load. Lists all installed Fiplex devices.
     /// </summary>
     public async Task PerformQuickScanAsync()
     {
-        await ExecuteDeviceScanAsync(DeviceScanMode.QuickScan);
+        await ExecuteDeviceScanAsync(DeviceScanMode.FullScan);
     }
 
     /// <summary>

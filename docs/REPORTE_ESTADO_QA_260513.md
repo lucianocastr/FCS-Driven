@@ -5,7 +5,7 @@
 |---|---|
 | Referencia | `260513_New FCS_Findings_V1.xlsx` |
 | Fecha de apertura | 13/05/2026 |
-| Última actualización | 16/05/2026 — #9 validado, logging design doc agregado |
+| Última actualización | 18/05/2026 — #4, #14, #18 validados; #12 pendiente validación Fiplex |
 | Rama activa | `fix/v303-client-issues` |
 | Repositorio | `E:\Ikarus\Proyecto C#\FCS302OK\FCSDev` |
 | Referencia funcional | FCS 1.9 VB.NET — `E:\Ikarus\Proyecto C#\FCS` |
@@ -19,10 +19,9 @@
 | Categoría | Cant. |
 |---|---|
 | Issues totales reportados | 21 |
-| Validados en hardware | 17 |
-| Fix aplicado — pendiente validación | 1 |
-| En análisis | 0 |
-| Pendientes | 3 |
+| Validados en hardware | 20 |
+| Fix aplicado — pendiente validación Fiplex | 1 |
+| Pendientes | 0 |
 
 ---
 
@@ -42,12 +41,12 @@
 | #8 | Tag setting no funciona en Assisted GUI | Bug | Media | ✅ Validado | `313bae6` |
 | #9 | Save Config falla con 18 filtros por banda | Bug | Media | ✅ Validado | `4bc0fdf` |
 | #10 | Isolation Measurement falla | Bug | Media | ✅ Validado | `313bae6` |
-| #4 | Clear EEPROM error | Bug | Media | Pendiente | — |
+| #4 | Clear EEPROM error | Bug | Media | ✅ Validado | `dcbd77a` |
 | #2 | Ethernet module installation fails | Bug | Baja | ✅ Validado | `572060b` |
 | #16 | COM port number no listado en selector | Mejora | Baja | ✅ Validado | `490e481` |
 | #12 | Unsupported devices no mostrados | Mejora | Baja | Fix aplicado — pendiente validación | `062012a` |
-| #18 | Wrong license key sin mensaje de error | Mejora | Baja | Pendiente | — |
-| #14 | Shortcut para USB log / factory / license | Mejora | Baja | Pendiente | — |
+| #18 | Wrong license key sin mensaje de error | Mejora | Baja | ✅ Validado | `a33a4a2` |
+| #14 | Shortcut para USB log / factory / license | Mejora | Baja | ✅ Validado | `80c3bb2` |
 | #5 | Config save descarga sin pedir ruta | Revisión | — | ✅ Validado | `5e644c5` |
 | #6 | Generate report sin diálogo de ruta | Revisión | — | ✅ Validado | `5e644c5` |
 | #1 | FCS no funciona en Honeywell (intermitente) | Monitoreo | — | Monitoring | — |
@@ -285,7 +284,7 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 
 **Archivos:** `Core/Devices/DeviceDiscoveryService.cs`, `Forms/frmMain.cs`
 **Commit:** `062012a`
-**Validado:** Pendiente — sin dispositivo no catalogado disponible
+**Validado:** Pendiente validación Fiplex — sin dispositivo no catalogado disponible para testing externo
 
 ---
 
@@ -346,4 +345,9 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issue #11 validado — mnuClear hijo de mnuProd; al fijar mnuProd.Visible=false en #3, Clear EEPROM queda oculto para customers automáticamente |
 | 15/05/2026 | Issue #3 License Manager validado — frmLicense abre con secuencia Shift+3clicks + time + serial + version; datos M1 cargados del dispositivo |
 | 15/05/2026 | CLSS menu ocultado — FeatureFlags:EnableClssMenu=false (default); visible solo en deployments Honeywell/CLSS |
+| 18/05/2026 | Issue #4 validado — commit dcbd77a (Clear EEPROM: J1 write-back corrige NACK en 2c v2.0) |
+| 18/05/2026 | Issue #14 validado — commit 80c3bb2 (Traces ON: T key con Scan Devices → WriteTraceLog a %APPDATA%\Fiplex) |
+| 18/05/2026 | Issue #18 validado — commit a33a4a2 (Wrong license key: feedback NACK con MaxRetries=1, indicadores OK/KO) |
+| 18/05/2026 | Issue #12 — estado sin cambios: fix aplicado (062012a), pendiente validación con hardware no catalogado por Fiplex |
+| 18/05/2026 | Mejoras discovery: FullScan en startup, eliminado double-open, OpenPortTimeout 300ms, guard 3s (paridad VB 1.9) |
 
