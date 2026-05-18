@@ -93,7 +93,7 @@ public partial class frmMain : Form
     private static readonly string SoftwareVersion =
         (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "3.1.0")
+            ?.InformationalVersion ?? "3.2.0")
         .Split('+')[0];
 
     public frmMain(
