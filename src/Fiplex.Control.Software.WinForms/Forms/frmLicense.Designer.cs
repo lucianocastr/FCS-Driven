@@ -245,7 +245,7 @@ partial class frmLicense
         Label2.ForeColor = Color.FromArgb(34, 34, 34);
         Label2.Location = new Point(16, 64);
         Label2.Name = "Label2";
-        Label2.Size = new Size(193, 17);
+        Label2.Size = new Size(180, 17);
         Label2.TabIndex = 2;
         Label2.Text = "ADJBW FILTERS ENABLED";
         // 
