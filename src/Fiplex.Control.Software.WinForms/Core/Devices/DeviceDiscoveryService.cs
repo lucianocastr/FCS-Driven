@@ -17,7 +17,7 @@ namespace Fiplex.Control.Software.WinForms.Core.Devices;
 /// - Installed COM ports scan (no fixed COM1-COM255 sweep)
 /// - USB/Serial dynamic prioritization based on currently connected hardware
 /// - I1 identification command
-/// - Up to 5 retries in case of NACK
+/// - Up to 2 retries in case of NACK
 /// - 3 second timeout per port
 /// - "Fiplex" response validation with length >= 15
 /// - Device resolution from catalog
@@ -30,9 +30,11 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     private readonly ILogger<DeviceDiscoveryService> _logger;
 
     // Scan configuration constants
-    private const int MaxRetries = 5;
+    private const int MaxRetries = 2;
     private const int TimeoutSeconds = 3;
-    private static readonly TimeSpan OpenPortTimeout = TimeSpan.FromMilliseconds(300);
+    private static readonly TimeSpan OpenPortTimeout = TimeSpan.FromMilliseconds(2000);
+    private static readonly TimeSpan PortCloseTimeout = TimeSpan.FromMilliseconds(1500);
+    private const int ScanWatchdogSeconds = 60;
     private const string IdentificationCommand = "I1";
     private const string ExpectedPrefix = "Fiplex";
     private const int MinResponseLength = 15;
@@ -69,10 +71,22 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
             return foundDevices;
         }
 
+        using var watchdogCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        watchdogCts.CancelAfter(TimeSpan.FromSeconds(ScanWatchdogSeconds));
+        var scanToken = watchdogCts.Token;
+
         // Scan only detected candidate ports
         for (int index = 0; index < candidatePorts.Count; index++)
         {
-            ct.ThrowIfCancellationRequested();
+            if (scanToken.IsCancellationRequested)
+            {
+                _logger.LogWarning(
+                    "[Scan {ScanId}] Watchdog triggered after {Seconds}s — scan aborted at port {Port} ({Done}/{Total})",
+                    scanId, ScanWatchdogSeconds,
+                    candidatePorts[index].PortName, index, candidatePorts.Count);
+                break;
+            }
+
             var portStopwatch = Stopwatch.StartNew();
             var (portName, portNumber) = candidatePorts[index];
 
@@ -87,7 +101,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
             ));
 
             // Attempt to identify device
-            var device = await TryIdentifyDeviceAsync(portName, portNumber, scanId, ct);
+            var device = await TryIdentifyDeviceAsync(portName, portNumber, scanId, scanToken);
             if (device != null)
             {
                 foundDevices.Add(device);
@@ -188,18 +202,15 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                 var retryStopwatch = Stopwatch.StartNew();
                 _logger.LogDebug("[Scan {ScanId}] {Port} retry {Retry} - identify start", scanId, portName, retry + 1);
 
-                // Open port
+                // Open port — if it hangs beyond OpenPortTimeout the port is skipped entirely (no retry).
+                // Hanging opens leave a blocked thread-pool thread; returning null prevents retry accumulation.
                 var openTask = _serialPort.OpenAsync(portName, baudRate: 9600, ct: ct);
-                var openTimeoutTask = Task.Delay(OpenPortTimeout, ct);
-                if (await Task.WhenAny(openTask, openTimeoutTask) != openTask)
+                if (await Task.WhenAny(openTask, Task.Delay(OpenPortTimeout, ct)) != openTask)
                 {
-                    _logger.LogDebug(
-                        "[Scan {ScanId}] {Port} retry {Retry} - open timeout after {ElapsedMs} ms",
-                        scanId,
-                        portName,
-                        retry + 1,
-                        retryStopwatch.ElapsedMilliseconds);
-                    continue;
+                    _logger.LogWarning(
+                        "[Scan {ScanId}] {Port} - open hung after {Ms}ms, skipping port",
+                        scanId, portName, (int)OpenPortTimeout.TotalMilliseconds);
+                    return null;
                 }
 
                 var opened = await openTask;
@@ -242,18 +253,21 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                 if (await Task.WhenAny(resultTask, timeoutTask) != resultTask)
                 {
                     _logger.LogWarning(
-                        "[Scan {ScanId}] {Port} retry {Retry} - identification timeout guard after {ElapsedMs} ms",
+                        "[Scan {ScanId}] {Port} retry {Retry} - identification timeout after {ElapsedMs} ms",
                         scanId,
                         portName,
                         retry + 1,
                         retryStopwatch.ElapsedMilliseconds);
 
-                    // Try to cancel blocked pipeline command(s) and continue scanning.
                     _pipeline.CancelPendingCommands();
 
+                    // CloseAsync now runs on a background thread. Wait up to PortCloseTimeout
+                    // so the handle is released before the next retry opens the same port.
+                    // If the driver hangs on close, we continue scan anyway.
                     if (_serialPort.IsOpen)
                     {
-                        await _serialPort.CloseAsync();
+                        var closeTask = _serialPort.CloseAsync();
+                        await Task.WhenAny(closeTask, Task.Delay(PortCloseTimeout, ct));
                     }
 
                     continue;
