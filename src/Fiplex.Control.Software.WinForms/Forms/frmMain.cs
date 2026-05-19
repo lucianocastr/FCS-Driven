@@ -1190,6 +1190,7 @@ public partial class frmMain : Form
         finally
         {
             SetUIState(isScanning: false);
+            cmdIDPort.Focus();
         }
     }
 
