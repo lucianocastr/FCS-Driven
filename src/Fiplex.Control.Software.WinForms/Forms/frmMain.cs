@@ -232,9 +232,6 @@ public partial class frmMain : Form
             // Validate training and configure cmdConnect
             ValidateTrainingAndUpdateUI();
 
-            // CLSS menu: hidden unless explicitly enabled (FeatureFlags:EnableClssMenu)
-            CLSSToolStripMenuItem.Visible =
-                _configuration.GetValue<bool>("FeatureFlags:EnableClssMenu");
 
             _sessionContext = _sessionContext with { State = ConnectionState.Disconnected };
 
