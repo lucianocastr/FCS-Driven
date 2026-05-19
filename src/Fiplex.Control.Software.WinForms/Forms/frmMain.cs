@@ -2710,9 +2710,11 @@ public partial class frmMain : Form
                 mnuSaveCal.Visible = showCal;
             }
 
-            // Navigate the navi frame (std.html frameset) to expose factory sidebar links
+            // Update navi frame to expose factory sidebar links, then auto-navigate content to factory page
             await webView.CoreWebView2.ExecuteScriptAsync(
                 "try { window.frames['navi'].location.href = '/navi.html?isFactory=true'; } catch(e) {}");
+            await webView.CoreWebView2.ExecuteScriptAsync(
+                "try { window.frames['content'].location.href = '/factory/fact.zhtml'; } catch(e) {}");
         }
         catch (Exception ex)
         {
