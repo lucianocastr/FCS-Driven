@@ -73,7 +73,7 @@ partial class frmLicense
         chkNbEn1.BackColor = Color.FromArgb(255, 255, 255);
         chkNbEn1.Font = new Font("Segoe UI", 9F);
         chkNbEn1.ForeColor = Color.FromArgb(34, 34, 34);
-        chkNbEn1.Location = new Point(264, 38);
+        chkNbEn1.Location = new Point(270, 38);
         chkNbEn1.Name = "chkNbEn1";
         chkNbEn1.Size = new Size(20, 20);
         chkNbEn1.TabIndex = 9;
@@ -97,7 +97,7 @@ partial class frmLicense
         chkAdjEn1.BackColor = Color.FromArgb(255, 255, 255);
         chkAdjEn1.Font = new Font("Segoe UI", 9F);
         chkAdjEn1.ForeColor = Color.FromArgb(34, 34, 34);
-        chkAdjEn1.Location = new Point(264, 62);
+        chkAdjEn1.Location = new Point(270, 62);
         chkAdjEn1.Name = "chkAdjEn1";
         chkAdjEn1.Size = new Size(20, 20);
         chkAdjEn1.TabIndex = 11;
@@ -121,7 +121,7 @@ partial class frmLicense
         chkSingEn1.BackColor = Color.FromArgb(255, 255, 255);
         chkSingEn1.Font = new Font("Segoe UI", 9F);
         chkSingEn1.ForeColor = Color.FromArgb(34, 34, 34);
-        chkSingEn1.Location = new Point(264, 86);
+        chkSingEn1.Location = new Point(270, 86);
         chkSingEn1.Name = "chkSingEn1";
         chkSingEn1.Size = new Size(20, 20);
         chkSingEn1.TabIndex = 13;
@@ -148,7 +148,7 @@ partial class frmLicense
         txtPowDL1.BorderStyle = BorderStyle.FixedSingle;
         txtPowDL1.Font = new Font("Consolas", 9F);
         txtPowDL1.ForeColor = Color.FromArgb(34, 34, 34);
-        txtPowDL1.Location = new Point(254, 108);
+        txtPowDL1.Location = new Point(259, 108);
         txtPowDL1.MaxLength = 4;
         txtPowDL1.Name = "txtPowDL1";
         txtPowDL1.Size = new Size(41, 22);
@@ -166,7 +166,7 @@ partial class frmLicense
         cmdApply.FlatStyle = FlatStyle.Flat;
         cmdApply.Font = new Font("Segoe UI", 9F);
         cmdApply.ForeColor = Color.White;
-        cmdApply.Location = new Point(88, 152);
+        cmdApply.Location = new Point(103, 152);
         cmdApply.MinimumSize = new Size(90, 30);
         cmdApply.Name = "cmdApply";
         cmdApply.Size = new Size(120, 30);
@@ -179,7 +179,7 @@ partial class frmLicense
         // pctOK
         // 
         pctOK.Image = (Image)resources.GetObject("pctOK.Image");
-        pctOK.Location = new Point(232, 152);
+        pctOK.Location = new Point(231, 152);
         pctOK.Name = "pctOK";
         pctOK.Size = new Size(33, 33);
         pctOK.SizeMode = PictureBoxSizeMode.Zoom;
@@ -191,7 +191,7 @@ partial class frmLicense
         // pctKO
         // 
         pctKO.Image = (Image)resources.GetObject("pctKO.Image");
-        pctKO.Location = new Point(232, 152);
+        pctKO.Location = new Point(231, 152);
         pctKO.Name = "pctKO";
         pctKO.Size = new Size(33, 33);
         pctKO.SizeMode = PictureBoxSizeMode.Zoom;
@@ -224,7 +224,7 @@ partial class frmLicense
         Frame1.ForeColor = Color.FromArgb(34, 34, 34);
         Frame1.Location = new Point(8, 8);
         Frame1.Name = "Frame1";
-        Frame1.Size = new Size(315, 193);
+        Frame1.Size = new Size(326, 193);
         Frame1.TabIndex = 0;
         Frame1.TabStop = false;
         Frame1.Text = "Device Options:";
@@ -273,9 +273,9 @@ partial class frmLicense
         // 
         Label5.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         Label5.ForeColor = Color.FromArgb(34, 34, 34);
-        Label5.Location = new Point(189, 16);
+        Label5.Location = new Point(184, 16);
         Label5.Name = "Label5";
-        Label5.Size = new Size(54, 17);
+        Label5.Size = new Size(64, 17);
         Label5.TabIndex = 5;
         Label5.Text = "BAND0";
         Label5.TextAlign = ContentAlignment.TopCenter;
@@ -286,7 +286,7 @@ partial class frmLicense
         Label6.ForeColor = Color.FromArgb(34, 34, 34);
         Label6.Location = new Point(248, 16);
         Label6.Name = "Label6";
-        Label6.Size = new Size(54, 17);
+        Label6.Size = new Size(64, 17);
         Label6.TabIndex = 6;
         Label6.Text = "BAND1";
         Label6.TextAlign = ContentAlignment.TopCenter;
@@ -296,7 +296,7 @@ partial class frmLicense
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = Color.FromArgb(255, 255, 255);
-        ClientSize = new Size(328, 213);
+        ClientSize = new Size(342, 213);
         Controls.Add(Frame1);
         Font = new Font("Segoe UI", 9F);
         FormBorderStyle = FormBorderStyle.FixedDialog;
