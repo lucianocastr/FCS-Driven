@@ -20,6 +20,7 @@
   - **Fix — retry reduction:** `MaxRetries` reduced from 5 to 2. Worst case per non-responsive port: 2 × (3 s + 1.5 s) = 9 s.
   - **Fix — global watchdog:** 60 s `CancellationTokenSource` linked to the outer token. If the total scan exceeds 60 s for any reason, a warning is logged and the scan exits cleanly.
   - **Verification via trace log:** Enable serial trace logging (T key with Scan Devices focused) before scan. Each port appears in `%APPDATA%\Fiplex\USBmessages_YYYYMMDD.txt` with elapsed time. A port that previously caused a 4-minute freeze should now appear with ~2 s delta (open timeout) or ~9 s delta (identification timeout).
+- **Serial trace log activation** (`frmMain.cs`) — T key to toggle trace log was not working unless the user explicitly tabbed to Scan Devices. Root cause: async scan updates `cmbCOM` DataSource on completion, which silently steals focus from `cmdIDPort`. Fix: `cmdIDPort.Focus()` in the scan `finally` block restores exact VB 1.9 behavior (synchronous scan never moved focus away from the button).
 
 ---
 
