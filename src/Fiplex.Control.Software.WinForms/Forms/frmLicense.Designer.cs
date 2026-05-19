@@ -61,9 +61,9 @@ partial class frmLicense
         chkNbEn0.BackColor = Color.FromArgb(255, 255, 255);
         chkNbEn0.Font = new Font("Segoe UI", 9F);
         chkNbEn0.ForeColor = Color.FromArgb(34, 34, 34);
-        chkNbEn0.Location = new Point(208, 40);
+        chkNbEn0.Location = new Point(206, 38);
         chkNbEn0.Name = "chkNbEn0";
-        chkNbEn0.Size = new Size(17, 13);
+        chkNbEn0.Size = new Size(20, 20);
         chkNbEn0.TabIndex = 8;
         ToolTip1.SetToolTip(chkNbEn0, "Enable Narrow Filters for Band 0");
         chkNbEn0.UseVisualStyleBackColor = false;
@@ -73,9 +73,9 @@ partial class frmLicense
         chkNbEn1.BackColor = Color.FromArgb(255, 255, 255);
         chkNbEn1.Font = new Font("Segoe UI", 9F);
         chkNbEn1.ForeColor = Color.FromArgb(34, 34, 34);
-        chkNbEn1.Location = new Point(248, 40);
+        chkNbEn1.Location = new Point(246, 38);
         chkNbEn1.Name = "chkNbEn1";
-        chkNbEn1.Size = new Size(17, 13);
+        chkNbEn1.Size = new Size(20, 20);
         chkNbEn1.TabIndex = 9;
         ToolTip1.SetToolTip(chkNbEn1, "Enable Narrow Filters for Band 1");
         chkNbEn1.UseVisualStyleBackColor = false;
@@ -85,9 +85,9 @@ partial class frmLicense
         chkAdjEn0.BackColor = Color.FromArgb(255, 255, 255);
         chkAdjEn0.Font = new Font("Segoe UI", 9F);
         chkAdjEn0.ForeColor = Color.FromArgb(34, 34, 34);
-        chkAdjEn0.Location = new Point(208, 64);
+        chkAdjEn0.Location = new Point(206, 62);
         chkAdjEn0.Name = "chkAdjEn0";
-        chkAdjEn0.Size = new Size(17, 13);
+        chkAdjEn0.Size = new Size(20, 20);
         chkAdjEn0.TabIndex = 10;
         ToolTip1.SetToolTip(chkAdjEn0, "Enable Adjacent Bandwidth Filters for Band 0");
         chkAdjEn0.UseVisualStyleBackColor = false;
@@ -97,9 +97,9 @@ partial class frmLicense
         chkAdjEn1.BackColor = Color.FromArgb(255, 255, 255);
         chkAdjEn1.Font = new Font("Segoe UI", 9F);
         chkAdjEn1.ForeColor = Color.FromArgb(34, 34, 34);
-        chkAdjEn1.Location = new Point(248, 64);
+        chkAdjEn1.Location = new Point(246, 62);
         chkAdjEn1.Name = "chkAdjEn1";
-        chkAdjEn1.Size = new Size(17, 13);
+        chkAdjEn1.Size = new Size(20, 20);
         chkAdjEn1.TabIndex = 11;
         ToolTip1.SetToolTip(chkAdjEn1, "Enable Adjacent Bandwidth Filters for Band 1");
         chkAdjEn1.UseVisualStyleBackColor = false;
@@ -109,9 +109,9 @@ partial class frmLicense
         chkSingEn0.BackColor = Color.FromArgb(255, 255, 255);
         chkSingEn0.Font = new Font("Segoe UI", 9F);
         chkSingEn0.ForeColor = Color.FromArgb(34, 34, 34);
-        chkSingEn0.Location = new Point(208, 88);
+        chkSingEn0.Location = new Point(206, 86);
         chkSingEn0.Name = "chkSingEn0";
-        chkSingEn0.Size = new Size(17, 13);
+        chkSingEn0.Size = new Size(20, 20);
         chkSingEn0.TabIndex = 12;
         ToolTip1.SetToolTip(chkSingEn0, "Enable Single Band mode for Band 0");
         chkSingEn0.UseVisualStyleBackColor = false;
@@ -121,9 +121,9 @@ partial class frmLicense
         chkSingEn1.BackColor = Color.FromArgb(255, 255, 255);
         chkSingEn1.Font = new Font("Segoe UI", 9F);
         chkSingEn1.ForeColor = Color.FromArgb(34, 34, 34);
-        chkSingEn1.Location = new Point(248, 88);
+        chkSingEn1.Location = new Point(246, 86);
         chkSingEn1.Name = "chkSingEn1";
-        chkSingEn1.Size = new Size(17, 13);
+        chkSingEn1.Size = new Size(20, 20);
         chkSingEn1.TabIndex = 13;
         ToolTip1.SetToolTip(chkSingEn1, "Enable Single Band mode for Band 1");
         chkSingEn1.UseVisualStyleBackColor = false;
@@ -139,7 +139,7 @@ partial class frmLicense
         txtPowDL0.Name = "txtPowDL0";
         txtPowDL0.Size = new Size(41, 22);
         txtPowDL0.TabIndex = 14;
-        txtPowDL0.TextAlign = HorizontalAlignment.Right;
+        txtPowDL0.TextAlign = HorizontalAlignment.Center;
         ToolTip1.SetToolTip(txtPowDL0, "Power Limit Downlink for Band 0 (-128 to 127 dBm)");
         // 
         // txtPowDL1
@@ -153,7 +153,7 @@ partial class frmLicense
         txtPowDL1.Name = "txtPowDL1";
         txtPowDL1.Size = new Size(41, 22);
         txtPowDL1.TabIndex = 15;
-        txtPowDL1.TextAlign = HorizontalAlignment.Right;
+        txtPowDL1.TextAlign = HorizontalAlignment.Center;
         ToolTip1.SetToolTip(txtPowDL1, "Power Limit Downlink for Band 1 (-128 to 127 dBm)");
         // 
         // cmdApply
