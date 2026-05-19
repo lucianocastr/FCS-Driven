@@ -29,6 +29,8 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     private readonly IDeviceCatalogService _catalog;
     private readonly ILogger<DeviceDiscoveryService> _logger;
 
+    public event Action<string>? PortScanTrace;
+
     // Scan configuration constants
     private const int MaxRetries = 2;
     private const int TimeoutSeconds = 3;
@@ -280,6 +282,9 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
 
                 var response = (result.Data ?? string.Empty)
                     .Trim('\0', '\r', '\n', ' ');
+
+                // VB 1.9 parity: WriteLog("COM{i} Nretry={num} ans={instRx}") inside scan loop
+                PortScanTrace?.Invoke($"{portName} Nretry={retry} ans={response}");
 
                 _logger.LogDebug(
                     "[Scan {ScanId}] {Port} retry {Retry} - raw response '{Response}' ({ElapsedMs} ms)",

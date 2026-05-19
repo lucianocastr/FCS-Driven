@@ -138,6 +138,9 @@ public partial class frmMain : Form
         _pipeline.RxDiagnostic  += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
         _pipeline.AckDiagnostic += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
 
+        // Route scan port results to trace logger — VB 1.9 parity: "COM8 Nretry=0 ans=Fiplex..."
+        _discovery.PortScanTrace += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
+
         // VB 1.9 sized cmbCOM manually in frmMain_Resize (ClientWidth - 16).
         // Dock.Fill and Anchor.Right both conflict with the native Win32 ComboBox HWND,
         // producing a split rendering (two visible dropdown arrows). Use no Anchor.Right
@@ -1271,7 +1274,7 @@ public partial class frmMain : Form
 
         // Only update the status bar, not the ComboBox
         LogStatus($"Scanning {p.CurrentPort} ({p.Completed}/{p.Total}) - Found: {p.DevicesFound}");
-        if (_traceLogger.IsEnabled) _traceLogger.Log($"{p.CurrentPort} ({p.Completed}/{p.Total}) found={p.DevicesFound}");
+        // Scan result is logged via PortScanTrace (VB 1.9 format). Progress bar only here.
     }
 
     private void UpdateDeviceList()

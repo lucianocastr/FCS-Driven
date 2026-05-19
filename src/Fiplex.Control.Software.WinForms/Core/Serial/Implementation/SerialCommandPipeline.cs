@@ -314,7 +314,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 var payload = Encoding.ASCII.GetBytes(cmd.Payload + "\n");
                 var bytesSent = await _serialPort.WriteAsync(payload, ctx.Cts.Token);
                 _logger.LogDebug("TX: {Payload}", cmd.Payload);
-                TxDiagnostic?.Invoke($"Tx1 {cmd.Payload}");
+                TxDiagnostic?.Invoke($"Tx0 {cmd.Payload}");
                 _pendingAnswer = true;
                 
                 // Wait ACK
@@ -358,7 +358,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         }
                         
                         _logger.LogDebug("RX (direct DataFrame): {Data}", ackData.Length > 100 ? ackData[..100] + "..." : ackData);
-                        RxDiagnostic?.Invoke($"Rx1 {ackData}");
+                        RxDiagnostic?.Invoke($"Rx0 {ackData}");
                         CompleteCommand(ctx, CommandResultStatus.Success, ackData, bytesSent);
                         return;
                     }
@@ -437,7 +437,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                     }
 
                     _logger.LogDebug("RX: {Data}", data.Length > 100 ? data[..100] + "..." : data);
-                    RxDiagnostic?.Invoke($"Rx1 {data}");
+                    RxDiagnostic?.Invoke($"Rx0 {data}");
                     CompleteCommand(ctx, CommandResultStatus.Success, data, bytesSent);
                     return;
                 }
