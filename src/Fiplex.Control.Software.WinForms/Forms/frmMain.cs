@@ -1077,11 +1077,21 @@ public partial class frmMain : Form
             {
                 _traceLogger.Disable();
                 Text = "Fiplex Control Software";
+                LogStatus("Traces OFF");
             }
             else
             {
-                _traceLogger.Enable(SoftwareVersion, Environment.MachineName);
-                Text = "Fiplex Control Software (Traces ON)";
+                try
+                {
+                    _traceLogger.Enable(SoftwareVersion, Environment.MachineName);
+                    Text = "Fiplex Control Software (Traces ON)";
+                    LogStatus($"Traces ON — {_traceLogger.LogFilePath}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to enable serial trace logger");
+                    LogStatus($"Traces ERROR: {ex.Message}");
+                }
             }
             return true;
         }

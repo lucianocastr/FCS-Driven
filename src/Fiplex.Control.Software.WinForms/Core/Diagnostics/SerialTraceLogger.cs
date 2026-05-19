@@ -16,15 +16,17 @@ public sealed class SerialTraceLogger : IDisposable
     private Task? _flushTask;
 
     public bool IsEnabled { get; private set; }
+    public string LogFilePath { get; private set; } = string.Empty;
 
     public void Enable(string version, string machine)
     {
         if (IsEnabled) return;
 
         var dir = Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "Fiplex");
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "FiplexControlSoftware");
         Directory.CreateDirectory(dir);
         var file = Path.Combine(dir, $"USBmessages_{DateTime.Now:yyyyMMdd}.txt");
+        LogFilePath = file;
         _writer = new StreamWriter(file, append: true, Encoding.UTF8) { AutoFlush = false };
         IsEnabled = true;
         _cts = new CancellationTokenSource();
