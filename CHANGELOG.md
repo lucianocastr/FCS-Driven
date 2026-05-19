@@ -1,5 +1,16 @@
 #
 
+## [3.3.0] - 2026-05-19
+
+### Added
+- **Factory mode access** — Sequence Shift+Right click × 2 on Refresh button, followed by two time-based digits (`sum = Minute + Day%10`, inverted: Digit1=`sum%10`, Digit2=`sum/10`). On activation, application auto-navigates to factory page (`/factory/fact.zhtml`, or `/factory/index.html` for Expander devices), matching FCS 1.9 behavior.
+- **License Options access** — Extended sequence Shift+Right × 2 + Shift+Left on Refresh button, followed by four digits: Digit1/Digit2 same time-based algorithm as factory, Digit3=first char of Serial Number, Digit4=first digit of Firmware version.
+
+### Changed
+- **License Options dialog** — Redesigned layout: checkboxes 20×20 px, Power Limit Downlink values centered, BAND0/BAND1 column headers aligned with input grid (64 px wide, centered), GDI+ confirmation icon (green check / red X circle) matching Ethernet Module dialog style.
+
+---
+
 ## [3.0.3] - 2026-05-06
 
 ### Fixed
