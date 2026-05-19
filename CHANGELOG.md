@@ -8,6 +8,18 @@
 
 ### Changed
 - **License Options dialog** — Redesigned layout: checkboxes 20×20 px, Power Limit Downlink values centered, BAND0/BAND1 column headers aligned with input grid (64 px wide, centered), GDI+ confirmation icon (green check / red X circle) matching Ethernet Module dialog style.
+- **CLSS menu** — Restored always-visible behavior on active session, matching FCS 1.9.
+
+### Fixed
+- **COM scan freeze — hung port blocking full scan** (`DeviceDiscoveryService`, `SerialPortAdapter`)
+  - **Root cause:** `SerialPort.Close()` is synchronous. On certain USB CDC drivers (e.g. DAS Master Flex dual-port adapter), `Close()` blocks indefinitely when called while the driver has a pending I/O operation. The previous implementation awaited `CloseAsync()` directly on the scan loop thread, causing the entire scan to freeze.
+  - **Secondary cause:** `SerialPort.Open()` can also block on non-standard USB serial drivers. With `MaxRetries=5` and `OpenPortTimeout=300ms`, up to 5 concurrent `Task.Run` threads could accumulate — all blocked on the same port — creating race conditions on the shared `_serialPort` field.
+  - **Fix — `SerialPortAdapter.CloseAsync()`:** Field `_serialPort` is nulled immediately (so `IsOpen` returns `false` at once), then the actual `Close()`+`Dispose()` runs on a background thread. The scan loop is never blocked by driver-level I/O delays on close.
+  - **Fix — open hang:** If `OpenAsync()` does not complete within 2 000 ms the port is skipped entirely (`return null`). No retry on hanging opens — prevents thread-pool accumulation.
+  - **Fix — identification timeout:** After the 3 s identification guard fires, `CloseAsync()` is awaited with a 1 500 ms `Task.WhenAny` cap. Scan continues regardless of whether close completes.
+  - **Fix — retry reduction:** `MaxRetries` reduced from 5 to 2. Worst case per non-responsive port: 2 × (3 s + 1.5 s) = 9 s.
+  - **Fix — global watchdog:** 60 s `CancellationTokenSource` linked to the outer token. If the total scan exceeds 60 s for any reason, a warning is logged and the scan exits cleanly.
+  - **Verification via trace log:** Enable serial trace logging (T key with Scan Devices focused) before scan. Each port appears in `%APPDATA%\Fiplex\USBmessages_YYYYMMDD.txt` with elapsed time. A port that previously caused a 4-minute freeze should now appear with ~2 s delta (open timeout) or ~9 s delta (identification timeout).
 
 ---
 
