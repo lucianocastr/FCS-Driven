@@ -61,13 +61,9 @@ public partial class frmMain : Form
     private string _confSCA = "";
     private bool _pendingAnswer = false;
 
-    // Counter for factory/license mode key combination (mirrors VB 1.9 cntmode)
     private short _cntmode = 0;
-    // Mouse button sequence: Right+Right = factory path, Right+Right+Left = license path (all with Shift)
-    // cntmode=2 → factory (digits); cntmode=3 → license (digits, Serial, FW)
     private readonly MouseButtons[] _eButton = [MouseButtons.Right, MouseButtons.Right, MouseButtons.Left];
 
-    // Characters derived from U1 response for license manager sequence (VB 1.9: serialFirstChar, versionFirstChar)
     private char _serialFirstChar = '\0';
     private char _versionFirstChar = '\0';
 
@@ -2693,7 +2689,6 @@ public partial class frmMain : Form
         {
             _logger.LogInformation("Factory mode activated");
 
-            // Show factory-only menus now that the sequence was entered
             var device = _sessionContext.Device;
             if (device != null)
             {
@@ -2724,9 +2719,6 @@ public partial class frmMain : Form
         }
     }
 
-    // Fetches U1 response to derive serialFirstChar / versionFirstChar for the license sequence.
-    // Called when cntmode reaches 3 (third Shift+Right-click), giving the user time to type
-    // the time-based digits before the serial/version chars are needed at cntmode=5/6.
     private async Task FetchLicenseCharactersAsync()
     {
         try
