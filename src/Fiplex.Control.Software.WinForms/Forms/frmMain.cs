@@ -63,9 +63,9 @@ public partial class frmMain : Form
 
     // Counter for factory/license mode key combination (mirrors VB 1.9 cntmode)
     private short _cntmode = 0;
-    // Mouse button sequence: Right, Left, Right with Shift held on cmdRefresh
-    // cntmode=2 → factory path (Minute,Day digits); cntmode=3 → license path (Minute,Day,Serial,Version)
-    private readonly MouseButtons[] _eButton = [MouseButtons.Right, MouseButtons.Left, MouseButtons.Right];
+    // Mouse button sequence: Right, Right, Right with Shift held on cmdRefresh
+    // cntmode=2 → factory path (digits); cntmode=3 → license path (Minute,Day,Serial,Version)
+    private readonly MouseButtons[] _eButton = [MouseButtons.Right, MouseButtons.Right, MouseButtons.Right];
 
     // Characters derived from U1 response for license manager sequence (VB 1.9: serialFirstChar, versionFirstChar)
     private char _serialFirstChar = '\0';
@@ -2628,7 +2628,8 @@ public partial class frmMain : Form
     {
         if (_cntmode == 50)
         {
-            char expected = (char)('0' + DateTime.Now.Day % 10);
+            int sum = DateTime.Now.Minute + (DateTime.Now.Day % 10);
+            char expected = (char)('0' + sum / 10);
             if (e.KeyChar == expected)
                 _ = ShowFactoryMenuAsync();
             else
@@ -2637,7 +2638,8 @@ public partial class frmMain : Form
         }
         else if (_cntmode == 2)
         {
-            char expected = (char)('0' + DateTime.Now.Minute % 10);
+            int sum = DateTime.Now.Minute + (DateTime.Now.Day % 10);
+            char expected = (char)('0' + sum % 10);
             if (e.KeyChar == expected)
                 _cntmode = 50;
             else
