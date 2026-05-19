@@ -2710,11 +2710,13 @@ public partial class frmMain : Form
                 mnuSaveCal.Visible = showCal;
             }
 
-            // Update navi frame to expose factory sidebar links, then auto-navigate content to factory page
+            // Update navi frame to expose factory sidebar links, then auto-navigate content to factory page.
+            // 1de (Expander) uses index.html as factory entry; all other devices use fact.zhtml.
+            string factoryPage = (device?.TDev == "1de") ? "/factory/index.html" : "/factory/fact.zhtml";
             await webView.CoreWebView2.ExecuteScriptAsync(
                 "try { window.frames['navi'].location.href = '/navi.html?isFactory=true'; } catch(e) {}");
             await webView.CoreWebView2.ExecuteScriptAsync(
-                "try { window.frames['content'].location.href = '/factory/fact.zhtml'; } catch(e) {}");
+                $"try {{ window.frames['content'].location.href = '{factoryPage}'; }} catch(e) {{}}");
         }
         catch (Exception ex)
         {
