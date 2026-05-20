@@ -32,9 +32,14 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     public event Action<string>? PortScanTrace;
 
     // Scan configuration constants
-    private const int MaxRetries = 2;
+    // MaxRetries=5: VB 1.9 parity (Loop While instRx="NACK" And num < 5).
+    // Devices that respond on the first attempt are unaffected.
+    // Slower devices (e.g. DAS Remote) that return NACK on early attempts get additional chances.
+    private const int MaxRetries = 5;
     private const int TimeoutSeconds = 3;
-    private static readonly TimeSpan OpenPortTimeout = TimeSpan.FromMilliseconds(2000);
+    // OpenPortTimeout=4000ms: some USB-serial drivers (e.g. dual-port CP2105 adapters used by DAS Remote)
+    // take >2s to complete Open(). At 2000ms the port was silently skipped with no retry and no trace log entry.
+    private static readonly TimeSpan OpenPortTimeout = TimeSpan.FromMilliseconds(4000);
     private static readonly TimeSpan PortCloseTimeout = TimeSpan.FromMilliseconds(1500);
     private const int ScanWatchdogSeconds = 60;
     private const string IdentificationCommand = "I1";

@@ -19,8 +19,21 @@
   - **Fix — identification timeout:** After the 3 s identification guard fires, `CloseAsync()` is awaited with a 1 500 ms `Task.WhenAny` cap. Scan continues regardless of whether close completes.
   - **Fix — retry reduction:** `MaxRetries` reduced from 5 to 2. Worst case per non-responsive port: 2 × (3 s + 1.5 s) = 9 s.
   - **Fix — global watchdog:** 60 s `CancellationTokenSource` linked to the outer token. If the total scan exceeds 60 s for any reason, a warning is logged and the scan exits cleanly.
-  - **Verification via trace log:** Enable serial trace logging (T key with Scan Devices focused) before scan. Each port appears in `%APPDATA%\Fiplex\USBmessages_YYYYMMDD.txt` with elapsed time. A port that previously caused a 4-minute freeze should now appear with ~2 s delta (open timeout) or ~9 s delta (identification timeout).
+  - **Verification via trace log:** Enable serial trace logging (T key with Scan Devices focused) before scan. Each port appears in `%APPDATA%\FiplexControlSoftware\USBmessages_YYYYMMDD.txt` with elapsed time. A port that previously caused a 4-minute freeze should now appear with ~2 s delta (open timeout) or ~9 s delta (identification timeout).
 - **Serial trace log activation** (`frmMain.cs`) — T key to toggle trace log was not working unless the user explicitly tabbed to Scan Devices. Root cause: async scan updates `cmbCOM` DataSource on completion, which silently steals focus from `cmdIDPort`. Fix: `cmdIDPort.Focus()` in the scan `finally` block restores exact VB 1.9 behavior (synchronous scan never moved focus away from the button).
+- **DAS Remote (and slow-to-respond devices) not appearing in device list** (`DeviceDiscoveryService.cs`)
+  - **Root cause — retries:** VB 1.9 retries the I1 identification command up to 5 times per port (`Loop While instRx = "NACK" And num < 5`). C# was capped at 2 retries (`MaxRetries = 2`). Devices that return NACK on the first 1–2 attempts (common in DAS Remote firmware during serial stack initialization) were silently dropped after the 2nd attempt. VB 1.9 found them on attempt 3–5.
+  - **Root cause — open timeout:** If the USB-serial driver took more than 2 000 ms to open the COM port (observed with dual-port adapters such as Silicon Labs CP2105 used by DAS Remote units), C# aborted that port with no retry and no trace log entry — the device was completely invisible. VB 1.9 uses MSCOMM (synchronous, no explicit open timeout).
+  - **Fix — `MaxRetries` 2 → 5:** Restores VB 1.9 parity. Devices that respond on the first attempt are unaffected. Slower devices get up to 5 chances before the port is abandoned.
+  - **Fix — `OpenPortTimeout` 2 000 ms → 4 000 ms:** Provides additional margin for slow USB-serial drivers on open. Normal drivers open in <100 ms — no observable impact on them.
+  - **Worst-case scan time per unresponsive port:** 5 × (4 s open + 3 s I1) = 35 s, bounded by the existing 60 s global watchdog.
+  - **Verification:** With serial trace logging active, every port attempt appears in `%APPDATA%\FiplexControlSoftware\USBmessages_YYYYMMDD.txt`. A DAS Remote that was previously invisible should now produce `COMx Nretry=N ans=FiplexXXXXXXXXX` on one of the additional retries.
+- **Serial trace log — path and content parity with VB 1.9** (`SerialTraceLogger.cs`, `SerialCommandPipeline.cs`, `frmMain.cs`)
+  - **Root cause (path):** Log path was `%APPDATA%\Fiplex\USBmessages_YYYYMMDD.txt` (directory non-existent on standard installs). File was never written; client could not find it.
+  - **Fix — path:** Corrected to `%APPDATA%\FiplexControlSoftware\USBmessages_YYYYMMDD.txt`, matching the exact path used by FCS 1.9.
+  - **Fix — auth sequence:** `HandleInvalidCredentialsAsync` now logs `Tx0 V1` → `Rx0 INVALID CREDENTIALS` → `Tx0 *0{password}` → `Rx0 ACK`, matching VB 1.9 format exactly.
+  - **Fix — TX/RX/ACK events:** `TxDiagnostic`, `RxDiagnostic`, `AckDiagnostic` events subscribed in `frmMain.cs` — every command TX and its ACK response are written to the trace file while logging is active.
+  - **Residual difference (by design):** S1 spectrum polls run concurrently in v3.x vs. sequentially in VB 1.9; total elapsed time is similar (~2.5 s). Does not affect field diagnostics.
 
 ---
 
