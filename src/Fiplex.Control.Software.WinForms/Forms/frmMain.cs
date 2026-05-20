@@ -44,6 +44,7 @@ public partial class frmMain : Form
     private readonly ILogger<frmMain> _logger;
 
     private List<DeviceInfo> _foundDevices = new();
+    private bool _scanInProgress;
     private CancellationTokenSource? _scanCts;
     private CancellationTokenSource? _cts;
     private SessionContext _sessionContext = new();
@@ -89,7 +90,7 @@ public partial class frmMain : Form
     private static readonly string SoftwareVersion =
         (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "3.2.0")
+            ?.InformationalVersion ?? "3.3.0")
         .Split('+')[0];
 
     public frmMain(
@@ -133,10 +134,12 @@ public partial class frmMain : Form
 
         InitializeComponent();
 
-        // Route pipeline TX/RX/ACK events to non-blocking trace logger (VB 1.9 parity)
-        _pipeline.TxDiagnostic  += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
-        _pipeline.RxDiagnostic  += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
-        _pipeline.AckDiagnostic += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
+        // Route pipeline TX/RX/ACK events to trace logger. Suppressed during scan (I1 is logged
+        // via PortScanTrace as COM{N} Nretry=n ans=... — VB 1.9 parity).
+        // AckDiagnostic: only log "Rx0 ACK"/"Rx0 NACK" (normal flow). "---" prefix = error diagnostics, not in VB 1.9.
+        _pipeline.TxDiagnostic  += (msg) => { if (_traceLogger.IsEnabled && !_scanInProgress) _traceLogger.Log(msg); };
+        _pipeline.RxDiagnostic  += (msg) => { if (_traceLogger.IsEnabled && !_scanInProgress) _traceLogger.Log(msg); };
+        _pipeline.AckDiagnostic += (msg) => { if (_traceLogger.IsEnabled && !_scanInProgress && !msg.StartsWith("---")) _traceLogger.Log(msg); };
 
         // Route scan port results to trace logger — VB 1.9 parity: "COM8 Nretry=0 ans=Fiplex..."
         _discovery.PortScanTrace += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
@@ -1086,7 +1089,7 @@ public partial class frmMain : Form
             {
                 try
                 {
-                    _traceLogger.Enable(SoftwareVersion, Environment.MachineName);
+                    _traceLogger.Enable();
                     Text = "Fiplex Control Software (Traces ON)";
                     LogStatus($"Traces ON — {_traceLogger.LogFilePath}");
                 }
@@ -1177,10 +1180,11 @@ public partial class frmMain : Form
 
         SetUIState(isScanning: true);
         PrepareComboBoxForScan();
-        LogStatus(mode == DeviceScanMode.QuickScan 
-            ? "Quick scan: searching for first device..." 
+        LogStatus(mode == DeviceScanMode.QuickScan
+            ? "Quick scan: searching for first device..."
             : "Starting full device scan...");
 
+        _scanInProgress = true;
         try
         {
             var progress = new Progress<ScanProgress>(UpdateScanProgress);
@@ -1202,6 +1206,7 @@ public partial class frmMain : Form
         }
         finally
         {
+            _scanInProgress = false;
             SetUIState(isScanning: false);
             cmdIDPort.Focus();
         }
@@ -1293,10 +1298,6 @@ public partial class frmMain : Form
 
         if (_foundDevices.Any())
         {
-            if (_traceLogger.IsEnabled)
-                foreach (var d in _foundDevices)
-                    _traceLogger.Log($"Device is {d.TDev}{d.NDev:F1} on COM{d.ComPort}");
-
             // Use BindingList for better behavior with ComboBox
             var bindingList = new System.ComponentModel.BindingList<DeviceInfo>(_foundDevices);
             cmbCOM.DataSource = bindingList;
