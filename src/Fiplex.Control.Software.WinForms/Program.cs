@@ -128,7 +128,12 @@ internal static class Program
             builder.AddFilter<ConsoleLoggerProvider>("System", LogLevel.Warning);
             builder.AddFilter<ConsoleLoggerProvider>("Fiplex", LogLevel.Debug);
 
-            // AppFileLoggerProvider is registered as ILoggerProvider so MEL picks it up automatically
+            // AppFileLoggerProvider: override appsettings "Fiplex: Information" filter.
+            // MEL must pass ALL events (Trace+) to our provider — AppFileLogger filters
+            // dynamically via AppLogLevelSwitch. Without this, appsettings blocks Debug/Trace
+            // before they ever reach the provider, regardless of the active log level in the UI.
+            builder.AddFilter<AppFileLoggerProvider>((category, level) => true);
+
             builder.Services.AddSingleton<ILoggerProvider>(sp =>
                 sp.GetRequiredService<AppFileLoggerProvider>());
         });

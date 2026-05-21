@@ -574,6 +574,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                         AckTimeout = TimeSpan.FromMilliseconds(800),
                         DataTimeout = TimeSpan.FromSeconds(5),
                         MaxRetries = 1,
+                        IsSilent = serialCommandPayload.Equals("S1", StringComparison.OrdinalIgnoreCase),
                         CancellationToken = ct
                     };
 

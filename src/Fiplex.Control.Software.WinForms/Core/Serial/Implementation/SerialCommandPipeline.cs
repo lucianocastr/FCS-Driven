@@ -313,8 +313,8 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 UpdateState(cmd.Id, CommandState.Sending);
                 var payload = Encoding.ASCII.GetBytes(cmd.Payload + "\n");
                 var bytesSent = await _serialPort.WriteAsync(payload, ctx.Cts.Token);
-                _logger.LogDebug("TX: {Payload}", cmd.Payload[..Math.Min(20, cmd.Payload.Length)]);
-                _logger.LogTrace("TX_FULL: {Payload}", cmd.Payload);
+                if (!cmd.IsSilent) _logger.LogDebug("TX: {Payload}", cmd.Payload[..Math.Min(20, cmd.Payload.Length)]);
+                if (!cmd.IsSilent) _logger.LogTrace("TX_FULL: {Payload}", cmd.Payload);
                 TxDiagnostic?.Invoke($"Tx0 {cmd.Payload}");
                 _pendingAnswer = true;
                 
@@ -358,7 +358,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                             }
                         }
                         
-                        _logger.LogDebug("RX (direct DataFrame): {Data}", ackData.Length > 100 ? ackData[..100] + "..." : ackData);
+                        if (!cmd.IsSilent) _logger.LogDebug("RX (direct DataFrame): {Data}", ackData.Length > 100 ? ackData[..100] + "..." : ackData);
                         RxDiagnostic?.Invoke($"Rx0 {ackData}");
                         CompleteCommand(ctx, CommandResultStatus.Success, ackData, bytesSent);
                         return;
@@ -437,8 +437,8 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         }
                     }
 
-                    _logger.LogDebug("RX: {Length} chars — \"{Preview}\"", data.Length, data[..Math.Min(20, data.Length)]);
-                    _logger.LogTrace("RX_FULL: {Length} chars — \"{Preview}\"", data.Length, data[..Math.Min(80, data.Length)]);
+                    if (!cmd.IsSilent) _logger.LogDebug("RX: {Length} chars — \"{Preview}\"", data.Length, data[..Math.Min(20, data.Length)]);
+                    if (!cmd.IsSilent) _logger.LogTrace("RX_FULL: {Length} chars — \"{Preview}\"", data.Length, data[..Math.Min(80, data.Length)]);
                     RxDiagnostic?.Invoke($"Rx0 {data}");
                     CompleteCommand(ctx, CommandResultStatus.Success, data, bytesSent);
                     return;

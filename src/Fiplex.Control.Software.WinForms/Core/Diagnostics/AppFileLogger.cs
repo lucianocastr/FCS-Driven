@@ -13,6 +13,13 @@ internal sealed class AppFileLogger : ILogger
     private readonly AppLogLevelSwitch _switch;
     private readonly AppFileLoggerProvider _provider;
 
+    // Categories with a fixed minimum level that overrides the active AppLogLevelSwitch.
+    // Used to suppress high-frequency background noise (keepalive loops, etc.) even at Debug.
+    private static readonly Dictionary<string, LogLevel> CategoryMinLevels = new()
+    {
+        { "WatchdogService", LogLevel.Warning },
+    };
+
     private static readonly (Regex Pattern, string Replacement)[] Sanitizers =
     [
         (new Regex(@"\*0\S+",                                             RegexOptions.Compiled), "*0[***]"),
@@ -28,8 +35,15 @@ internal sealed class AppFileLogger : ILogger
         _provider = provider;
     }
 
-    public bool IsEnabled(LogLevel logLevel) =>
-        _switch.IsEnabled && logLevel >= _switch.CurrentLevel;
+    public bool IsEnabled(LogLevel logLevel)
+    {
+        if (!_switch.IsEnabled) return false;
+        var effectiveMin = _switch.CurrentLevel;
+        var shortCat = _category.Contains('.') ? _category[(_category.LastIndexOf('.') + 1)..] : _category;
+        if (CategoryMinLevels.TryGetValue(shortCat, out var catMin) && catMin > effectiveMin)
+            effectiveMin = catMin;
+        return logLevel >= effectiveMin;
+    }
 
     public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 

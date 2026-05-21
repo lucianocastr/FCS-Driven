@@ -91,6 +91,12 @@ public record SerialCommand
     /// </remarks>
     public bool AcceptPartialResponse { get; init; } = false;
 
+    /// <summary>
+    /// When true, suppresses Debug/Trace log entries in SerialCommandPipeline for this command.
+    /// Use for high-frequency background polling (S1 spectrum, N1 watchdog keepalive).
+    /// </summary>
+    public bool IsSilent { get; init; } = false;
+
     /// <summary>Gets the cancellation token for this command.</summary>
     public CancellationToken CancellationToken { get; init; }
 }

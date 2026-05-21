@@ -131,6 +131,7 @@ public class WatchdogService : IWatchdogService
                     ExpectsData = false,
                     MaxRetries = 2,
                     AckTimeout = TimeSpan.FromSeconds(1),
+                    IsSilent = true,
                     CancellationToken = ct
                 };
 
