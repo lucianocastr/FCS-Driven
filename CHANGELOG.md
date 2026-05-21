@@ -1,6 +1,23 @@
 #
 
-## [3.3.0] - 2026-05-19
+## [3.4.0] - TBD
+
+### Added
+- **Sistema de logging de diagnóstico de campo** (`Core/Diagnostics/AppFileLoggerProvider`, `AppFileLogger`, `AppLogLevelSwitch`)
+  - Archivo diario `%APPDATA%\FiplexControlSoftware\FCSLog_YYYYMMDD.txt` activo desde el primer arranque.
+  - Cuatro niveles seleccionables por el usuario: **Error** (default), **Info**, **Debug**, **Trace**.
+  - Menú `LOG` público en la barra de menú principal (accesible sin restricciones) con checkmark en el nivel activo.
+  - Título de ventana refleja el nivel activo: `[Log: ERR]` / `[Log: INFO]` / `[Log: DBG]` / `[Log: TRC]`.
+  - Separadores `SESSION START / SESSION END` con timestamp y nivel al abrir y cerrar la app.
+  - Retención automática de 7 días; archivos anteriores eliminados al iniciar.
+  - `ForceFlush` en handlers `UnhandledException` y `ThreadException` — los últimos eventos antes de un crash llegan al disco.
+  - Sanitizador en el logger: `*0[***]`, Bearer tokens y JWT claims nunca aparecen en el archivo.
+  - Nivel Trace cubre TX payload completo y RX primeros 80 chars (`SerialCommandPipeline.cs`).
+  - Coexiste con `USBmessages_YYYYMMDD.txt` (`SerialTraceLogger`) — ambos sistemas activos en paralelo.
+
+---
+
+## [3.3.0] - 2026-05-20
 
 ### Added
 - **Factory mode access** — Activation sequence triggers auto-navigation to factory page on entry, matching FCS 1.9 behavior.

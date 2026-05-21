@@ -1,8 +1,8 @@
 # Diseño Técnico — Sistema de Logging de Diagnóstico FCS
 
-**Estado:** Diseño aprobado — pendiente de implementación  
-**Fecha:** 20/05/2026  
-**Versión objetivo:** FCS 3.4  
+**Estado:** Implementado — commit `e6a5ed6` (rama `release/3.3`, 20/05/2026)  
+**Fecha diseño:** 20/05/2026  
+**Versión objetivo:** FCS 3.4 (disponible en `release/3.3` para prueba de campo)  
 **Autor:** Fiplex / Ikarus
 
 ---
