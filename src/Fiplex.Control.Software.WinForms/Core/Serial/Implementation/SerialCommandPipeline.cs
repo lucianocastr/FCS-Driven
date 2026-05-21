@@ -313,7 +313,8 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 UpdateState(cmd.Id, CommandState.Sending);
                 var payload = Encoding.ASCII.GetBytes(cmd.Payload + "\n");
                 var bytesSent = await _serialPort.WriteAsync(payload, ctx.Cts.Token);
-                _logger.LogDebug("TX: {Payload}", cmd.Payload);
+                _logger.LogDebug("TX: {Payload}", cmd.Payload[..Math.Min(20, cmd.Payload.Length)]);
+                _logger.LogTrace("TX_FULL: {Payload}", cmd.Payload);
                 TxDiagnostic?.Invoke($"Tx0 {cmd.Payload}");
                 _pendingAnswer = true;
                 
@@ -327,7 +328,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
                     if (ackResult == TokenType.InvalidCredentials)
                     {
-                        // INVALID CREDENTIALS - Try with password
+                        RxDiagnostic?.Invoke("Rx0 INVALID CREDENTIALS");
                         var retriedResult = await HandleInvalidCredentialsAsync(ctx, cmd, bytesSent);
                         if (retriedResult != null)
                         {
@@ -382,7 +383,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         continue;
                     }
 
-                    AckDiagnostic?.Invoke($"ACK ok ({ctx.AckTimer.ElapsedMilliseconds}ms)");
+                    AckDiagnostic?.Invoke("Rx0 ACK");
                 }
 
                 // Wait Data
@@ -436,7 +437,8 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         }
                     }
 
-                    _logger.LogDebug("RX: {Data}", data.Length > 100 ? data[..100] + "..." : data);
+                    _logger.LogDebug("RX: {Length} chars — \"{Preview}\"", data.Length, data[..Math.Min(20, data.Length)]);
+                    _logger.LogTrace("RX_FULL: {Length} chars — \"{Preview}\"", data.Length, data[..Math.Min(80, data.Length)]);
                     RxDiagnostic?.Invoke($"Rx0 {data}");
                     CompleteCommand(ctx, CommandResultStatus.Success, data, bytesSent);
                     return;
@@ -506,6 +508,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
         // Send authenticated command
         var payload = Encoding.ASCII.GetBytes(authPayload + "\n");
         await _serialPort.WriteAsync(payload, ctx.Cts.Token);
+        TxDiagnostic?.Invoke($"Tx0 {authPayload}");
 
         // Wait for response
         if (cmd.ExpectsData)
@@ -526,6 +529,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 }
 
                 _logger.LogInformation("Authentication retry successful (data frame)");
+                RxDiagnostic?.Invoke($"Rx0 {data}");
                 return new SerialResult(cmd.Id, true, CommandResultStatus.Success, data, null, null);
             }
 
@@ -542,6 +546,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
             if (dataResult == TokenType.Timeout)
             {
                 _logger.LogInformation("Auth retry got ACK without data, treating as success");
+                AckDiagnostic?.Invoke("Rx0 ACK");
                 return new SerialResult(cmd.Id, true, CommandResultStatus.Success, string.Empty, null, null);
             }
         }

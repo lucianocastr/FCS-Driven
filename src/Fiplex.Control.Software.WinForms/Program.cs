@@ -19,6 +19,7 @@ using Fiplex.Control.Software.WinForms.Core.Commands;
 using Fiplex.Control.Software.WinForms.Core.Commands.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Metrics;
 using Fiplex.Control.Software.WinForms.Core.Diagnostics;
+using Microsoft.Extensions.Logging.Console;
 using Fiplex.Control.Software.WinForms.Models;
 
 namespace Fiplex.Control.Software.WinForms;
@@ -34,7 +35,13 @@ internal static class Program
         ApplicationConfiguration.Initialize();
 
         var host = CreateHost();
-        
+
+        var appFileLoggerProvider = host.Services.GetRequiredService<AppFileLoggerProvider>();
+        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+            appFileLoggerProvider.ForceFlush($"UNHANDLED EXCEPTION: {e.ExceptionObject}");
+        Application.ThreadException += (_, e) =>
+            appFileLoggerProvider.ForceFlush($"THREAD EXCEPTION: {e.Exception.GetType().Name}: {e.Exception.Message}");
+
         using var scope = host.Services.CreateScope();
         
         // Login flow: First show Login, then frmMain if login successful
@@ -94,17 +101,36 @@ internal static class Program
 
     private static void ConfigureLogging(IServiceCollection services)
     {
+        services.AddSingleton<AppLogLevelSwitch>();
+        services.AddSingleton<AppFileLoggerProvider>(sp =>
+        {
+            var sw = sp.GetRequiredService<AppLogLevelSwitch>();
+            var version = System.Reflection.Assembly
+                .GetExecutingAssembly()
+                .GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                is System.Reflection.AssemblyInformationalVersionAttribute[] attrs && attrs.Length > 0
+                ? attrs[0].InformationalVersion
+                : "";
+            return new AppFileLoggerProvider(sw, version);
+        });
+
         services.AddLogging(builder =>
         {
             builder.ClearProviders();
             builder.AddConsole();
             builder.AddDebug();
-            builder.SetMinimumLevel(LogLevel.Debug);
-            
-            // Custom filters
-            builder.AddFilter("Microsoft", LogLevel.Warning);
-            builder.AddFilter("System", LogLevel.Warning);
-            builder.AddFilter("Fiplex", LogLevel.Debug);
+
+            // Pass everything to providers — each provider filters by its own level.
+            // AppFileLogger uses AppLogLevelSwitch; Console/Debug use their own filters below.
+            builder.SetMinimumLevel(LogLevel.Trace);
+
+            builder.AddFilter<ConsoleLoggerProvider>("Microsoft", LogLevel.Warning);
+            builder.AddFilter<ConsoleLoggerProvider>("System", LogLevel.Warning);
+            builder.AddFilter<ConsoleLoggerProvider>("Fiplex", LogLevel.Debug);
+
+            // AppFileLoggerProvider is registered as ILoggerProvider so MEL picks it up automatically
+            builder.Services.AddSingleton<ILoggerProvider>(sp =>
+                sp.GetRequiredService<AppFileLoggerProvider>());
         });
     }
 

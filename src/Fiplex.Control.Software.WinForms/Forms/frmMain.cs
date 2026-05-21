@@ -72,6 +72,7 @@ public partial class frmMain : Form
     private bool _hasMaximized = false;
 
     private SerialTraceLogger _traceLogger = null!;
+    private AppLogLevelSwitch _appLogSwitch = null!;
 
     private System.Windows.Forms.Timer? _portHealthTimer;
 
@@ -111,7 +112,8 @@ public partial class frmMain : Form
         IServiceProvider serviceProvider,
         IConfiguration configuration,
         ILogger<frmMain> logger,
-        SerialTraceLogger traceLogger)
+        SerialTraceLogger traceLogger,
+        AppLogLevelSwitch appLogSwitch)
     {
         _pipeline = pipeline;
         _discovery = discovery;
@@ -131,6 +133,7 @@ public partial class frmMain : Form
         _configuration = configuration;
         _logger = logger;
         _traceLogger = traceLogger;
+        _appLogSwitch = appLogSwitch;
 
         InitializeComponent();
 
@@ -154,6 +157,7 @@ public partial class frmMain : Form
 
         // Configure Debug/Tools menu for logging and diagnostics
         ConfigureDebugMenu();
+        ConfigureLogMenu();
 
         // Load development mode configuration
         _devModeSettings = _configuration
@@ -380,6 +384,56 @@ public partial class frmMain : Form
         MainMenu1.Items.Add(mnuDebug);
 
         _logger.LogDebug("Debug menu configured");
+    }
+
+    private void ConfigureLogMenu()
+    {
+        var mnuLog = new ToolStripMenuItem("LOG");
+
+        ToolStripMenuItem[] levelItems =
+        [
+            new ToolStripMenuItem("Error / Warning"),
+            new ToolStripMenuItem("Info"),
+            new ToolStripMenuItem("Debug"),
+            new ToolStripMenuItem("Trace"),
+        ];
+
+        Microsoft.Extensions.Logging.LogLevel[] levels =
+        [
+            Microsoft.Extensions.Logging.LogLevel.Warning,
+            Microsoft.Extensions.Logging.LogLevel.Information,
+            Microsoft.Extensions.Logging.LogLevel.Debug,
+            Microsoft.Extensions.Logging.LogLevel.Trace,
+        ];
+
+        void UpdateChecks()
+        {
+            for (int i = 0; i < levels.Length; i++)
+                levelItems[i].Checked = _appLogSwitch.CurrentLevel == levels[i];
+        }
+
+        for (int i = 0; i < levelItems.Length; i++)
+        {
+            var level = levels[i];
+            levelItems[i].Click += (_, _) =>
+            {
+                _appLogSwitch.SetLevel(level);
+                UpdateChecks();
+                UpdateWindowTitle();
+            };
+            mnuLog.DropDownItems.Add(levelItems[i]);
+        }
+
+        _appLogSwitch.LevelChanged += (_, _) => UpdateChecks();
+
+        MainMenu1.Items.Add(mnuLog);
+        UpdateChecks();
+        UpdateWindowTitle();
+    }
+
+    private void UpdateWindowTitle()
+    {
+        Text = $"Fiplex Control Software {SoftwareVersion}  {_appLogSwitch.DisplayLabel}";
     }
 
     private async Task InitializeWebView2Async()
