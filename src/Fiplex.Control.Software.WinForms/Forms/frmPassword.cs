@@ -168,8 +168,8 @@ public partial class frmPassword : Form
     {
         ClearValidationError();
 
-        // Validate that the password is not empty
-        if (string.IsNullOrWhiteSpace(txtPassword.Text))
+        // Validate that the password is not empty (spaces allowed — device validates)
+        if (string.IsNullOrEmpty(txtPassword.Text))
         {
             MessageBox.Show(
                 _isEditMode

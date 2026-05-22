@@ -31,7 +31,7 @@ public class AuthService : IAuthService
 
     public async Task<AuthResult> AuthenticateAsync(string password, CancellationToken ct = default)
     {
-        if (string.IsNullOrWhiteSpace(password))
+        if (string.IsNullOrEmpty(password))
         {
             _logger.LogWarning("Empty password provided");
             return AuthResult.IncorrectPassword;
