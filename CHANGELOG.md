@@ -15,6 +15,22 @@
   - Nivel Trace cubre TX payload completo y RX primeros 80 chars (`SerialCommandPipeline.cs`).
   - Coexiste con `USBmessages_YYYYMMDD.txt` (`SerialTraceLogger`) — ambos sistemas activos en paralelo.
 
+### Fixed
+- **#28 — Calibration submenus disabled in factory mode** (`frmMain.cs`)
+  - **Root cause:** `ShowFactoryMenuAsync()` set `Visible = true` on `mnuLoadCal` / `mnuSaveCal` but never set `Enabled = true`. Both items appeared greyed-out despite being visible.
+  - **Fix:** Added `mnuLoadCal.Enabled = showCal` and `mnuSaveCal.Enabled = showCal` alongside the existing `Visible` assignments.
+- **#29 — UI not refreshing after License Apply Changes** (`frmMain.cs`)
+  - **Root cause:** `ShowLicenseManager()` never subscribed to the `ChangesApplied` event on `frmLicense` / `frmLicenseMaster`. Changes were applied to the device but the web UI remained stale until the user manually refreshed.
+  - **Fix:** Subscribe to `ChangesApplied` before `Show()` — calls `NavigateToDeviceUIAsync(forceAdvanced: true)` to reload the device page.
+- **#30 — PROJECT RELATED tag intermittently not stored despite green check** (`DeviceCommandRouter.cs`)
+  - **Root cause:** `UpdatePostCaches` evaluated `effectiveSuccess = commandSucceeded || !postCommand.WaitResponse`. For fire-and-forget commands (`!0`, `T0`, `C0`, etc., all with `WaitResponse=false`) this always resolved to `true`, so `_previousAnswer = "0"` regardless of whether the device ACK'd the write. If the device silently dropped the ACK, the tag was never stored but the JS showed a green check.
+  - **Fix:** Use `commandSucceeded` directly: `_previousAnswer = commandSucceeded ? "0" : "1"`. A missing ACK now returns `"1"` (ERR_FAIL), detected immediately by `check_result()` without the 25-second polling fallback.
+- **#31 — Device password authentication — VB 1.9 parity** (`frmPassword.cs`, `frmMain.cs`, `AuthService.cs`)
+  - **Root cause 1:** `IsNullOrWhiteSpace` blocked space-only passwords client-side; VB 1.9 passes any non-empty string to the device for validation.
+  - **Root cause 2:** Wrong password triggered `DisconnectAsync()` + MessageBox, forcing the user to reconnect from scratch. VB 1.9 keeps the dialog open with "Wrong password" shown inline.
+  - **Root cause 3:** Cancelling the dialog also showed "Wrong password" because the pipeline received `null` and returned `AuthenticationFailed`, indistinguishable from a wrong password.
+  - **Fix:** `IsNullOrEmpty` replaces `IsNullOrWhiteSpace` in `frmPassword` and `AuthService`. All capture-mode errors shown inline with auto-hide after 4 s. Cancel disconnects quietly; wrong password re-opens the dialog with error pre-filled and inline retry loop.
+
 ---
 
 ## [3.3.0] - 2026-05-20
@@ -51,23 +67,6 @@
   - **Fix — auth sequence:** `HandleInvalidCredentialsAsync` now logs `Tx0 V1` → `Rx0 INVALID CREDENTIALS` → `Tx0 *0{password}` → `Rx0 ACK`, matching VB 1.9 format exactly.
   - **Fix — TX/RX/ACK events:** `TxDiagnostic`, `RxDiagnostic`, `AckDiagnostic` events subscribed in `frmMain.cs` — every command TX and its ACK response are written to the trace file while logging is active.
   - **Residual difference (by design):** S1 spectrum polls run concurrently in v3.x vs. sequentially in VB 1.9; total elapsed time is similar (~2.5 s). Does not affect field diagnostics.
-- **#28 — Calibration submenus disabled in factory mode** (`frmMain.cs`)
-  - **Root cause:** `ShowFactoryMenuAsync()` set `Visible = true` on `mnuLoadCal` / `mnuSaveCal` but never set `Enabled = true`. Both items appeared greyed-out despite being visible.
-  - **Fix:** Added `mnuLoadCal.Enabled = showCal` and `mnuSaveCal.Enabled = showCal` alongside the existing `Visible` assignments.
-- **#29 — UI not refreshing after License Apply Changes** (`frmMain.cs`)
-  - **Root cause:** `ShowLicenseManager()` never subscribed to the `ChangesApplied` event on `frmLicense` / `frmLicenseMaster`. Changes were applied to the device but the web UI remained stale until the user manually refreshed.
-  - **Fix:** Subscribe to `ChangesApplied` before `Show()` — calls `NavigateToDeviceUIAsync(forceAdvanced: true)` to reload the device page.
-- **#30 — PROJECT RELATED tag intermittently not stored despite green check** (`DeviceCommandRouter.cs`)
-  - **Root cause:** `UpdatePostCaches` evaluated `effectiveSuccess = commandSucceeded || !postCommand.WaitResponse`. For fire-and-forget commands (`!0`, `T0`, `C0`, etc., all with `WaitResponse=false`) this always resolved to `true`, so `_previousAnswer = "0"` regardless of whether the device ACK'd the write. If the device silently dropped the ACK (timing issue), the tag was never stored but the JS showed a green check.
-  - **Fix:** Use `commandSucceeded` directly: `_previousAnswer = commandSucceeded ? "0" : "1"`. A missing ACK now returns `"1"` (ERR_FAIL), which `check_result()` detects immediately without the 25-second polling fallback.
-- **#31 — Device password authentication — VB 1.9 parity** (`frmPassword.cs`, `frmMain.cs`, `AuthService.cs`)
-  - **Root cause 1:** `IsNullOrWhiteSpace` blocked space-only passwords client-side; VB 1.9 passes any non-empty string to the device for validation.
-  - **Root cause 2:** Wrong password triggered `DisconnectAsync()` + MessageBox, forcing the user to reconnect from scratch. VB 1.9 keeps the dialog open with "Wrong password" shown inline.
-  - **Root cause 3:** Cancelling the dialog also showed "Wrong password" because the pipeline received `null` and returned `AuthenticationFailed`, indistinguishable from a wrong password.
-  - **Fix — empty check:** `IsNullOrWhiteSpace` → `IsNullOrEmpty` in `frmPassword` and `AuthService`. Spaces reach the device; device validates.
-  - **Fix — inline errors:** All capture-mode validation errors ("Password cannot be empty", "Wrong password") shown inline in red in the dialog; no MessageBox. Auto-hide after 4 seconds (VB 1.9 parity).
-  - **Fix — cancel vs wrong password:** `_userCancelledAuth` flag set in `OnPipelineCredentialsRequired` on cancel. `case IncorrectPassword` checks the flag: cancel → quiet disconnect; wrong password → retry dialog with inline error, no disconnect.
-  - **Fix — retry loop:** After wrong password the dialog re-opens with "Wrong password" pre-filled and an `AuthenticateCommand` delegate that authenticates inline. Subsequent wrong attempts show the error inline and keep the dialog active until success or Cancel.
 
 ---
 
