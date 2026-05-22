@@ -21,6 +21,11 @@ public partial class frmPassword : Form
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public Func<string, Task<string?>>? ChangePasswordCommand { get; set; }
 
+    // Delegate set by caller in capture mode. Authenticates against device.
+    // Returns null on success, error message string on failure (stays open — VB 1.9 parity).
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Func<string, Task<string?>>? AuthenticateCommand { get; set; }
+
     /// <summary>
     /// Gets or sets the password entered by the user.
     /// Allows pre-population of the field for improved UX.
@@ -116,12 +121,13 @@ public partial class frmPassword : Form
             // Hide confirmation field
             lblConfirm.Visible = false;
             txtConfirmPassword.Visible = false;
+
+            // Position error label between input and buttons; hidden until auth fails
+            lblPasswordError.AutoSize = true;
+            lblPasswordError.Location = new Point(20, 75);
             lblPasswordError.Visible = false;
 
-            // Adjust height for authentication mode
             Height = 160;
-            btnOK.Top = 85;
-            btnCancel.Top = 85;
         }
     }
 
@@ -234,7 +240,34 @@ public partial class frmPassword : Form
             }
         }
 
-        // Capture mode or no delegate — standard close
+        // Capture mode with auth delegate — authenticate inline (VB 1.9 parity: stays open on wrong password)
+        if (AuthenticateCommand != null)
+        {
+            SetControlsEnabled(false);
+            lblPasswordError.ForeColor = SystemColors.GrayText;
+            lblPasswordError.Text = "Verifying...";
+            lblPasswordError.Visible = true;
+
+            string? error = await AuthenticateCommand(txtPassword.Text);
+
+            if (error == null)
+            {
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            else
+            {
+                SetControlsEnabled(true);
+                lblPasswordError.ForeColor = Color.Red;
+                lblPasswordError.Text = error;
+                DialogResult = DialogResult.None;
+                txtPassword.SelectAll();
+                txtPassword.Focus();
+            }
+            return;
+        }
+
+        // Capture mode without delegate — standard close
         DialogResult = DialogResult.OK;
     }
 

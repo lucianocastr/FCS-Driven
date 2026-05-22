@@ -1639,9 +1639,21 @@ public partial class frmMain : Form
                     _logger.LogInformation("Device requires authentication");
                     LogStatus("Password required...");
 
-                    // Manual password dialog
                     using (var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>())
                     {
+                        // Auth runs inside the dialog — stays open on wrong password (VB 1.9 parity)
+                        passwordDialog.AuthenticateCommand = async (pwd) =>
+                        {
+                            var result = await _authService.AuthenticateAsync(pwd, _cts.Token);
+                            return result switch
+                            {
+                                AuthResult.AuthenticationSuccessful => null,
+                                AuthResult.IncorrectPassword        => "Wrong password",
+                                AuthResult.DeviceNotResponding      => "Device not responding",
+                                _                                   => "Authentication failed"
+                            };
+                        };
+
                         if (passwordDialog.ShowDialog(this) != DialogResult.OK)
                         {
                             _logger.LogInformation("User cancelled password dialog");
@@ -1649,49 +1661,9 @@ public partial class frmMain : Form
                             return;
                         }
 
-                        var authenticationResult = await _authService.AuthenticateAsync(
-                            passwordDialog.Password, _cts.Token);
-
-                        if (authenticationResult == AuthResult.IncorrectPassword)
-                        {
-                            _logger.LogWarning("Authentication failed - incorrect password");
-                            await DisconnectAsync();
-                            MessageBox.Show(
-                                "Wrong password.",
-                                "Authentication Failed",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Warning);
-                            return;
-                        }
-
-                        if (authenticationResult == AuthResult.DeviceNotResponding)
-                        {
-                            _logger.LogError("Device not responding during authentication");
-                            await DisconnectAsync();
-                            MessageBox.Show(
-                                "Device is not responding.\nPlease check the connection and try again.",
-                                "Connection Error",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Error);
-                            return;
-                        }
-
-                        if (authenticationResult != AuthResult.AuthenticationSuccessful)
-                        {
-                            _logger.LogError("Unexpected authentication result: {Result}", authenticationResult);
-                            await DisconnectAsync();
-                            MessageBox.Show(
-                                "Authentication failed.\nPlease try again.",
-                                "Authentication Failed",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Warning);
-                            return;
-                        }
-
                         _logger.LogInformation("Authentication successful");
                         LogStatus("Authentication successful");
 
-                        // Store validated password and configure in pipeline and router
                         _validatedPassword = passwordDialog.Password;
                         _pipeline.SetStoredPassword(passwordDialog.Password);
                         _commandRouter.SetStoredPassword(passwordDialog.Password);
