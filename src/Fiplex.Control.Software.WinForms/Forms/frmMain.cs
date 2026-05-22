@@ -1629,7 +1629,7 @@ public partial class frmMain : Form
                     _logger.LogWarning("Authentication failed - incorrect password");
                     await DisconnectAsync();
                     MessageBox.Show(
-                        "Incorrect password.\nPlease verify your credentials and try again.",
+                        "Wrong password.",
                         "Authentication Failed",
                         MessageBoxButtons.OK,
                         MessageBoxIcon.Warning);
@@ -1657,7 +1657,7 @@ public partial class frmMain : Form
                             _logger.LogWarning("Authentication failed - incorrect password");
                             await DisconnectAsync();
                             MessageBox.Show(
-                                "Incorrect password.\nPlease verify your credentials and try again.",
+                                "Wrong password.",
                                 "Authentication Failed",
                                 MessageBoxButtons.OK,
                                 MessageBoxIcon.Warning);
