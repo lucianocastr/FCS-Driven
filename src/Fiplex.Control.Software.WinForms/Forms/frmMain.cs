@@ -82,6 +82,10 @@ public partial class frmMain : Form
     // Set when user explicitly cancels the password dialog (vs wrong password)
     private bool _userCancelledAuth;
 
+    // Set during production tests (Clear EEPROM, 1CH, 2CH, etc.) to prevent
+    // base.js reload from cancelling in-progress pipeline commands.
+    private bool _productionTestInProgress;
+
     // Default page path for initial load and disconnection
     // Used when no device is connected or when executing Disconnect
     private static readonly string DefaultPagePath = Path.Combine(
@@ -395,7 +399,7 @@ public partial class frmMain : Form
 
         ToolStripMenuItem[] levelItems =
         [
-            new ToolStripMenuItem("Error / Warning"),
+            new ToolStripMenuItem("Warning + Error"),
             new ToolStripMenuItem("Info"),
             new ToolStripMenuItem("Debug"),
             new ToolStripMenuItem("Trace"),
@@ -1062,6 +1066,11 @@ public partial class frmMain : Form
     {
         try
         {
+            if (_productionTestInProgress)
+            {
+                _logger.LogDebug("base.js loaded during production test — skipping CancelPendingCommands");
+                return;
+            }
             _logger.LogDebug("base.js loaded - cancelling pending commands");
             _pipeline.CancelPendingCommands();
         }
@@ -3967,6 +3976,7 @@ public partial class frmMain : Form
             }
         }
 
+        _productionTestInProgress = true;
         try
         {
             LogStatus($"Applying {operationName}...");
@@ -4015,6 +4025,7 @@ public partial class frmMain : Form
         }
         finally
         {
+            _productionTestInProgress = false;
             Cursor = Cursors.Default;
             if (_sessionContext.State == ConnectionState.Connected)
             {
@@ -4170,7 +4181,19 @@ public partial class frmMain : Form
         _logger.LogInformation("SendProdConfig: tdev={TDev}, ndev={NDev}, nchannels={Channels}, mode={Mode}, clearROM={Clear}",
             tdev, ndev, nchannels, mode, clearROM);
 
-        var _prodLog = Path.Combine(Path.GetTempPath(), "fcs_prod_log.txt");
+        var _prodLogDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "FiplexControlSoftware");
+        Directory.CreateDirectory(_prodLogDir);
+        var _prodLog = Path.Combine(_prodLogDir, $"FCSProd_{DateTime.Now:yyyyMMdd}.txt");
+        try
+        {
+            foreach (var f in Directory.GetFiles(_prodLogDir, "FCSProd_*.txt"))
+                if (File.GetLastWriteTime(f) < DateTime.Now.AddDays(-7))
+                    File.Delete(f);
+        }
+        catch { }
+
         void ProdLog(string msg)
         {
             var line = $"{DateTime.Now:HH:mm:ss.fff} {msg}";
@@ -4183,7 +4206,7 @@ public partial class frmMain : Form
 
         try
         {
-            File.WriteAllText(_prodLog, $"=== FCS Production Log {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==={Environment.NewLine}");
+            File.AppendAllText(_prodLog, $"=== FCS Production Log {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==={Environment.NewLine}");
             ProdLog($"Device: tdev={tdev} ndev={ndev} nchannels={nchannels} mode={mode} clearROM={clearROM}");
 
             // Stabilization delay before sending commands

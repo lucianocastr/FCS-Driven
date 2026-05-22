@@ -36,7 +36,7 @@ public sealed class AppLogLevelSwitch
 
     public string DisplayLabel => CurrentLevel switch
     {
-        LogLevel.Warning     => "[Log: ERR]",
+        LogLevel.Warning     => "[Log: WARN]",
         LogLevel.Information => "[Log: INFO]",
         LogLevel.Debug       => "[Log: DBG]",
         LogLevel.Trace       => "[Log: TRC]",

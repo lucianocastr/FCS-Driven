@@ -7,7 +7,7 @@
   - Archivo diario `%APPDATA%\FiplexControlSoftware\FCSLog_YYYYMMDD.txt` activo desde el primer arranque.
   - Cuatro niveles seleccionables por el usuario: **Error** (default), **Info**, **Debug**, **Trace**.
   - Menú `LOG` público en la barra de menú principal (accesible sin restricciones) con checkmark en el nivel activo.
-  - Título de ventana refleja el nivel activo: `[Log: ERR]` / `[Log: INFO]` / `[Log: DBG]` / `[Log: TRC]`.
+  - Título de ventana refleja el nivel activo: `[Log: WARN]` / `[Log: INFO]` / `[Log: DBG]` / `[Log: TRC]`.
   - Separadores `SESSION START / SESSION END` con timestamp y nivel al abrir y cerrar la app.
   - Retención automática de 7 días; archivos anteriores eliminados al iniciar.
   - `ForceFlush` en handlers `UnhandledException` y `ThreadException` — los últimos eventos antes de un crash llegan al disco.
@@ -30,6 +30,19 @@
   - **Root cause 2:** Wrong password triggered `DisconnectAsync()` + MessageBox, forcing the user to reconnect from scratch. VB 1.9 keeps the dialog open with "Wrong password" shown inline.
   - **Root cause 3:** Cancelling the dialog also showed "Wrong password" because the pipeline received `null` and returned `AuthenticationFailed`, indistinguishable from a wrong password.
   - **Fix:** `IsNullOrEmpty` replaces `IsNullOrWhiteSpace` in `frmPassword` and `AuthService`. All capture-mode errors shown inline with auto-hide after 4 s. Cancel disconnects quietly; wrong password re-opens the dialog with error pre-filled and inline retry loop.
+- **Clear EEPROM production test cancelled mid-sequence by web UI reload** (`frmMain.cs`)
+  - **Root cause:** Pressing any web UI button (e.g. Status) during a production test triggered a page reload → `base.js` request → `OnHttpServerBaseJsLoaded` → `CancelPendingCommands()`. The J0 command (sent ~5 s into the sequence) received a cancellation token signal, returned `Status=Cancelled` with RTT=60 ms (far below the 10 s ACK timeout), and the test reported failure.
+  - **Confirmed via** `FCSProd_YYYYMMDD.txt`: `[J1→J0] Result: Success=False Status=Cancelled Retries=1 RTT=60ms`, followed 200 ms later by `POST command not found: global_req` — the reloaded page's first request.
+  - **Fix:** Added `_productionTestInProgress` flag (set before `SendProdConfigAsync`, cleared in `finally`). `OnHttpServerBaseJsLoaded` returns early without calling `CancelPendingCommands()` while the flag is set.
+
+### Changed
+- **FCSProd log relocated and date-stamped** (`frmMain.cs`)
+  - Moved from `%TEMP%\fcs_prod_log.txt` (ephemeral, overwritten on each run) to `%APPDATA%\FiplexControlSoftware\FCSProd_YYYYMMDD.txt`.
+  - Multiple production test runs on the same day accumulate in the same file (append mode with per-run header).
+  - Automatic 7-day retention — same policy as `FCSLog_YYYYMMDD.txt`.
+- **Log level default label corrected** (`AppLogLevelSwitch.cs`, `frmMain.cs`)
+  - `[Log: ERR]` renamed to `[Log: WARN]` in the window title — the default level (`Warning`) captures both warnings and errors. The previous label implied only errors were logged, which caused field technicians to underestimate the diagnostic value of the default log.
+  - Menu item "Error / Warning" renamed to "Warning + Error" for consistency.
 
 ---
 
