@@ -67,9 +67,9 @@ public partial class frmPassword : Form
             lblPasswordError.Visible = true;
             lblPasswordError.Text = string.Empty;
 
-            Height = 235;
             btnOK.Top = 162;
             btnCancel.Top = 162;
+            ClientSize = new Size(ClientSize.Width, 200);
         }
         else
         {
@@ -84,9 +84,9 @@ public partial class frmPassword : Form
             lblPasswordError.Location = new Point(20, 76);
             lblPasswordError.Visible = false;
 
-            Height = 160;
             btnOK.Top = 110;
             btnCancel.Top = 110;
+            ClientSize = new Size(ClientSize.Width, 155);
         }
     }
 
