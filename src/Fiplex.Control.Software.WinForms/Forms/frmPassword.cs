@@ -136,7 +136,7 @@ public partial class frmPassword : Form
     /// </summary>
     public void ShowValidationError(string errorMessage)
     {
-        if (_isEditMode && lblPasswordError != null)
+        if (lblPasswordError != null)
         {
             lblPasswordError.ForeColor = Color.Red;
             lblPasswordError.Text = errorMessage;

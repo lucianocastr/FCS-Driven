@@ -79,6 +79,9 @@ public partial class frmMain : Form
     // Validated password for INVALID CREDENTIALS retries
     private string? _validatedPassword;
 
+    // Set when user explicitly cancels the password dialog (vs wrong password)
+    private bool _userCancelledAuth;
+
     // Default page path for initial load and disconnection
     // Used when no device is connected or when executing Disconnect
     private static readonly string DefaultPagePath = Path.Combine(
@@ -1621,19 +1624,42 @@ public partial class frmMain : Form
                     return;
 
                 case AuthResult.IncorrectPassword:
-                    // Equivalente VB.NET: When frmPassword sends *0{password} and it fails,
-                    // VB shows "Wrong password" label inside the dialog and user can retry.
-                    // In C#, the pipeline's CredentialsRequired handler already showed the
-                    // password dialog during CheckAuthenticationRequirementAsync. If the password
-                    // was wrong, the pipeline returned AuthenticationFailed, which we map here.
+                    if (_userCancelledAuth)
+                    {
+                        // User explicitly cancelled — disconnect quietly (VB 1.9: no message on cancel)
+                        _userCancelledAuth = false;
+                        _validatedPassword = null;
+                        _pipeline.SetStoredPassword(null);
+                        await DisconnectAsync();
+                        return;
+                    }
+
+                    // Wrong password — show dialog with inline error, stay open for retry (VB 1.9 parity)
                     _logger.LogWarning("Authentication failed - incorrect password");
-                    await DisconnectAsync();
-                    MessageBox.Show(
-                        "Wrong password.",
-                        "Authentication Failed",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    return;
+                    _validatedPassword = null;
+                    _pipeline.SetStoredPassword(null);
+
+                    using (var retryDialog = _serviceProvider.GetRequiredService<frmPassword>())
+                    {
+                        retryDialog.Text = "Authentication Required";
+                        retryDialog.AuthenticateCommand = async (pwd) =>
+                        {
+                            var r = await _authService.AuthenticateAsync(pwd, _cts.Token);
+                            return r == AuthResult.AuthenticationSuccessful ? null : "Wrong password";
+                        };
+                        retryDialog.ShowValidationError("Wrong password");
+
+                        if (retryDialog.ShowDialog(this) != DialogResult.OK)
+                        {
+                            await DisconnectAsync();
+                            return;
+                        }
+
+                        _validatedPassword = retryDialog.Password;
+                        _pipeline.SetStoredPassword(retryDialog.Password);
+                        _commandRouter.SetStoredPassword(retryDialog.Password);
+                    }
+                    break;
 
                 case AuthResult.PasswordRequired:
                     _logger.LogInformation("Device requires authentication");
@@ -2063,9 +2089,9 @@ public partial class frmMain : Form
                 using var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>();
                 passwordDialog.Text = "Authentication Required";
                 if (passwordDialog.ShowDialog(this) == DialogResult.OK)
-                {
                     password = passwordDialog.Password;
-                }
+                else
+                    _userCancelledAuth = true;
             });
         }
         else
@@ -2073,9 +2099,9 @@ public partial class frmMain : Form
             using var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>();
             passwordDialog.Text = "Authentication Required";
             if (passwordDialog.ShowDialog(this) == DialogResult.OK)
-            {
                 password = passwordDialog.Password;
-            }
+            else
+                _userCancelledAuth = true;
         }
 
         if (!string.IsNullOrEmpty(password))
