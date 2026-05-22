@@ -234,13 +234,9 @@ public partial class frmPassword : Form
         DialogResult = DialogResult.Cancel;
     }
 
-    protected override void Dispose(bool disposing)
+    protected override void OnFormClosing(FormClosingEventArgs e)
     {
-        if (disposing)
-        {
-            StopErrorTimer();
-            components?.Dispose();
-        }
-        base.Dispose(disposing);
+        StopErrorTimer();
+        base.OnFormClosing(e);
     }
 }
