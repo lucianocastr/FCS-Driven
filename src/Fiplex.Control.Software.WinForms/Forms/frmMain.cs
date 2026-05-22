@@ -2768,7 +2768,9 @@ public partial class frmMain : Form
                 mnuCal.Visible = showCal;
                 mnuCal.Enabled = showCal;
                 mnuLoadCal.Visible = showCal;
+                mnuLoadCal.Enabled = showCal;
                 mnuSaveCal.Visible = showCal;
+                mnuSaveCal.Enabled = showCal;
             }
 
             // Update navi frame to expose factory sidebar links, then auto-navigate content to factory page.
