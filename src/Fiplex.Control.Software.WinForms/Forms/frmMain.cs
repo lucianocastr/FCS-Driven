@@ -2843,6 +2843,11 @@ public partial class frmMain : Form
                 ? _serviceProvider.GetRequiredService<frmLicenseMaster>()
                 : _serviceProvider.GetRequiredService<frmLicense>();
 
+            if (licenseForm is frmLicense lic)
+                lic.ChangesApplied += async (s, args) => await NavigateToDeviceUIAsync(forceAdvanced: true);
+            else if (licenseForm is frmLicenseMaster licM)
+                licM.ChangesApplied += async (s, args) => await NavigateToDeviceUIAsync(forceAdvanced: true);
+
             licenseForm.Show(this);
         }
         catch (Exception ex)
