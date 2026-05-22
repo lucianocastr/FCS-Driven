@@ -177,21 +177,18 @@ public partial class frmPassword : Form
         // Validate that the password is not empty (spaces allowed — device validates)
         if (string.IsNullOrEmpty(txtPassword.Text))
         {
-            if (!_isEditMode && AuthenticateCommand != null)
+            if (_isEditMode)
+            {
+                MessageBox.Show(
+                    "New password cannot be empty.",
+                    "Validation Error",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+            }
+            else
             {
                 ShowValidationError("Password cannot be empty.");
-                DialogResult = DialogResult.None;
-                txtPassword.Focus();
-                return;
             }
-
-            MessageBox.Show(
-                _isEditMode
-                    ? "New password cannot be empty."
-                    : "Password cannot be empty.",
-                "Validation Error",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
 
             DialogResult = DialogResult.None;
             txtPassword.Focus();
