@@ -99,7 +99,18 @@ public partial class frmPassword : Form
         lblPasswordError.ForeColor = Color.FromArgb(196, 32, 32);
         lblPasswordError.Text = errorMessage;
         lblPasswordError.Visible = true;
-        // VB 1.9 parity: error persists until user succeeds or cancels — no auto-dismiss timer.
+
+        if (!_isEditMode)
+        {
+            // VB 1.9 parity: "Wrong password" auto-dismisses after a short period.
+            _errorTimer = new System.Windows.Forms.Timer { Interval = 4000 };
+            _errorTimer.Tick += (s, e) =>
+            {
+                lblPasswordError.Visible = false;
+                StopErrorTimer();
+            };
+            _errorTimer.Start();
+        }
     }
 
     public void ClearValidationError()
@@ -191,6 +202,9 @@ public partial class frmPassword : Form
 
         if (AuthenticateCommand != null)
         {
+            // Set DialogResult.None before the await to prevent WinForms from closing
+            // the form via AcceptButton mechanics while the serial call is in flight.
+            DialogResult = DialogResult.None;
             SetControlsEnabled(false);
             lblPasswordError.ForeColor = SystemColors.GrayText;
             lblPasswordError.Text = "Verifying...";
