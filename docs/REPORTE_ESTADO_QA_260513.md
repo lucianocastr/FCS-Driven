@@ -67,7 +67,7 @@
 | #28 | Factory Menu — Calibration LOAD y SAVE deshabilitados | Bug | Alta | ✅ Fix aplicado — CHANGELOG 3.4.0 | `623ed9a` |
 | #29 | License Apply Changes no refresca la UI principal | Bug | Media | ✅ Fix aplicado — CHANGELOG 3.4.0 | — |
 | #30 | Tag (Assisted GUI) no se retiene tras Save post-Clear EEPROM | Bug | Alta | ✅ Fix aplicado — JS + DeviceCommandRouter | `08dd89a` |
-| #31 | Password con espacios es ignorada | Bug | Media | ✅ Fix aplicado — CHANGELOG 3.4.0 | — |
+| #31 | Password con espacios ignorada / doble dialog auth | Bug | Media | ✅ Fix aplicado y validado | `90a4946` `a3fc33f` `5570a02` |
 | #32 | Factory Menu / Change Password — aplica solo Ethernet, no USB | Bug | Media | Pendiente | — |
 | #33 | Diff config files | Pendiente info | — | Pendiente acceso Fiplex | — |
 | #34 | COM port discovery falla — hallazgo aleatorio | Bug | Media | Pendiente análisis | — |
@@ -540,18 +540,26 @@ El buffer de proyecto es posicional de 730 bytes:
 
 ---
 
-### Issue #31 — Password con espacios es ignorada
+### Issue #31 — Password con espacios ignorada / doble dialog de autenticación
 
-**Descripción del cliente:** Una contraseña que contiene espacios es ignorada / rechazada incorrectamente.
+**Descripción del cliente:** Una contraseña con espacios es rechazada incorrectamente. En ocasiones al ingresar password incorrecta aparece un segundo dialog de autenticación sin estilo encima del primero.
 
-**Root cause (triple):**
-1. `IsNullOrWhiteSpace` bloqueaba contraseñas con solo espacios client-side; VB 1.9 pasa cualquier string no vacío al dispositivo.
-2. Password incorrecta disparaba `DisconnectAsync()`, forzando al usuario a reconectarse.
-3. Cancelar el diálogo también mostraba "Wrong password".
+**Root cause (cinco causas):**
+1. `IsNullOrWhiteSpace` bloqueaba passwords con solo espacios client-side; VB 1.9 envía cualquier input al device.
+2. Modo auth bloqueaba password vacía con validación cliente; VB 1.9 envía vacío al device → "Wrong password".
+3. Timer de 4s auto-ocultaba "Wrong password" en casos de validación cliente, dando percepción de "dialog se reinicia sin advertencia".
+4. `DialogResult` no seteado a `None` antes del `await AuthenticateCommand(...)` → mecanismo `AcceptButton` podía cerrar el form durante la espera serial → efecto "nuevo dialog" sin mostrar "Wrong password".
+5. `OnPipelineCredentialsRequired` abría un segundo `frmPassword` sin estilo mientras el primero esperaba respuesta de `*0{password}`. El pipeline dispara el callback ante cualquier "INVALID CREDENTIALS" — incluyendo durante el intento de auth.
 
-**Fix:** `IsNullOrEmpty` reemplaza `IsNullOrWhiteSpace`; errores mostrados inline con auto-hide 4s; cancelar desconecta sin mensaje; password incorrecta mantiene diálogo abierto con retry inline.
-**Archivos:** `frmPassword.cs`, `frmMain.cs`, `AuthService.cs`.
-**Estado:** ✅ Fix aplicado — CHANGELOG 3.4.0.
+**Fixes aplicados:**
+- `IsNullOrEmpty` en lugar de `IsNullOrWhiteSpace`; modo auth omite validación cliente — todo va al device.
+- Timer 4s conservado en modo auth para todos los casos de "Wrong password".
+- `DialogResult = None` antes del `await` en `btnOK_Click`.
+- Flag `_authDialogOpen` en `frmMain` — seteado antes de `ShowDialog` en `IncorrectPassword` y `PasswordRequired`, limpiado en `finally`. `OnPipelineCredentialsRequired` retorna `null` inmediatamente si el flag está activo.
+
+**Commits:** `90a4946` · `a3fc33f` · `5570a02`
+**Archivos:** `frmPassword.cs`, `frmMain.cs`
+**Estado:** ✅ Fix aplicado y validado — 26/05/2026.
 
 ---
 
@@ -614,6 +622,7 @@ El buffer de proyecto es posicional de 730 bytes:
 | 19/05/2026 | DAS Remote no identificado — fix discovery: MaxRetries 2→5 (paridad VB 1.9) + OpenPortTimeout 2s→4s |
 | 26/05/2026 | V4 issues #28-#34 incorporados al reporte (referencia: 260515_New FCS_Findings_V4) |
 | 26/05/2026 | Issue #30 fix JS — eliminado trim() en formatProjConfig (htdocs_2c/2c1/2c2, .js y .jsm) — commit 08dd89a pusheado a release/3.3 |
-| 26/05/2026 | Issues #28, #29, #31 documentados — fixes en CHANGELOG 3.4.0 (pendiente commit de Fiplex) |
+| 26/05/2026 | Issues #28, #29 documentados — fixes en CHANGELOG 3.4.0 (pendiente commit de Fiplex) |
+| 26/05/2026 | Issue #31 validado — 5 root causes corregidos; commits 90a4946, a3fc33f, 5570a02 |
 | 26/05/2026 | Issues #32, #33, #34 — pendientes análisis y acceso |
 
