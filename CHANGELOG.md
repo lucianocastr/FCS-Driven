@@ -28,6 +28,9 @@
 - **#29 — UI not refreshing after License Apply Changes** (`frmMain.cs`)
   - **Root cause:** `ShowLicenseManager()` never subscribed to the `ChangesApplied` event on `frmLicense` / `frmLicenseMaster`. Changes were applied to the device but the web UI remained stale until the user manually refreshed.
   - **Fix:** Subscribe to `ChangesApplied` before `Show()` — calls `NavigateToDeviceUIAsync(forceAdvanced: true)` to reload the device page.
+- **#30 — PROJECT RELATED tag not retained after Save post-Clear EEPROM** (`global.js`, `global.jsm` — `htdocs_2c`, `htdocs_2c1`, `htdocs_2c2`)
+  - **Root cause:** `formatProjConfig` applied `str.trim()` to the 730-byte positional buffer before hex-encoding. When all hidden fields (prjinfo_0–prjinfo_7, offsets 0–699) were empty spaces — exactly the state after Clear EEPROM — `trim()` collapsed the leading pad bytes, shifting the Tag value (prjinfo_8, offset 700) to offset 0. On reload, `parseProjConfig` read `str.substr(700, 30)` and found empty bytes.
+  - **Fix:** Removed `str.trim()` / `t=t.trim()` from `formatProjConfig` in all three device variants (`.js` and `.jsm`). The buffer is assembled by the Save handler with exact positional padding — trim must never be applied.
 - **#30 — PROJECT RELATED tag intermittently not stored despite green check** (`DeviceCommandRouter.cs`)
   - **Root cause:** `UpdatePostCaches` evaluated `effectiveSuccess = commandSucceeded || !postCommand.WaitResponse`. For fire-and-forget commands (`!0`, `T0`, `C0`, etc., all with `WaitResponse=false`) this always resolved to `true`, so `_previousAnswer = "0"` regardless of whether the device ACK'd the write. If the device silently dropped the ACK, the tag was never stored but the JS showed a green check.
   - **Fix:** Use `commandSucceeded` directly: `_previousAnswer = commandSucceeded ? "0" : "1"`. A missing ACK now returns `"1"` (ERR_FAIL), detected immediately by `check_result()` without the 25-second polling fallback.
