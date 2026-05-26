@@ -86,6 +86,10 @@ public partial class frmMain : Form
     // base.js reload from cancelling in-progress pipeline commands.
     private bool _productionTestInProgress;
 
+    // VB 1.9 parity: last-used calibration file paths (retained across saves/loads)
+    private string? _lastCalSavePath;
+    private string? _lastCalLoadPath;
+
     // Default page path for initial load and disconnection
     // Used when no device is connected or when executing Disconnect
     private static readonly string DefaultPagePath = Path.Combine(
@@ -724,16 +728,24 @@ public partial class frmMain : Form
             if (string.IsNullOrWhiteSpace(frmsJson) || webView?.CoreWebView2 == null)
                 return;
 
-            // Clear the filterToolCheckApply flag before relaying to toolSubmit.
-            // Both navi.js polling and this C# handler would otherwise both call toolSubmit,
-            // sending C0 twice and potentially leaving the device in a confused state.
+            // Clear the filterToolCheckApply flag to prevent navi.js polling from also
+            // calling toolSubmit (would send C0 twice, leaving device in confused state).
+            // Navigate to the status page first if the content frame is not already there —
+            // toolSubmit is only defined when start.zhtml is loaded in the content frame.
             var script = $@"(function(){{try{{
                 var ks=Object.keys(localStorage);
                 for(var i=0;i<ks.length;i++){{
                     if(ks[i].indexOf('filterToolCheckApply')===0)localStorage.setItem(ks[i],'0');
                 }}
                 var frms={frmsJson};
-                top.frames['content'].toolSubmit(frms);
+                var cf=top.frames['content'];
+                if(!cf)return;
+                if(cf.startPage){{
+                    cf.toolSubmit(frms);
+                }}else{{
+                    cf.location.href='start.zhtml';
+                    setTimeout(function(){{top.frames['content'].toolSubmit(frms);}},3000);
+                }}
             }}catch(e){{}}}})()" ;
             _ = webView.CoreWebView2.ExecuteScriptAsync(script);
             _logger.LogDebug("Filter Tool Apply Proposal relayed to content frame");
@@ -1829,8 +1841,8 @@ public partial class frmMain : Form
             mnuLoadConfig.Enabled = configEnabled;
             mnuSaveConfig.Enabled = configEnabled;
 
-            // Enable calibration menus if visible
-            if (mnuCal.Visible)
+            // Enable calibration menus if available (Available, not Visible — see comment in ExecuteFileOperationAsync)
+            if (mnuCal.Available)
             {
                 mnuCal.Enabled = true;
                 mnuSaveCal.Enabled = true;
@@ -2007,6 +2019,7 @@ public partial class frmMain : Form
             mnuFWVer.Visible = false;
 
             // Hide calibration menus (only visible in factory mode)
+            _logger.LogWarning("DisconnectAsync: hiding cal menus (mnuCal.Visible was {V})", mnuCal.Visible);
             mnuCal.Visible = false;
             mnuCal.Enabled = false;
             mnuLoadCal.Visible = false;
@@ -2778,6 +2791,7 @@ public partial class frmMain : Form
                 mnuLoadCal.Enabled = showCal;
                 mnuSaveCal.Visible = showCal;
                 mnuSaveCal.Enabled = showCal;
+                _logger.LogDebug("ShowFactory: TDev={TDev} showCal={ShowCal}", device.TDev, showCal);
             }
 
             // Update navi frame to expose factory sidebar links, then auto-navigate content to factory page.
@@ -3036,15 +3050,15 @@ public partial class frmMain : Form
         using var saveDialog = new SaveFileDialog
         {
             Title = "Save Device Calibration",
-            // Supports new format (.cal)
             Filter = "Calibration Files (*.cal)|*.cal|Legacy Format (*.calr)|*.calr|All Files (*.*)|*.*",
             DefaultExt = "cal",
-            FileName = $"{_sessionContext.Device?.TDev ?? "device"}_calibration_{DateTime.Now:yyyyMMdd_HHmmss}.cal"
+            FileName = _lastCalSavePath ?? string.Empty
         };
 
         if (saveDialog.ShowDialog() != DialogResult.OK)
             return;
 
+        _lastCalSavePath = saveDialog.FileName;
         await ExecuteFileOperationAsync(FileOperationType.SaveCalibration, saveDialog.FileName, saveCommands);
     }
 
@@ -3072,14 +3086,15 @@ public partial class frmMain : Form
         using var openDialog = new OpenFileDialog
         {
             Title = "Load Device Calibration",
-            // Supports new format (.cal)
             Filter = "Calibration Files (*.cal;*.calr)|*.cal;*.calr|New Format (*.cal)|*.cal|Legacy Format (*.calr)|*.calr|All Files (*.*)|*.*",
-            DefaultExt = "cal"
+            DefaultExt = "cal",
+            FileName = _lastCalLoadPath ?? string.Empty
         };
 
         if (openDialog.ShowDialog() != DialogResult.OK)
             return;
 
+        _lastCalLoadPath = openDialog.FileName;
         await ExecuteFileOperationAsync(FileOperationType.LoadCalibration, openDialog.FileName, loadCommands);
     }
 
@@ -3122,6 +3137,15 @@ public partial class frmMain : Form
             LogStatus($"{operationName}: {message} ({p.PercentComplete:F0}%)");
         });
 
+        // Use Available (not Visible) for snapshot: ToolStripMenuItem.Visible getter returns
+        // Available && parent.Visible. When the File dropdown is closed, parent.Visible=false
+        // → Visible always reads back false even after setting it to true. Available reflects
+        // the item's own visibility state, independent of parent dropdown state.
+        bool calMenuWasVisible = mnuCal.Available;
+        _logger.LogDebug(
+            "FileOp start: op={Op} calMenuWasVisible={V} mnuCal.Available={A} mnuCal.Enabled={CE}",
+            operationType, calMenuWasVisible, mnuCal.Available, mnuCal.Enabled);
+
         try
         {
             // Disable menus during operation
@@ -3155,11 +3179,26 @@ public partial class frmMain : Form
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
 
-                // Post-operation navigation for calibration
+                // Post-calibration menu restoration.
+                // NavigateToFactoryMenuAsync() was removed: navigating fact.zhtml reloads
+                // base.js → BaseJsLoaded → CancelPendingCommands() fires on the HTTP thread
+                // while the pipeline's internal state races against the UI re-enable.
+                // The content frame is already on fact.zhtml from ShowFactoryMenuAsync —
+                // no navigation is needed; just re-assert factory menu visibility.
                 if (operationType == FileOperationType.SaveCalibration ||
                     operationType == FileOperationType.LoadCalibration)
                 {
-                    await NavigateToFactoryMenuAsync();
+                    _logger.LogDebug("Cal {Op} restore: calMenuWasVisible={V}", operationType, calMenuWasVisible);
+                    if (calMenuWasVisible)
+                    {
+                        mnuCal.Visible = true;
+                        mnuCal.Enabled = true;
+                        mnuSaveCal.Visible = true;
+                        mnuSaveCal.Enabled = true;
+                        mnuLoadCal.Visible = true;
+                        mnuLoadCal.Enabled = true;
+                        _logger.LogDebug("Factory cal menus restored after {Op}", operationType);
+                    }
                 }
 
                 // Refresh WebView for successful LoadConfig and SaveConfig
@@ -3208,6 +3247,9 @@ public partial class frmMain : Form
         {
             // Re-enable menus if still connected
             // Includes parent menus along with child items
+            _logger.LogDebug(
+                "FileOp finally: state={State} calMenuWasVisible={V} mnuCal.Available={A} mnuCal.Enabled={CE}",
+                _sessionContext.State, calMenuWasVisible, mnuCal.Available, mnuCal.Enabled);
             if (_sessionContext.State == ConnectionState.Connected)
             {
                 // mnuConfig stays disabled for Flex devices (4dm*, 5dm, 2c)
@@ -3215,13 +3257,24 @@ public partial class frmMain : Form
                 mnuConfig.Enabled = configEnabled;
                 mnuSaveConfig.Enabled = configEnabled;
                 mnuLoadConfig.Enabled = configEnabled;
-                // Re-enable calibration menus only if device supports them
-                if (mnuCal.Visible)
+                // Re-enable calibration menus using pre-operation snapshot — avoids the
+                // guard failing if a navigation race reset Visible during the operation.
+                if (calMenuWasVisible)
                 {
+                    mnuCal.Visible = true;
                     mnuCal.Enabled = true;
+                    mnuSaveCal.Visible = true;
                     mnuSaveCal.Enabled = true;
+                    mnuLoadCal.Visible = true;
                     mnuLoadCal.Enabled = true;
+                    _logger.LogDebug("Factory cal menus restored in finally block");
                 }
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "FileOp finally: NOT connected ({State}) — cal menu restore skipped",
+                    _sessionContext.State);
             }
             cmdConnect.Enabled = true;
         }
@@ -3237,30 +3290,23 @@ public partial class frmMain : Form
     {
         try
         {
-            if (!_httpServerIsRunning)
-            {
-                _logger.LogWarning("HTTP server not running, cannot navigate to factory menu");
+            if (webView?.CoreWebView2 == null)
                 return;
-            }
 
-            var factoryMenuUrl = $"http://localhost:{_httpPort}/factory/fmenu.html";
-            _logger.LogInformation("Navigating to factory menu: {Url}", factoryMenuUrl);
+            // Navigate only the content frame — mirrors ShowFactoryMenuAsync's frame-only
+            // approach. Full main-WebView navigation (factory/index.html) caused head.html
+            // to trigger a second base.js load whose side-effects raced against menu re-enable.
+            var device = _sessionContext.Device;
+            string factoryPage = (device?.TDev == "1de") ? "/factory/index.html" : "/factory/fact.zhtml";
 
-            // Stop current navigation first
-            webView.Stop();
+            await webView.CoreWebView2.ExecuteScriptAsync(
+                $"try {{ window.frames['content'].location.href = '{factoryPage}'; }} catch(e) {{}}");
 
-            // Small delay to ensure browser is ready
-            await Task.Delay(100);
-
-            // Navigate to factory menu
-            webView.Source = new Uri(factoryMenuUrl);
-
-            _logger.LogDebug("Navigation to factory menu initiated");
+            _logger.LogDebug("Factory content frame navigated to {Page}", factoryPage);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error navigating to factory menu");
-            // Don't throw exception - navigation is secondary to main operation
         }
     }
 

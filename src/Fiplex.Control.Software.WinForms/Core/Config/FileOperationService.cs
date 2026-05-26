@@ -403,37 +403,40 @@ public class FileOperationService : IFileOperationService
             return new CalibrationCommandResult(false, null, errorMsg);
         }
         
-        // Cancel pending commands before each send
+        // Cancel any queued commands, then discard OS buffer + reset parser to eliminate stale
+        // in-flight bytes from cancelled polling commands (S1, N1) that may still be arriving.
+        // Uses DiscardAndFlushBuffer (not FlushInputBuffer) to also clear the OS receive buffer —
+        // FlushInputBuffer is parser-reset only (VB 1.9 parity for password devices).
         _serialPipeline.CancelPendingCommands();
-        
+        _serialPipeline.DiscardAndFlushBuffer();
+
         // Concatenate command + data from file
         var primaryCommand = cmdGroup.Commands.FirstOrDefault();
         if (string.IsNullOrEmpty(primaryCommand))
         {
             return new CalibrationCommandResult(false, null, "No command defined for calibration frame");
         }
-        
+
         var fullCommand = $"{primaryCommand}{fileDataLine}";
-        _logger.LogDebug("LoadCal sending: {Command}", fullCommand);
-        
+        _logger.LogDebug("LoadCal frame {Index}: cmd={Cmd} dataLen={DataLen}", frameIndex, primaryCommand, fileDataLine.Length);
+
         var serialCmd = new SerialCommand
         {
             Payload = fullCommand,
             ExpectsAck = true,
-            ExpectsData = true,
-            AckTimeout = AckTimeout,
+            ExpectsData = false,         // F0/Q0 are write commands: device ACKs only, no data payload
+            DiscardDataBeforeAck = true, // Discard any stale in-flight bytes from cancelled S1/N1
+            AckTimeout = TimeSpan.FromSeconds(5), // Device needs time to process 482 bytes before ACKing
             DataTimeout = CommandTimeout,
             MaxRetries = 1,
             CancellationToken = ct
         };
-        
+
         var result = await _serialPipeline.EnqueueCommandAsync(serialCmd);
-        
-        // Verify ACK response
-        if (!result.Success || !result.Data.Equals(AckResponse, StringComparison.OrdinalIgnoreCase))
+
+        if (!result.Success)
         {
-            _logger.LogError("LoadCal frame {Index} failed: expected ACK, got {Response}", 
-                frameIndex, result.Data);
+            _logger.LogError("LoadCal frame {Index} failed: Status={Status}", frameIndex, result.Status);
             return new CalibrationCommandResult(false, result.Data, "Error sending calibration");
         }
         

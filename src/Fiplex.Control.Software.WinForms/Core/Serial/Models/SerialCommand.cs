@@ -97,6 +97,14 @@ public record SerialCommand
     /// </summary>
     public bool IsSilent { get; init; } = false;
 
+    /// <summary>
+    /// When true, any DataFrame token received while waiting for ACK is discarded and the
+    /// pipeline continues waiting for the real ACK. Prevents stale responses from a previously
+    /// cancelled command (in-flight bytes) from being treated as this command's response.
+    /// Use for write commands sent immediately after cancelling a polling command (e.g. LoadCAL).
+    /// </summary>
+    public bool DiscardDataBeforeAck { get; init; } = false;
+
     /// <summary>Gets the cancellation token for this command.</summary>
     public CancellationToken CancellationToken { get; init; }
 }

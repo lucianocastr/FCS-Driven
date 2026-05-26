@@ -96,11 +96,21 @@ public interface ISerialCommandPipeline : IDisposable
     void CancelPendingCommands();
 
     /// <summary>
-    /// Flushes the serial input buffer and resets the protocol parser.
-    /// Mirrors VB 1.9 CancelCommands(True) → FlushRS232() + instRx="".
-    /// Called before each production command to avoid residual-byte contamination.
+    /// Resets the protocol parser internal buffer only (instRx="" equivalent).
+    /// Mirrors VB 1.9 CancelCommands(True) for deviceWithPass=true devices — VB 1.9
+    /// skips FlushRS232() (OS buffer discard) for password-authenticated devices.
+    /// Use for production test commands and general inter-command cleanup.
     /// </summary>
     void FlushInputBuffer();
+
+    /// <summary>
+    /// Discards the OS receive buffer (SerialPort.DiscardInBuffer) AND resets the parser.
+    /// Mirrors VB 1.9 FlushRS232() + instRx="" for non-password devices.
+    /// Use when stale in-flight bytes from cancelled commands must be discarded before
+    /// sending a write command (e.g. LoadCAL F0/Q0 immediately after cancelling S1).
+    /// Do NOT use for production test on password devices — breaks VB 1.9 parity.
+    /// </summary>
+    void DiscardAndFlushBuffer();
 
     /// <summary>
     /// Raised when a command transitions between states in the pipeline.
