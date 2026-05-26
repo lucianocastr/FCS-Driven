@@ -837,7 +837,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 }
             }
 
-            _logger.LogWarning("POST command not found: {Page}. Candidates: {Candidates}", page, string.Join(", ", lookupCandidates));
+            _logger.LogDebug("POST command not found: {Page}. Candidates: {Candidates}", page, string.Join(", ", lookupCandidates));
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "not_found", stopwatch.Elapsed.TotalSeconds, 0);
