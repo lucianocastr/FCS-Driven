@@ -82,6 +82,12 @@ public partial class frmMain : Form
     // Set when user explicitly cancels the password dialog (vs wrong password)
     private bool _userCancelledAuth;
 
+    // Guards against opening a second password dialog while ConnectAsync auth is already
+    // in progress. The pipeline calls OnPipelineCredentialsRequired when the device returns
+    // INVALID CREDENTIALS — including during *0{password} attempts — which would otherwise
+    // open a second frmPassword while the first is still waiting for the serial response.
+    private bool _authDialogOpen;
+
     // Set during production tests (Clear EEPROM, 1CH, 2CH, etc.) to prevent
     // base.js reload from cancelling in-progress pipeline commands.
     private bool _productionTestInProgress;
@@ -1660,32 +1666,40 @@ public partial class frmMain : Form
                     _validatedPassword = null;
                     _pipeline.SetStoredPassword(null);
 
-                    using (var retryDialog = _serviceProvider.GetRequiredService<frmPassword>())
+                    _authDialogOpen = true;
+                    try
                     {
-                        retryDialog.Text = "Authentication Required";
-                        retryDialog.AuthenticateCommand = async (pwd) =>
+                        using (var retryDialog = _serviceProvider.GetRequiredService<frmPassword>())
                         {
-                            var r = await _authService.AuthenticateAsync(pwd, _cts.Token);
-                            return r == AuthResult.AuthenticationSuccessful ? null : "Wrong password";
-                        };
-                        retryDialog.ShowValidationError("Wrong password");
+                            retryDialog.Text = "Authentication Required";
+                            retryDialog.AuthenticateCommand = async (pwd) =>
+                            {
+                                var r = await _authService.AuthenticateAsync(pwd, _cts.Token);
+                                return r == AuthResult.AuthenticationSuccessful ? null : "Wrong password";
+                            };
+                            retryDialog.ShowValidationError("Wrong password");
 
-                        if (retryDialog.ShowDialog(this) != DialogResult.OK)
-                        {
-                            await DisconnectAsync();
-                            return;
+                            if (retryDialog.ShowDialog(this) != DialogResult.OK)
+                            {
+                                await DisconnectAsync();
+                                return;
+                            }
+
+                            _validatedPassword = retryDialog.Password;
+                            _pipeline.SetStoredPassword(retryDialog.Password);
+                            _commandRouter.SetStoredPassword(retryDialog.Password);
                         }
-
-                        _validatedPassword = retryDialog.Password;
-                        _pipeline.SetStoredPassword(retryDialog.Password);
-                        _commandRouter.SetStoredPassword(retryDialog.Password);
                     }
+                    finally { _authDialogOpen = false; }
                     break;
 
                 case AuthResult.PasswordRequired:
                     _logger.LogInformation("Device requires authentication");
                     LogStatus("Password required...");
 
+                    _authDialogOpen = true;
+                    try
+                    {
                     using (var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>())
                     {
                         // Auth runs inside the dialog — stays open on wrong password (VB 1.9 parity)
@@ -1715,6 +1729,8 @@ public partial class frmMain : Form
                         _pipeline.SetStoredPassword(passwordDialog.Password);
                         _commandRouter.SetStoredPassword(passwordDialog.Password);
                     }
+                    }
+                    finally { _authDialogOpen = false; }
                     break;
 
                 case AuthResult.NoAuthRequired:
@@ -2093,6 +2109,15 @@ public partial class frmMain : Form
     /// </remarks>
     private async Task<string?> OnPipelineCredentialsRequired()
     {
+        // If ConnectAsync already has an auth dialog open (e.g. waiting for *0{password} ACK),
+        // the pipeline's INVALID CREDENTIALS callback must not open a second dialog.
+        // The auth result will be handled by the existing dialog's AuthenticateCommand delegate.
+        if (_authDialogOpen)
+        {
+            _logger.LogDebug("Auth dialog already open — suppressing duplicate credential prompt");
+            return null;
+        }
+
         // First try to use already validated password
         if (!string.IsNullOrEmpty(_validatedPassword))
         {
