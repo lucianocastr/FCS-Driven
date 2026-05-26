@@ -99,18 +99,7 @@ public partial class frmPassword : Form
         lblPasswordError.ForeColor = Color.FromArgb(196, 32, 32);
         lblPasswordError.Text = errorMessage;
         lblPasswordError.Visible = true;
-
-        if (!_isEditMode)
-        {
-            // Auto-hide after 4 seconds (VB 1.9 parity)
-            _errorTimer = new System.Windows.Forms.Timer { Interval = 4000 };
-            _errorTimer.Tick += (s, e) =>
-            {
-                lblPasswordError.Visible = false;
-                StopErrorTimer();
-            };
-            _errorTimer.Start();
-        }
+        // VB 1.9 parity: error persists until user succeeds or cancels — no auto-dismiss timer.
     }
 
     public void ClearValidationError()
@@ -142,14 +131,13 @@ public partial class frmPassword : Form
     {
         ClearValidationError();
 
-        if (string.IsNullOrEmpty(txtPassword.Text))
+        // VB 1.9 parity (auth mode): any input — including empty string or spaces — is sent
+        // directly to the device. The device responds "Wrong password" and the error persists.
+        // Client-side empty validation only applies to Change Password (edit mode).
+        if (_isEditMode && string.IsNullOrEmpty(txtPassword.Text))
         {
-            if (_isEditMode)
-                MessageBox.Show("New password cannot be empty.", "Validation Error",
-                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
-            else
-                ShowValidationError("Password cannot be empty.");
-
+            MessageBox.Show("New password cannot be empty.", "Validation Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
             DialogResult = DialogResult.None;
             txtPassword.Focus();
             return;
