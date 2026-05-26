@@ -3,10 +3,10 @@
 
 | Campo | Valor |
 |---|---|
-| Referencia | `260513_New FCS_Findings_V1.xlsx` |
+| Referencia | `260515_New FCS_Findings_V4(Findings).csv` |
 | Fecha de apertura | 13/05/2026 |
-| Última actualización | 19/05/2026 — V3 issues #22-#27 incorporados; #9 REJECTED cliente (no reproducible dev) |
-| Rama activa | `fix/v303-client-issues` |
+| Última actualización | 26/05/2026 — V4 issues #28-#34 incorporados; #30 fix JS aplicado y pusheado |
+| Rama activa | `release/3.3` |
 | Repositorio | `E:\Ikarus\Proyecto C#\FCS302OK\FCSDev` |
 | Referencia funcional | FCS 1.9 VB.NET — `E:\Ikarus\Proyecto C#\FCS` |
 | Modelo en prueba | Signal Booster (2c/BDA) |
@@ -25,6 +25,9 @@
 | **V3 — Issues nuevos (19/05/2026)** | 6 |
 | V3 — Validados / mitigados | 5 (#22–#26) |
 | V3 — Pendientes | 1 (#27) |
+| **V4 — Issues nuevos (20/05/2026)** | 7 |
+| V4 — Fix aplicado (en CHANGELOG 3.4.0) | 4 (#28, #29, #30, #31) |
+| V4 — Pendientes | 3 (#32, #33, #34) |
 
 ---
 
@@ -60,6 +63,14 @@
 | #25 | Scan de COM lento o se cuelga con múltiples puertos | Bug | Alta | ✅ Mitigado — excepciones aplicadas 19/05/2026 | — |
 | #26 | Serial Trace Logging no funciona / archivo no encontrado | Bug | Media | ✅ Validado — paridad VB 1.9 ~97% (19/05/2026) | — |
 | #27 | Archivos guardados con sufijo "(1)" en el nombre | Bug | Baja | Pendiente análisis | — |
+| — | **V4 — Nuevas incidencias (20/05/2026)** | — | — | — | — |
+| #28 | Factory Menu — Calibration LOAD y SAVE deshabilitados | Bug | Alta | ✅ Fix aplicado — CHANGELOG 3.4.0 | `623ed9a` |
+| #29 | License Apply Changes no refresca la UI principal | Bug | Media | ✅ Fix aplicado — CHANGELOG 3.4.0 | — |
+| #30 | Tag (Assisted GUI) no se retiene tras Save post-Clear EEPROM | Bug | Alta | ✅ Fix aplicado — JS + DeviceCommandRouter | `08dd89a` |
+| #31 | Password con espacios es ignorada | Bug | Media | ✅ Fix aplicado — CHANGELOG 3.4.0 | — |
+| #32 | Factory Menu / Change Password — aplica solo Ethernet, no USB | Bug | Media | Pendiente | — |
+| #33 | Diff config files | Pendiente info | — | Pendiente acceso Fiplex | — |
+| #34 | COM port discovery falla — hallazgo aleatorio | Bug | Media | Pendiente análisis | — |
 
 ---
 
@@ -475,6 +486,99 @@ Diferencias residuales (arquitecturales, no afectan diagnóstico):
 
 ---
 
+---
+
+## V4 — Nuevas incidencias (20/05/2026)
+
+---
+
+### Issue #28 — Factory Menu: Calibration LOAD y SAVE deshabilitados
+
+**Descripción del cliente:** En Factory Menu, los submenús Calibration LOAD y SAVE están deshabilitados. Se requieren operativos en modo factory.
+
+**Root cause (doble):**
+1. `ToolStripMenuItem.Visible` getter retorna `false` cuando el dropdown padre está cerrado, causando que el snapshot de visibilidad del menú en `ExecuteFileOperationAsync` siempre capture `false` → el bloque `finally` no restauraba los submenús.
+2. LoadCAL fallaba porque el buffer serial capturaba bytes de respuesta tardía del S1 watchdog como respuesta del comando F0.
+
+**Fix:** Ver CHANGELOG 3.4.0 — `frmMain.cs`, `FileOperationService.cs`, `SerialCommandPipeline.cs`, `SerialCommand.cs`.
+**Commit:** `623ed9a`
+**Estado:** ✅ Fix aplicado.
+
+---
+
+### Issue #29 — License Apply Changes no refresca la UI principal
+
+**Descripción del cliente:** Después de hacer clic en "Apply Changes" en el License Manager, la GUI principal no se refresca para reflejar la nueva licencia.
+
+**Root cause:** `ShowLicenseManager()` nunca suscribía el evento `ChangesApplied` en `frmLicense` / `frmLicenseMaster`.
+
+**Fix:** Suscripción a `ChangesApplied` antes de `Show()` → llama `NavigateToDeviceUIAsync(forceAdvanced: true)` para recargar la página del dispositivo.
+**Estado:** ✅ Fix aplicado — CHANGELOG 3.4.0.
+
+---
+
+### Issue #30 — Tag (Assisted GUI) no se retiene tras Save post-Clear EEPROM
+
+**Descripción del cliente:** En Production Tests → Clear EEPROM → STEP1 PROJECT RELATED, al ingresar un Tag y guardar (aparece check verde), el campo Tag queda vacío al recargar.
+
+**Root cause principal — JS (`global.js` / `global.jsm`):**
+El buffer de proyecto es posicional de 730 bytes:
+- prjinfo_0–6: offsets 0–664 (7×95 bytes)
+- prjinfo_7: offsets 665–699 (35 bytes)
+- prjinfo_8 / Tag: offsets 700–729 (30 bytes)
+
+`formatProjConfig` aplicaba `str.trim()` antes del hex-encoding. Post-Clear EEPROM, los campos ocultos (offsets 0–699) contienen solo espacios → `trim()` los colapsaba, desplazando el Tag del offset 700 al offset 0. Al recargar, `parseProjConfig` leía `substr(700, 30)` y encontraba bytes vacíos.
+
+**Fix JS:** Eliminado `str.trim()` / `t=t.trim()` de `formatProjConfig` en los tres variantes de dispositivo (`htdocs_2c`, `htdocs_2c1`, `htdocs_2c2`) — tanto `.js` como `.jsm`.
+**Commit JS:** `08dd89a`
+
+**Root cause secundario — `DeviceCommandRouter.cs`:**
+`UpdatePostCaches` evaluaba `effectiveSuccess = commandSucceeded || !postCommand.WaitResponse`. Para comandos fire-and-forget (`!0`, WaitResponse=false) siempre resolvía `true`, mostrando check verde aunque el dispositivo no confirmara la escritura.
+
+**Fix DeviceCommandRouter:** `_previousAnswer = commandSucceeded ? "0" : "1"`.
+**Estado:** ✅ Fix aplicado (ambos). CHANGELOG 3.4.0 + commit `08dd89a`.
+
+---
+
+### Issue #31 — Password con espacios es ignorada
+
+**Descripción del cliente:** Una contraseña que contiene espacios es ignorada / rechazada incorrectamente.
+
+**Root cause (triple):**
+1. `IsNullOrWhiteSpace` bloqueaba contraseñas con solo espacios client-side; VB 1.9 pasa cualquier string no vacío al dispositivo.
+2. Password incorrecta disparaba `DisconnectAsync()`, forzando al usuario a reconectarse.
+3. Cancelar el diálogo también mostraba "Wrong password".
+
+**Fix:** `IsNullOrEmpty` reemplaza `IsNullOrWhiteSpace`; errores mostrados inline con auto-hide 4s; cancelar desconecta sin mensaje; password incorrecta mantiene diálogo abierto con retry inline.
+**Archivos:** `frmPassword.cs`, `frmMain.cs`, `AuthService.cs`.
+**Estado:** ✅ Fix aplicado — CHANGELOG 3.4.0.
+
+---
+
+### Issue #32 — Factory Menu / Change Password aplica solo a Ethernet, no a USB
+
+**Descripción del cliente:** En Factory Menu, el formulario de Change Password parece aplicar solo al módulo Ethernet, no al dispositivo bajo conexión USB/FCS.
+
+**Estado:** 🔴 Pendiente análisis y fix.
+
+---
+
+### Issue #33 — Diff config files
+
+**Descripción del cliente:** Diferencias en archivos de configuración entre versiones.
+
+**Estado:** ⏸ Pendiente — requiere acceso/entrega de Fiplex para comparación.
+
+---
+
+### Issue #34 — COM port discovery falla — hallazgo aleatorio
+
+**Descripción del cliente:** Fallo aleatorio en el discovery de COM ports durante el scan.
+
+**Estado:** 🔴 Pendiente análisis. Posiblemente relacionado con los fixes de discovery ya aplicados en V3 (#22, #23, #25).
+
+---
+
 ## Historial de cambios del documento
 
 | Fecha | Cambio |
@@ -508,4 +612,8 @@ Diferencias residuales (arquitecturales, no afectan diagnóstico):
 | 19/05/2026 | Issue #25 mitigado — excepciones I/O capturadas en loop scan, previene cuelgue con puertos sin respuesta |
 | 19/05/2026 | Issue #26 validado — SerialTraceLogger path corregido a %APPDATA%\FiplexControlSoftware\; paridad formato VB 1.9 ~97% |
 | 19/05/2026 | DAS Remote no identificado — fix discovery: MaxRetries 2→5 (paridad VB 1.9) + OpenPortTimeout 2s→4s |
+| 26/05/2026 | V4 issues #28-#34 incorporados al reporte (referencia: 260515_New FCS_Findings_V4) |
+| 26/05/2026 | Issue #30 fix JS — eliminado trim() en formatProjConfig (htdocs_2c/2c1/2c2, .js y .jsm) — commit 08dd89a pusheado a release/3.3 |
+| 26/05/2026 | Issues #28, #29, #31 documentados — fixes en CHANGELOG 3.4.0 (pendiente commit de Fiplex) |
+| 26/05/2026 | Issues #32, #33, #34 — pendientes análisis y acceso |
 
