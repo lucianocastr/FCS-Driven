@@ -1,11 +1,13 @@
 # Reporte de Estado — QA Field Report 260513
-**FCS v3.0.3 — Signal Booster (2c/BDA)**
+**FCS v3.4.0 — Signal Booster (2c/BDA)**
 
 | Campo | Valor |
 |---|---|
 | Referencia | `260515_New FCS_Findings_V4(Findings).csv` |
 | Fecha de apertura | 13/05/2026 |
-| Última actualización | 26/05/2026 — V4 issues #28-#34 incorporados; #30 fix JS aplicado y pusheado |
+| Última actualización | 27/05/2026 — v3.4.0 entregada al cliente · esperando feedback |
+| Versión entregada | **3.4.0** — `FCS-3-4-0.zip` — tag `v3.4.0` |
+| Estado de entrega | ⏳ Esperando feedback del cliente |
 | Rama activa | `release/3.3` |
 | Repositorio | `E:\Ikarus\Proyecto C#\FCS302OK\FCSDev` |
 | Referencia funcional | FCS 1.9 VB.NET — `E:\Ikarus\Proyecto C#\FCS` |
@@ -622,7 +624,10 @@ El buffer de proyecto es posicional de 730 bytes:
 | 19/05/2026 | DAS Remote no identificado — fix discovery: MaxRetries 2→5 (paridad VB 1.9) + OpenPortTimeout 2s→4s |
 | 26/05/2026 | V4 issues #28-#34 incorporados al reporte (referencia: 260515_New FCS_Findings_V4) |
 | 26/05/2026 | Issue #30 fix JS — eliminado trim() en formatProjConfig (htdocs_2c/2c1/2c2, .js y .jsm) — commit 08dd89a pusheado a release/3.3 |
-| 26/05/2026 | Issues #28, #29 documentados — fixes en CHANGELOG 3.4.0 (pendiente commit de Fiplex) |
+| 26/05/2026 | Issues #28, #29 documentados — fixes en CHANGELOG 3.4.0 |
 | 26/05/2026 | Issue #31 validado — 5 root causes corregidos; commits 90a4946, a3fc33f, 5570a02 |
 | 26/05/2026 | Issues #32, #33, #34 — pendientes análisis y acceso |
+| 26/05/2026 | Sistema de logging de campo implementado (FCSLog / FCSProd / USBmessages). GUIA_LOGS_DIAGNOSTICO.md y .pdf generados |
+| 27/05/2026 | **v3.4.0 entregada al cliente** — FCS-3-4-0.zip (30.9 MB) · tag v3.4.0 · build Release 0 errores · verificación automática OK |
+| 27/05/2026 | Esperando feedback del cliente sobre v3.4.0 — issues pendientes próxima iteración: #32, #33, #34, #27 |
 
