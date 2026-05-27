@@ -8,14 +8,14 @@
     <ImplicitUsings>enable</ImplicitUsings>
     
     <!-- Información de versión del producto -->
-      <Version>3.3.0</Version>
+      <Version>3.4.0</Version>
       <AssemblyVersion>3.0.2.0</AssemblyVersion>
       <FileVersion>3.0.2.0</FileVersion>
     
     <!-- Metadatos del producto -->
     <Product>Fiplex Control Software</Product>
     <Company>Fiplex Communications</Company>
-    <Copyright>Copyright © Fiplex Communications 2025</Copyright>
+    <Copyright>Copyright © Fiplex Communications 2026</Copyright>
     <Description>Software de control para dispositivos Fiplex</Description>
     <ApplicationIcon>Assets\Icons\Fiplex Control Software.ico</ApplicationIcon>
   </PropertyGroup>

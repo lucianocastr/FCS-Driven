@@ -262,7 +262,7 @@ RTT muy bajo (ej. 60ms) con `Status=Cancelled` indica cancelación por software 
 
 ## Cambiar el nivel de log en campo
 
-El menú **LOG** es público — no requiere acceso factory ni licencia especial.
+El menú **LOG** es público — no requiere acceso factory.
 
 1. Reproducir el issue con el nivel **Warning** (default).
 2. Si el log no contiene información suficiente, cambiar a **Info** desde el menú LOG.

@@ -1,6 +1,6 @@
 #
 
-## [3.4.0] - TBD
+## [3.4.0] - 2026-05-26
 
 ### Added
 - **Sistema de logging de diagnóstico de campo** (`Core/Diagnostics/AppFileLoggerProvider`, `AppFileLogger`, `AppLogLevelSwitch`)
@@ -14,6 +14,8 @@
   - Sanitizador en el logger: `*0[***]`, Bearer tokens y JWT claims nunca aparecen en el archivo.
   - Nivel Trace cubre TX payload completo y RX primeros 80 chars (`SerialCommandPipeline.cs`).
   - Coexiste con `USBmessages_YYYYMMDD.txt` (`SerialTraceLogger`) — ambos sistemas activos en paralelo.
+- **Guía de diagnóstico de logs** (`docs/GUIA_LOGS_DIAGNOSTICO.md`, `docs/GUIA_LOGS_DIAGNOSTICO.pdf`)
+  - Documento de referencia para soporte en campo: descripción de `FCSLog` y `FCSProd`, formato de línea, niveles de log, componentes principales, escenarios de uso paso a paso, tabla de referencia rápida e instrucciones para compartir logs con soporte.
 
 ### Fixed
 - **#28 — Calibration submenus disabled after Save/Load Calibration in factory mode** (`frmMain.cs`, `FileOperationService.cs`, `SerialCommandPipeline.cs`, `SerialCommand.cs`)
