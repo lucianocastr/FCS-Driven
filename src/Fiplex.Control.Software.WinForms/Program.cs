@@ -204,6 +204,7 @@ internal static class Program
         // Device Response Handlers (Strategy pattern for special cases)
         services.AddSingleton<IDeviceResponseHandler, Device1C_V22_ResponseHandler>();
         services.AddSingleton<IDeviceResponseHandler, Device1C_V52_ResponseHandler>();
+        services.AddSingleton<IDeviceResponseHandler, DeviceBbuResponseHandler>();
         services.AddSingleton<DeviceResponseProcessor>();
     }
 
