@@ -320,19 +320,39 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     // Verify if response starts with "Fiplex"
                     if (response.StartsWith(ExpectedPrefix, StringComparison.OrdinalIgnoreCase))
                     {
+                        var frVersion = int.TryParse(response.Substring(6, 5), out var parsed) ? parsed : 0;
+
                         // Resolve device type from catalog
                         var deviceInfo = _catalog.ResolveDevice(response);
                         if (deviceInfo != null)
                         {
+                            // VB6 1.12 parity line 2743: If frversion > maxversion Then frversion = maxversion
+                            var cappedFrVersion = frVersion > deviceInfo.MaxVersion
+                                ? deviceInfo.MaxVersion
+                                : frVersion;
+
                             _logger.LogDebug(
-                                "[Scan {ScanId}] {Port} retry {Retry} - identified as {DeviceName} ({DeviceId})",
+                                "[Scan {ScanId}] {Port} retry {Retry} - identified as {DeviceName} ({DeviceId}) FrVersion={FrVersion}(capped from {RawFrVersion})",
                                 scanId,
                                 portName,
                                 retry + 1,
                                 deviceInfo.NameTypeDevice,
-                                deviceInfo.Id);
+                                deviceInfo.Id,
+                                cappedFrVersion,
+                                frVersion);
 
-                            return deviceInfo with { ComPort = portNumber };
+                            // VB6 1.12 parity line 2744: If frversion > 0 Then PathShared += "_" & CStr(frversion)
+                            // Uses the POST-cap frVersion so it can never request a non-existent versioned dir.
+                            var versionedPathShared = cappedFrVersion > 0
+                                ? deviceInfo.PathShared + "_" + cappedFrVersion
+                                : deviceInfo.PathShared;
+
+                            return deviceInfo with
+                            {
+                                ComPort = portNumber,
+                                FrVersion = cappedFrVersion,
+                                PathShared = versionedPathShared
+                            };
                         }
                         else
                         {
@@ -346,7 +366,8 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                             {
                                 Id = response,
                                 NameTypeDevice = "Unknown device",
-                                ComPort = portNumber
+                                ComPort = portNumber,
+                                FrVersion = frVersion
                             };
                         }
                     }

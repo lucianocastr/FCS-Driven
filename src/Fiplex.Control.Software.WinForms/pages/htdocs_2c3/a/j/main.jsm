@@ -1,0 +1,3 @@
+<!--
+!function(e){skel.breakpoints({xlarge:"(max-width: 1680px)",large:"(max-width: 1280px)",medium:"(max-width: 980px)",small:"(max-width: 736px)",xsmall:"(max-width: 480px)"}),e(function(){var i=e(window),a=e("body");a.addClass("is-loading"),i.on("load",function(){window.setTimeout(function(){a.removeClass("is-loading")},100)}),e("form").placeholder(),skel.on("+medium -medium",function(){e.prioritize(".important\\28 medium\\29",skel.breakpoint("medium").active)})})}(jQuery);
+// -->

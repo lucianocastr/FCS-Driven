@@ -1,0 +1,1 @@
+function onloadInit(){eventLog=new EventLog,eventLog.reqLogData(),showResultIcon(ERR_PENDING)}function reloadData(){"undefined"!=typeof eventLog&&eventLog||(eventLog=new EventLog),eventLog.reqLogData(),showResultIcon(ERR_PENDING)}function submitform(){}
