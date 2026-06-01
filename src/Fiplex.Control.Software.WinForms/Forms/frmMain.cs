@@ -2821,9 +2821,11 @@ public partial class frmMain : Form
             {
                 UpdateProductionMenuVisibility(device);
 
+                // VB6 1.12 factWindow 480: mnuCal.Visible = True for all device types after factory unlock.
+                // 2de added to recover Calibration parity for DAS Expansion SDRP (DISC-02).
                 bool showCal = device.TDev switch
                 {
-                    "2c" or "4dm" or "5dm" => true,
+                    "2c" or "4dm" or "5dm" or "2de" => true,
                     _ => false
                 };
                 mnuCal.Visible = showCal;
@@ -4234,7 +4236,8 @@ public partial class frmMain : Form
         }
 
         // GRUPO 3: Dispositivo 1de (solo Clear)
-        if (tdev == "1de")
+        // VB6 1.12 factWindow 481-487: tdev = "1de" Or tdev = "2de" share the same visibility pattern.
+        if (tdev == "1de" || tdev == "2de")
         {
             mnuProd.Visible = true;
             mnuClear.Visible = true;
@@ -4591,6 +4594,9 @@ public partial class frmMain : Form
 
             case "1de":
                 return GetProductionConfig_1DE(ndev, nchannels, mode, clearROM);
+
+            case "2de":
+                return GetProductionConfig_2DE(ndev, nchannels, mode, clearROM);
 
             default:
                 // For other devices, return null to indicate not supported
@@ -5396,6 +5402,61 @@ public partial class frmMain : Form
             {
                 Payload = "U0E702E702E702E702E702E702E702E702500A",
                 Description = "1de Thresholds (U command)",
+                ExpectsAck = true,
+                TimeoutSeconds = 5
+            });
+        }
+
+        return config;
+    }
+
+    /// <summary>
+    /// Production configuration for 2de device (DAS Expansion / DAS Expansion SDRP).
+    /// VB6 1.12 parity: frmMainW.frm 3135-3147 (C0+O001) and 3594-3595 (clearROM T0 tag).
+    /// </summary>
+    private ProductionConfigData GetProductionConfig_2DE(double ndev, short nchannels, short mode, bool clearROM)
+    {
+        var config = new ProductionConfigData();
+
+        // VB6 1.12 frmMainW.frm 3137-3139: hardcoded C0 configuration frame.
+        // Descriptors use PadRight(30) to enforce the 30-char fixed-width invariant (review note N-1)
+        // without depending on manual whitespace counting at VB6 line continuations.
+        string c0Hex1 = "00000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180030300FFFFFFFF0F000F404000000000000000000000000000004040404040404040010204080000000004";
+        string c0Hex2 = "00000000000000000000F0FE000000000000000000000000000000000000000000015180EC02EC02EC02EC02EC02EC02EC02EC025502";
+        string c0Descriptors =
+            "External Input 1".PadRight(30) +
+            "External Input 2".PadRight(30) +
+            "External Input 3".PadRight(30) +
+            "Force RF OFF".PadRight(30) +
+            "Annunciator 1".PadRight(30) +
+            "Annunciator 2".PadRight(30) +
+            "Annunciator 3".PadRight(30) +
+            "Annunciator 4".PadRight(30);
+
+        config.Commands.Add(new ProductionCommand
+        {
+            Payload = "C0" + c0Hex1 + c0Hex2 + c0Descriptors,
+            Description = "2de Configuration (C0 hardcoded)",
+            ExpectsAck = true,
+            TimeoutSeconds = 10
+        });
+
+        // VB6 1.12 frmMainW.frm 3140: O001 output enable.
+        config.Commands.Add(new ProductionCommand
+        {
+            Payload = "O001",
+            Description = "2de Output Enable (O001)",
+            ExpectsAck = true,
+            TimeoutSeconds = 10
+        });
+
+        // VB6 1.12 frmMainW.frm 3594-3595: clearROM tag (32 chars: "T0" + "EXPANSION FIPLEX" + 14 spaces).
+        if (clearROM)
+        {
+            config.Commands.Add(new ProductionCommand
+            {
+                Payload = "T0EXPANSION FIPLEX".PadRight(32),
+                Description = "2de Tag reset (T command)",
                 ExpectsAck = true,
                 TimeoutSeconds = 5
             });
