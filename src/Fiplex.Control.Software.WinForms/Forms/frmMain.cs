@@ -4420,57 +4420,6 @@ public partial class frmMain : Form
                     _pipeline.FlushInputBuffer();
                 }
 
-                // J1 pre-read before J0 (2c/ndev>=2): use J1 data as J0 payload.
-                // Root cause #4: device firmware 2c v2.0 uses extended J format (584 chars data)
-                // vs VB 1.9 hardcoded (557 chars data). Device NACKs J0 due to wrong payload length.
-                // Fix: read J1 first, write the same data back as J0 → exact length match guaranteed.
-                if (prefix == "J0" && tdev == "2c" && ndev >= 2.0)
-                {
-                    ProdLog($"[J1] Sending J1 pre-read...");
-                    var j1Cmd = new SerialCommand
-                    {
-                        Payload = "J1",
-                        ExpectsAck = true,
-                        ExpectsData = true,
-                        AckTimeout = TimeSpan.FromSeconds(3),
-                        DataTimeout = TimeSpan.FromSeconds(5),
-                        MaxRetries = 1,
-                        CancellationToken = _cts?.Token ?? default
-                    };
-                    var j1Result = await _pipeline.EnqueueCommandAsync(j1Cmd);
-                    ProdLog($"[J1] Result: Success={j1Result.Success} Status={j1Result.Status} DataLen={j1Result.Data?.Length ?? 0}");
-                    if (j1Result.Success && j1Result.Data?.Length > 0)
-                    {
-                        var j1Data = j1Result.Data;
-                        _pipeline.FlushInputBuffer();
-                        await Task.Delay(200);
-                        var correctedPayload = "J0" + j1Data;
-                        ProdLog($"[J1→J0] Using J1 data as J0 payload. payloadLen={correctedPayload.Length}");
-                        var j0Cmd = new SerialCommand
-                        {
-                            Payload = correctedPayload,
-                            ExpectsAck = true,
-                            ExpectsData = false,
-                            MaxRetries = 1,
-                            AckTimeout = TimeSpan.FromSeconds(cmdInfo.TimeoutSeconds),
-                            CancellationToken = _cts?.Token ?? default
-                        };
-                        var j0Result = await _pipeline.EnqueueCommandAsync(j0Cmd);
-                        ProdLog($"[J1→J0] Result: Success={j0Result.Success} Status={j0Result.Status} Retries={j0Result.Metrics?.RetryCount ?? -1} RTT={(int)(j0Result.Metrics?.TotalRoundTripTime.TotalMilliseconds ?? 0)}ms");
-                        if (!j0Result.Success)
-                        {
-                            ProdLog($"[J1→J0] FAILED: {cmdInfo.Description}");
-                            LogStatus($"Production FAILED at: {cmdInfo.Description} (Status={j0Result.Status})");
-                            return false;
-                        }
-                        lastSentPrefix = prefix;
-                        continue;
-                    }
-                    ProdLog($"[J1] J1 failed or no data — falling back to hardcoded J0 payload");
-                    _pipeline.FlushInputBuffer();
-                    await Task.Delay(200);
-                }
-
                 var command = new SerialCommand
                 {
                     Payload = cmdInfo.Payload,
@@ -4756,7 +4705,9 @@ public partial class frmMain : Form
             }
             else
             {
-                jPayload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB003F003F007FFFFFFFFF0F08080008080400000000000000000000080808080201080001104020808080804080808080808080000000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  Annunciator 1                 Annunciator 2                 Annunciator 3                 Annunciator 4                 ";
+                // VB6 1.12 parity: frmMainW.frm:3085 (586 chars). BUG-001 RC-1 fix —
+                // restores byte-exact J payload baseline (was truncated 559->586, delta -27).
+                jPayload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB003F003F007FFFFFFFFF0F08080008080400000000000000000000080808080201080001104020808080804080808080808080000000000000000000000000000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  Annunciator 1                 Annunciator 2                 Annunciator 3                 Annunciator 4                 ";
             }
         }
         else
