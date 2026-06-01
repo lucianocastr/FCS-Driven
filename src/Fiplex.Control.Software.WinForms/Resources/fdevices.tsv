@@ -1,68 +1,73 @@
-Fiplex000000085	\pages\htdocs_5dm1	DAS Master	5dm/1.0	1	
-Fiplex000000084	\pages\htdocs_3dr1	DAS Remote	3dr/1.0	1	
-Fiplex000000083	\pages\htdocs_3c1	Signal Booster	3c/1.0	1	
-Fiplex000000082	\pages\htdocs_2c2	Signal Booster	2c/2.0	1	
-Fiplex000000081	\pages\htdocs_2c1	Signal Booster	2c/1.0	1	
-Fiplex000000080	\pages\htdocs_1c8	Single Carrier Amplifier	1c/8.0	1	
-Fiplex000000079	\pages\htdocs_5dm	DAS Master	5dm/0.0	1	
-Fiplex000000076	\pages\htdocs_4dm3	Signal Booster	4dm4/0.0	1	
-Fiplex000000075	\pages\htdocs_2dm	DAS Enterprise	3dm1/0.0	1	_ver2
-Fiplex000000074	\pages\htdocs_2dm	DAS Enterprise	2dm1/0.0	1	_ver2
-Fiplex000000073	\pages\htdocs_2c	Signal Booster	2c/0.0	1	
-Fiplex000000072	\pages\htdocs_4dm3	Signal Booster	4dm3/0.0	1	
-Fiplex000000071	\pages\htdocs_4dm	Signal Booster	4dm2/0.0	1	_ver2
-Fiplex000000070	\pages\htdocs_2dr	Fiber Fed BDA	2dr2/0.0	1	_ver2
-Fiplex000000069	\pages\htdocs_4dm	DAS Master	4dm1/0.0	1	
-Fiplex000000068	\pages\htdocs_2dr	DAS Remote	2dr1/0.0	1	
-Fiplex000000067	\pages\htdocs_5dm	DAS Master	5dm/0.0	1	
-Fiplex000000066	\pages\htdocs_3dr	DAS Remote	3dr/0.0	1	
-Fiplex000000065	\pages\htdocs_4dm	DAS Master	4dm/0.0	1	
-Fiplex000000064	\pages\htdocs_2dr	DAS Remote	2dr/0.0	1	
-Fiplex000000056	\pages\htdocs_1c4_2	Signal Booster	1c/4.2	0	
-Fiplex000000057	\pages\htdocs_1c4_3	Signal Booster	1c/4.3	0	
-Fiplex000000058	\pages\htdocs_1c5_1	Signal Booster	1c/5.1	0	
-Fiplex000000059	\pages\htdocs_1c5_2	Signal Booster	1c/5.2	0	
-Fiplex000000060	\pages\htdocs_1c7	Signal Booster Dual Band	1c/7.0	1	
-Fiplex000000061	\pages\htdocs_3c	Signal Booster Dual Band	3c/0.0	1	
-Fiplex000000062	\pages\htdocs_2dm	DAS Enterprise	2dm/0.0	1	
-Fiplex000000063	\pages\htdocs_2dm	DAS Enterprise	3dm/0.0	1	
-Fiplex000000055	\pages\htdocs_2dm	DAS Enterprise	3dm/0.0	0	
-Fiplex000000054	\pages\htdocs_3c	Signal Booster Dual Band	3c/0.0	0	
-Fiplex000000053	\pages\htdocs_2dm	DAS Enterprise	2dm/0.0	0	
-Fiplex000000000	\pages\htdocs_1a	Signal Booster	1a/0.0	0	
-Fiplex000000003	\pages\htdocs_1a1	Signal Booster	1a/1.0	0	
-Fiplex000000015	\pages\htdocs_1a2	Signal Booster	1a/2.0	0	
-Fiplex000000027	\pages\htdocs_1a2_2	Signal Booster	1a/2.2	0	
-Fiplex000000004	\pages\htdocs_1c	Signal Booster	1c/0.0	0	
-Fiplex000000011	\pages\htdocs_1c1	Signal Booster	1c/1.0	0	
-Fiplex000000014	\pages\htdocs_1c2	Signal Booster	1c/2.0	0	
-Fiplex000000018	\pages\htdocs_1c3	Signal Booster	1c/3.0	0	
-Fiplex000000032	\pages\htdocs_1c4_1	Signal Booster	1c/4.1	0	
-Fiplex000000037	\pages\htdocs_1c4_2	Signal Booster	1c/4.2	0	
-Fiplex000000051	\pages\htdocs_1c4_2	Signal Booster	1c/4.2	0	
-Fiplex000000047	\pages\htdocs_1c4_3	Signal Booster	1c/4.3	0	
-Fiplex000000049	\pages\htdocs_1c4_3	Signal Booster	1c/4.3	0	
-Fiplex000000043	\pages\htdocs_1c7	Signal Booster Dual Band	1c/7.0	0	
-Fiplex000000033	\pages\htdocs_1c5_1	Signal Booster	1c/5.1	0	
-Fiplex000000052	\pages\htdocs_1c5_1	Signal Booster	1c/5.1	0	
-Fiplex000000048	\pages\htdocs_1c5_2	Signal Booster	1c/5.2	0	
-Fiplex000000050	\pages\htdocs_1c5_2	Signal Booster	1c/5.2	0	
-Fiplex000000035	\pages\htdocs_1c6	Signal Booster	1c/6.0	0	
-Fiplex000000005	\pages\htdocs_1dr1	DAS Remote	1dr/1.0	0	
-Fiplex000000008	\pages\htdocs_1dr2	DAS Remote	1dr/2.0	0	
-Fiplex000000020	\pages\htdocs_1dr2_1	DAS Remote	1dr/2.1	0	
-Fiplex000000040	\pages\htdocs_1dr4	DAS Remote	1dr/4.0	0	
-Fiplex000000010	\pages\htdocs_1dm3	DAS Master	1dm/3.0	0	
-Fiplex000000012	\pages\htdocs_1dm4	DAS Master	1dm/4.0	0	
-Fiplex000000021	\pages\htdocs_1dm4_1	DAS Master	1dm/4.1	0	
-Fiplex000000038	\pages\htdocs_1dm4_2	DAS Master	1dm/4.2	0	
-Fiplex000000009	\pages\htdocs_1de	DAS Master Model 999	1de/0.0	0	
-Fiplex000000041	\pages\htdocs_1de1	DAS Master Model 999	1de/1.0	0	
-Fiplex000000013	\pages\htdocs_1c1_2	Signal Booster	1c/1.2	0	
-Fiplex000000019	\pages\htdocs_1c2_2	Single Carrier Amplifier	1c/2.2	0	
-Fiplex000000022	\pages\htdocs_1cm	Signal Booster	1cm/0.0	0	
-Fiplex000000023	\pages\htdocs_1cr	Signal Booster (auxiliar board)	1cr/0.0	0	
-Fiplex000000024	\pages\htdocs_1c3	Signal Booster	1c/3.0	0	
-Fiplex000000029	\pages\htdocs_1dm6	DAS Master	1dm/6.0	0	
-Fiplex000000039	\pages\htdocs_1dm6_1	DAS Master	1dm/6.1	0	
-Fiplex000000042	\pages\htdocs_1dm8	DAS Master	1dm/8.0	0	
+Fiplex000000085	\pages\htdocs_5dm1	DAS Master	5dm/1.0	1	1	1
+Fiplex000000084	\pages\htdocs_3dr1	DAS Remote	3dr/1.0	1	1	1
+Fiplex000000083	\pages\htdocs_3c1	Signal Booster	3c/1.0	1	1	0
+Fiplex000000082	\pages\htdocs_2c2	Signal Booster	2c/2.0	1	1	0
+Fiplex000000081	\pages\htdocs_2c1	Signal Booster	2c/1.0	1	1	0
+Fiplex000000080	\pages\htdocs_1c8	Single Carrier Amplifier	1c/8.0	1	1	0
+Fiplex000000079	\pages\htdocs_5dm	DAS Master	5dm/0.0	1	1	0
+Fiplex000000076	\pages\htdocs_4dm3	Signal Booster	4dm4/0.0	1	1	0
+Fiplex000000075	\pages\htdocs_2dm	DAS Enterprise	3dm1/0.0	1	1	0
+Fiplex000000074	\pages\htdocs_2dm	DAS Enterprise	2dm1/0.0	1	1	0
+Fiplex000000073	\pages\htdocs_2c	Signal Booster	2c/0.0	1	1	0
+Fiplex000000072	\pages\htdocs_4dm3	Signal Booster	4dm3/0.0	1	1	0
+Fiplex000000071	\pages\htdocs_4dm	Signal Booster	4dm2/0.0	1	1	0
+Fiplex000000070	\pages\htdocs_2dr	Fiber Fed BDA	2dr2/0.0	1	1	0
+Fiplex000000069	\pages\htdocs_4dm	DAS Master	4dm1/0.0	1	1	0
+Fiplex000000068	\pages\htdocs_2dr	DAS Remote	2dr1/0.0	1	1	0
+Fiplex000000067	\pages\htdocs_5dm	DAS Master	5dm/0.0	1	1	0
+Fiplex000000066	\pages\htdocs_3dr	DAS Remote	3dr/0.0	1	1	0
+Fiplex000000065	\pages\htdocs_4dm	DAS Master	4dm/0.0	1	1	0
+Fiplex000000064	\pages\htdocs_2dr	DAS Remote	2dr/0.0	1	1	0
+Fiplex000000056	\pages\htdocs_1c4_2	Signal Booster	1c/4.2	0	0	0
+Fiplex000000057	\pages\htdocs_1c4_3	Signal Booster	1c/4.3	0	0	0
+Fiplex000000058	\pages\htdocs_1c5_1	Signal Booster	1c/5.1	0	0	0
+Fiplex000000059	\pages\htdocs_1c5_2	Signal Booster	1c/5.2	0	0	0
+Fiplex000000060	\pages\htdocs_1c7	Signal Booster Dual Band	1c/7.0	1	1	0
+Fiplex000000061	\pages\htdocs_3c	Signal Booster Dual Band	3c/0.0	1	1	0
+Fiplex000000062	\pages\htdocs_2dm	DAS Enterprise	2dm/0.0	1	1	0
+Fiplex000000063	\pages\htdocs_2dm	DAS Enterprise	3dm/0.0	1	1	0
+Fiplex000000055	\pages\htdocs_2dm	DAS Enterprise	3dm/0.0	0	0	0
+Fiplex000000054	\pages\htdocs_3c	Signal Booster Dual Band	3c/0.0	0	0	0
+Fiplex000000053	\pages\htdocs_2dm	DAS Enterprise	2dm/0.0	0	0	0
+Fiplex000000000	\pages\htdocs_1a	Signal Booster	1a/0.0	0	0	0
+Fiplex000000003	\pages\htdocs_1a1	Signal Booster	1a/1.0	0	0	0
+Fiplex000000015	\pages\htdocs_1a2	Signal Booster	1a/2.0	0	0	0
+Fiplex000000027	\pages\htdocs_1a2_2	Signal Booster	1a/2.2	0	0	0
+Fiplex000000004	\pages\htdocs_1c	Signal Booster	1c/0.0	0	0	0
+Fiplex000000011	\pages\htdocs_1c1	Signal Booster	1c/1.0	0	0	0
+Fiplex000000014	\pages\htdocs_1c2	Signal Booster	1c/2.0	0	0	0
+Fiplex000000018	\pages\htdocs_1c3	Signal Booster	1c/3.0	0	0	0
+Fiplex000000032	\pages\htdocs_1c4_1	Signal Booster	1c/4.1	0	0	0
+Fiplex000000037	\pages\htdocs_1c4_2	Signal Booster	1c/4.2	0	0	0
+Fiplex000000051	\pages\htdocs_1c4_2	Signal Booster	1c/4.2	0	0	0
+Fiplex000000047	\pages\htdocs_1c4_3	Signal Booster	1c/4.3	0	0	0
+Fiplex000000049	\pages\htdocs_1c4_3	Signal Booster	1c/4.3	0	0	0
+Fiplex000000043	\pages\htdocs_1c7	Signal Booster Dual Band	1c/7.0	0	0	0
+Fiplex000000033	\pages\htdocs_1c5_1	Signal Booster	1c/5.1	0	0	0
+Fiplex000000052	\pages\htdocs_1c5_1	Signal Booster	1c/5.1	0	0	0
+Fiplex000000048	\pages\htdocs_1c5_2	Signal Booster	1c/5.2	0	0	0
+Fiplex000000050	\pages\htdocs_1c5_2	Signal Booster	1c/5.2	0	0	0
+Fiplex000000035	\pages\htdocs_1c6	Signal Booster	1c/6.0	0	0	0
+Fiplex000000005	\pages\htdocs_1dr1	DAS Remote	1dr/1.0	0	0	0
+Fiplex000000008	\pages\htdocs_1dr2	DAS Remote	1dr/2.0	0	0	0
+Fiplex000000020	\pages\htdocs_1dr2_1	DAS Remote	1dr/2.1	0	0	0
+Fiplex000000040	\pages\htdocs_1dr4	DAS Remote	1dr/4.0	0	0	0
+Fiplex000000010	\pages\htdocs_1dm3	DAS Master	1dm/3.0	0	0	0
+Fiplex000000012	\pages\htdocs_1dm4	DAS Master	1dm/4.0	0	0	0
+Fiplex000000021	\pages\htdocs_1dm4_1	DAS Master	1dm/4.1	0	0	0
+Fiplex000000038	\pages\htdocs_1dm4_2	DAS Master	1dm/4.2	0	0	0
+Fiplex000000009	\pages\htdocs_1de	DAS Master Model 999	1de/0.0	0	0	0
+Fiplex000000041	\pages\htdocs_1de1	DAS Master Model 999	1de/1.0	0	0	0
+Fiplex000000013	\pages\htdocs_1c1_2	Signal Booster	1c/1.2	0	0	0
+Fiplex000000019	\pages\htdocs_1c2_2	Single Carrier Amplifier	1c/2.2	0	0	0
+Fiplex000000022	\pages\htdocs_1cm	Signal Booster	1cm/0.0	0	0	0
+Fiplex000000023	\pages\htdocs_1cr	Signal Booster (auxiliar board)	1cr/0.0	0	0	0
+Fiplex000000024	\pages\htdocs_1c3	Signal Booster	1c/3.0	0	0	0
+Fiplex000000029	\pages\htdocs_1dm6	DAS Master	1dm/6.0	0	0	0
+Fiplex000000039	\pages\htdocs_1dm6_1	DAS Master	1dm/6.1	0	0	0
+Fiplex000000042	\pages\htdocs_1dm8	DAS Master	1dm/8.0	0	0	0
+Fiplex000000089	\pages\htdocs_2c2	Signal Booster SDRP	2c/2.0	1	2	0
+Fiplex000000090	\pages\htdocs_3dr1	DAS Remote SDRP	3dr/1.0	1	1	1
+Fiplex000000091	\pages\htdocs_5dm1	DAS Master SDRP	5dm/1.0	1	1	1
+Fiplex000000092	\pages\htdocs_2de	DAS Expansion SDRP	2de/0.0	1	2	0
+Fiplex000000093	\pages\htdocs_2c3	Signal Booster SDRP	2c/3.0	1	2	0

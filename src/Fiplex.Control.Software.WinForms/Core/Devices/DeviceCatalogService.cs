@@ -44,16 +44,20 @@ public class DeviceCatalogService : IDeviceCatalogService
             if (parts.Length >= 5)
             {
                 var typeVersion = parts[3].Split('/');
+                var passLevel  = parts.Length >= 6 && int.TryParse(parts[5].Trim(), out var pl) ? pl : 0;
+                var maxVersion = parts.Length >= 7 && int.TryParse(parts[6].Trim(), out var mv) ? mv : 0;
                 _catalog.Add(new DeviceInfo
                 {
                     Id = parts[0].Trim(),
                     PathShared = Path.Combine(
-                        AppDomain.CurrentDomain.BaseDirectory, 
+                        AppDomain.CurrentDomain.BaseDirectory,
                         parts[1].TrimStart('\\').Replace('\\', Path.DirectorySeparatorChar)),
                     NameTypeDevice = parts[2].Trim(),
                     TDev = typeVersion[0].Trim(),
                     NDev = double.Parse(typeVersion[1].Trim()),
-                    DeviceWithPass = parts[4].Trim() == "1"
+                    DeviceWithPass = parts[4].Trim() == "1",
+                    PassLevel = passLevel,
+                    MaxVersion = maxVersion
                 });
             }
         }
@@ -71,14 +75,19 @@ public class DeviceCatalogService : IDeviceCatalogService
         }
 
         var deviceId = rawDeviceIdentifier.Split(' ')[0];
-        var device = _catalog.FirstOrDefault(d => d.Id == deviceId);
-        
+        var suffix = deviceId.Length >= 15 ? deviceId.Substring(11, 4) : deviceId;
+        var device = _catalog.FirstOrDefault(d =>
+            d.Id.Length >= 15 ? d.Id.Substring(11, 4) == suffix : d.Id == suffix);
+
         if (device == null)
         {
             _logger.LogWarning("Device {Id} not found in catalog", deviceId);
+            return null;
         }
-        
-        return device;
+
+        // VB6 1.12 parity: frversion > 0 overrides passLevel to NEW_PROC_DEF_PASS (2)
+        var frVersion = deviceId.Length >= 15 && int.TryParse(deviceId.Substring(6, 5), out var fv) ? fv : 0;
+        return frVersion > 0 ? device with { PassLevel = 2 } : device;
     }
 
     public IReadOnlyList<DeviceInfo> GetAllEntries() 
