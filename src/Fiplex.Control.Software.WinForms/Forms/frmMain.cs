@@ -1702,6 +1702,9 @@ public partial class frmMain : Form
                     {
                     using (var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>())
                     {
+                        // VB6 1.12 parity: show "Forgot Password" link for PassLevel >= 2
+                        passwordDialog.PassLevel = selectedDevice.PassLevel;
+
                         // Auth runs inside the dialog — stays open on wrong password (VB 1.9 parity)
                         passwordDialog.AuthenticateCommand = async (pwd) =>
                         {
@@ -1715,7 +1718,20 @@ public partial class frmMain : Form
                             };
                         };
 
-                        if (passwordDialog.ShowDialog(this) != DialogResult.OK)
+                        var dlgResult = passwordDialog.ShowDialog(this);
+
+                        if (passwordDialog.ForgotPasswordClicked)
+                        {
+                            _logger.LogInformation("User clicked Forgot Password — opening reset dialog");
+                            using var resetDialog = new frmResetPass();
+                            resetDialog.RequestResetKeyCommand = ct => _authService.RequestResetKeyAsync(ct);
+                            resetDialog.ExecutePasswordResetCommand = (pwd, ct) => _authService.ExecutePasswordResetAsync(pwd, ct);
+                            resetDialog.ShowDialog(this);
+                            await DisconnectAsync();
+                            return;
+                        }
+
+                        if (dlgResult != DialogResult.OK)
                         {
                             _logger.LogInformation("User cancelled password dialog");
                             await DisconnectAsync();

@@ -6,6 +6,7 @@ public partial class frmPassword : Form
 {
     private bool _isEditMode;
     private System.Windows.Forms.Timer? _errorTimer;
+    private LinkLabel? _lnkForgotPassword;
 
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public Func<string, Task<string?>>? ChangePasswordCommand { get; set; }
@@ -45,10 +46,46 @@ public partial class frmPassword : Form
         set => btnCancel.Visible = value;
     }
 
+    /// <summary>
+    /// Password level of the connected device (0=none, 1=standard, 2=SDRP reset).
+    /// Set before ShowDialog. When >= 2, shows the "Forgot Password" link (VB6 1.12 parity).
+    /// </summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public int PassLevel { get; set; }
+
+    /// <summary>True when the user clicked the "Forgot Password" link (not a normal Cancel).</summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public bool ForgotPasswordClicked { get; private set; }
+
     public frmPassword()
     {
         InitializeComponent();
+        AddForgotPasswordLink();
         UpdateModeDisplay();
+    }
+
+    private void AddForgotPasswordLink()
+    {
+        _lnkForgotPassword = new LinkLabel
+        {
+            Name = "lnkForgotPassword",
+            Text = "Forgot password / Reset password to default",
+            Font = new Font("Segoe UI", 9F),
+            TextAlign = ContentAlignment.MiddleCenter,
+            Location = new Point(20, 82),
+            Size = new Size(318, 18),
+            Visible = false,
+            Cursor = Cursors.Hand
+        };
+        _lnkForgotPassword.LinkClicked += LnkForgotPassword_LinkClicked;
+        Controls.Add(_lnkForgotPassword);
+    }
+
+    private void LnkForgotPassword_LinkClicked(object? sender, LinkLabelLinkClickedEventArgs e)
+    {
+        ForgotPasswordClicked = true;
+        DialogResult = DialogResult.Cancel;
+        Close();
     }
 
     private void UpdateModeDisplay()
@@ -80,13 +117,29 @@ public partial class frmPassword : Form
             lblConfirm.Visible = false;
             txtConfirmPassword.Visible = false;
 
-            lblPasswordError.AutoSize = true;
-            lblPasswordError.Location = new Point(20, 76);
-            lblPasswordError.Visible = false;
+            // VB6 1.12 parity: show "Forgot Password" link when PassLevel >= NEW_PROC_DEF_PASS (2)
+            var showForgotLink = _lnkForgotPassword != null && PassLevel >= 2;
+            if (_lnkForgotPassword != null)
+                _lnkForgotPassword.Visible = showForgotLink;
 
-            btnOK.Top = 110;
-            btnCancel.Top = 110;
-            ClientSize = new Size(ClientSize.Width, 155);
+            if (showForgotLink)
+            {
+                lblPasswordError.AutoSize = true;
+                lblPasswordError.Location = new Point(20, 108);
+                lblPasswordError.Visible = false;
+                btnOK.Top = 143;
+                btnCancel.Top = 143;
+                ClientSize = new Size(ClientSize.Width, 190);
+            }
+            else
+            {
+                lblPasswordError.AutoSize = true;
+                lblPasswordError.Location = new Point(20, 76);
+                lblPasswordError.Visible = false;
+                btnOK.Top = 110;
+                btnCancel.Top = 110;
+                ClientSize = new Size(ClientSize.Width, 155);
+            }
         }
     }
 

@@ -27,6 +27,15 @@ public record DeviceInfo
     /// <summary>Gets a value indicating whether the device requires password authentication.</summary>
     public bool DeviceWithPass { get; init; }
 
+    /// <summary>Gets the firmware frame version extracted from chars 7-11 of the device identification response. 0 for standard devices, >0 for SDRP/FL2 devices.</summary>
+    public int FrVersion { get; init; }
+
+    /// <summary>Gets the password authentication level: 0 = no password, 1 = standard password, 2 = SDRP reset procedure (frmResetPass).</summary>
+    public int PassLevel { get; init; }
+
+    /// <summary>Gets the maximum firmware frame version supported by this device type (VB6 1.12 bufftab(4)). 0 = no versioned htdocs. Used to cap FrVersion.</summary>
+    public int MaxVersion { get; init; }
+
     /// <summary>Gets or sets the COM port number where the device is connected.</summary>
     public int ComPort { get; set; }
 

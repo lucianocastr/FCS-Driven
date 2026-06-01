@@ -197,6 +197,117 @@ public class AuthService : IAuthService
         }
     }
     
+    public async Task<ResetKeyStatus> RequestResetKeyAsync(CancellationToken ct = default)
+    {
+        _logger.LogInformation("Requesting password reset key");
+
+        var status = await SendResetKeyCommandAsync(":1pg4j!%J,3HN@6dx*", updateKey: true, ct: ct);
+
+        if (!status.ValidData)
+            return status;
+
+        if (status.Waiting)
+        {
+            // VB6 1.12: Sleep 3500 then retry with :0pg4j!%J,3HN@6dx*
+            await Task.Delay(3500, ct);
+            status = await SendResetKeyCommandAsync(":0pg4j!%J,3HN@6dx*", updateKey: true, existingKey: status.Key, ct: ct);
+        }
+
+        return status;
+    }
+
+    public async Task<ResetKeyStatus> ExecutePasswordResetAsync(string decryptedPassword, CancellationToken ct = default)
+    {
+        _logger.LogInformation("Executing password reset");
+
+        var command = new SerialCommand
+        {
+            Payload = $"Z0{decryptedPassword}",
+            ExpectsAck = true,
+            ExpectsData = false,
+            MaxRetries = 1,
+            AckTimeout = TimeSpan.FromSeconds(5),
+            CancellationToken = ct
+        };
+
+        var result = await _pipeline.EnqueueCommandAsync(command);
+
+        // VB6 1.12: "ACK" → success; anything else → parse tab-separated status
+        // Pipeline pattern (same as ^0 in mnuPassword_Click):
+        //   genuine ACK  → result.Success=true, result.Data=""
+        //   data response → result.Data contains error payload
+        var responsePayload = result.Data?.Trim() ?? string.Empty;
+        var isAck = result.Success && string.IsNullOrEmpty(responsePayload);
+
+        if (isAck)
+        {
+            _logger.LogInformation("Password reset successful (ACK)");
+            return new ResetKeyStatus { ValidData = true, AckReceived = true };
+        }
+
+        return ParseResetKeyResponse(responsePayload, updateKey: false);
+    }
+
+    private async Task<ResetKeyStatus> SendResetKeyCommandAsync(
+        string payload, bool updateKey, string existingKey = "", CancellationToken ct = default)
+    {
+        var command = new SerialCommand
+        {
+            Payload = payload,
+            ExpectsAck = false,
+            ExpectsData = true,
+            MaxRetries = 1,
+            DataTimeout = TimeSpan.FromSeconds(5),
+            CancellationToken = ct
+        };
+
+        var result = await _pipeline.EnqueueCommandAsync(command);
+        var response = result.Data?.Trim('\0', '\r', '\n') ?? string.Empty;
+
+        if (string.IsNullOrEmpty(response))
+            return new ResetKeyStatus { ValidData = false };
+
+        return ParseResetKeyResponse(response, updateKey, existingKey);
+    }
+
+    private static ResetKeyStatus ParseResetKeyResponse(string response, bool updateKey, string existingKey = "")
+    {
+        if (string.IsNullOrEmpty(response))
+            return new ResetKeyStatus { ValidData = false };
+
+        var parts = response.Split('\t');
+        if (parts.Length != 2 || parts[1].Length != 16)
+            return new ResetKeyStatus { ValidData = false };
+
+        try
+        {
+            var statusStr = parts[1];
+            var key = updateKey ? parts[0].Trim() : existingKey;
+
+            // VB6 1.12 stringToResetPassStatus parsing (0-based Substring ≡ VB6 1-based Mid):
+            var flags            = Convert.ToInt32(statusStr.Substring(0, 2), 16);
+            var remainingSeconds = Convert.ToInt64(statusStr.Substring(2, 8), 16);
+            var remainingAttempts = Convert.ToInt32(statusStr.Substring(10, 2), 16);
+            var throttlingSeconds = Convert.ToInt32(statusStr.Substring(12, 2), 16);
+            var resultCode        = Convert.ToInt32(statusStr.Substring(14, 2), 16);
+
+            return new ResetKeyStatus
+            {
+                ValidData = true,
+                Key = key,
+                Waiting = (flags & 1) != 0,
+                RemainingSeconds = remainingSeconds,
+                RemainingAttempts = remainingAttempts,
+                ThrottlingSeconds = throttlingSeconds,
+                ResultCode = resultCode
+            };
+        }
+        catch
+        {
+            return new ResetKeyStatus { ValidData = false };
+        }
+    }
+
     /// <summary>
     /// Extracts ucVersion from V1 response.
     /// ucVersion = AsciiToInt(Mid(verstr, 7, 2)) * 256 + AsciiToInt(Mid(verstr, 9, 2))
