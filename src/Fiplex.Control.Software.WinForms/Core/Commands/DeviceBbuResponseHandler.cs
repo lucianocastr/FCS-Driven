@@ -56,6 +56,21 @@ public class DeviceBbuResponseHandler : IDeviceResponseHandler
 
     /// <summary>
     /// Processes U1 responses: applies deep discharge voltage fix when detected.
+    ///
+    /// INIT-002 REGRESSION FIX (BUG-002 root cause):
+    ///   Previous behavior returned _factStrFixed (single factory segment with
+    ///   "00"/"01" prefix for 5dm), truncating the multi-segment U1 response
+    ///   from ~3104 chars to ~484 chars. This broke DAS Master legacy flow:
+    ///   GET /global_conf.shtml expected splitwith3tabs:3104,2870,2528,4 master
+    ///   segment but received only ~484 chars, causing JS parseGlobalConfig
+    ///   to reject and loop indefinitely (PLEASE WAIT LOADING...).
+    ///
+    /// Corrected behavior: preserve all tab-separated segments and only patch
+    /// the voltage bytes in-place within the factory segment (buff[1]). Length
+    /// of the modified segment is preserved (4 chars "27D8" replace 4 chars).
+    /// AnalyzeDeepDischVolt remains responsible for detection and setting
+    /// _factStrFixed (used as a future hook for fixBugFact-equivalent F0
+    /// retransmission if introduced later, per VB6 frmMainW.frm pattern).
     /// </summary>
     public string ProcessResponse(string command, string rawResponse)
     {
@@ -70,7 +85,22 @@ public class DeviceBbuResponseHandler : IDeviceResponseHandler
             _logger.LogWarning(
                 "bugDeepDisch detected ({DeviceType}): voltage out of [10.1,10.3]V, applying 10.2V fix",
                 _activeDeviceType);
-            return _factStrFixed;
+
+            // Preserve multi-segment structure: split by tab, patch voltage bytes
+            // in factory segment in-place, rejoin. Returns the FULL original response
+            // with only the 4-char voltage bytes replaced.
+            var segments = rawResponse.Split('\t');
+            if (segments.Length >= 2 && segments[1].Length >= 438)
+            {
+                segments[1] = segments[1].Substring(0, 434)
+                            + "27D8"
+                            + segments[1].Substring(438);
+                return string.Join("\t", segments);
+            }
+
+            // Structure unexpected (no second segment or too short): return raw
+            // response unchanged to avoid corrupting the response stream.
+            return rawResponse;
         }
 
         return rawResponse;
