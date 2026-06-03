@@ -32,48 +32,67 @@ internal static class Program
     [STAThread]
     static void Main()
     {
-        ApplicationConfiguration.Initialize();
-
-        var host = CreateHost();
-
-        var appFileLoggerProvider = host.Services.GetRequiredService<AppFileLoggerProvider>();
-        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-            appFileLoggerProvider.ForceFlush($"UNHANDLED EXCEPTION: {e.ExceptionObject}");
-        Application.ThreadException += (_, e) =>
-            appFileLoggerProvider.ForceFlush($"THREAD EXCEPTION: {e.Exception.GetType().Name}: {e.Exception.Message}");
-
-        using var scope = host.Services.CreateScope();
-        
-        // Login flow: First show Login, then frmMain if login successful
-        var loginForm = scope.ServiceProvider.GetRequiredService<Login>();
-        var loginResult = loginForm.ShowDialog();
-        
-        if (loginResult == DialogResult.OK && loginForm.LoginSuccessful)
+        // ROB-001 Phase 1A · PR-3 · I-4 Logger ForceFlush before exit.
+        // Captured reference used by the finally block to drain pending log
+        // queue at every Main exit path (normal · login cancelled · uncaught
+        // exception that propagates out of the try). Does not alter lifecycle,
+        // shutdown flow, host.Dispose, or any singleton.
+        AppFileLoggerProvider? exitFlushTarget = null;
+        try
         {
-            // Login successful → Load token information and show subscription
-            try
+            ApplicationConfiguration.Initialize();
+
+            var host = CreateHost();
+
+            var appFileLoggerProvider = host.Services.GetRequiredService<AppFileLoggerProvider>();
+            exitFlushTarget = appFileLoggerProvider;
+
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+                appFileLoggerProvider.ForceFlush($"UNHANDLED EXCEPTION: {e.ExceptionObject}");
+            Application.ThreadException += (_, e) =>
+                appFileLoggerProvider.ForceFlush($"THREAD EXCEPTION: {e.Exception.GetType().Name}: {e.Exception.Message}");
+
+            using var scope = host.Services.CreateScope();
+
+            // Login flow: First show Login, then frmMain if login successful
+            var loginForm = scope.ServiceProvider.GetRequiredService<Login>();
+            var loginResult = loginForm.ShowDialog();
+
+            if (loginResult == DialogResult.OK && loginForm.LoginSuccessful)
             {
-                // Load training/license information BEFORE showing the dialog
-                var trainingService = scope.ServiceProvider.GetRequiredService<ITrainingValidationService>();
-                trainingService.ReadTokenInformationAsync().GetAwaiter().GetResult();
-                
-                var subscriptionDialog = scope.ServiceProvider.GetRequiredService<SubscriptionInfo>();
-                subscriptionDialog.ShowDialog();
+                // Login successful → Load token information and show subscription
+                try
+                {
+                    // Load training/license information BEFORE showing the dialog
+                    var trainingService = scope.ServiceProvider.GetRequiredService<ITrainingValidationService>();
+                    trainingService.ReadTokenInformationAsync().GetAwaiter().GetResult();
+
+                    var subscriptionDialog = scope.ServiceProvider.GetRequiredService<SubscriptionInfo>();
+                    subscriptionDialog.ShowDialog();
+                }
+                catch (Exception ex)
+                {
+                    // Do not block if there is an error showing SubscriptionInfo
+                    Console.WriteLine($"Warning: Could not show subscription info: {ex.Message}");
+                }
+
+                // Show main application
+                var mainForm = scope.ServiceProvider.GetRequiredService<frmMain>();
+                Application.Run(mainForm);
             }
-            catch (Exception ex)
+            else
             {
-                // Do not block if there is an error showing SubscriptionInfo
-                Console.WriteLine($"Warning: Could not show subscription info: {ex.Message}");
+                // Login cancelled or failed → close application
+                Application.Exit();
             }
-            
-            // Show main application
-            var mainForm = scope.ServiceProvider.GetRequiredService<frmMain>();
-            Application.Run(mainForm);
         }
-        else
+        finally
         {
-            // Login cancelled or failed → close application
-            Application.Exit();
+            // ROB-001 Phase 1A · PR-3 · I-4 Logger ForceFlush
+            // Synchronously drain any log entries still queued in
+            // AppFileLoggerProvider before Main returns. Best-effort: if the
+            // provider was never resolved (very early failure) this is a no-op.
+            exitFlushTarget?.ForceFlush();
         }
     }
 
