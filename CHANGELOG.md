@@ -120,6 +120,82 @@
 
 ---
 
+## [3.2.0] - 2026-05-18
+
+### Added
+- **License Manager activation sequence + hide CLSS menu** (`fe9aef4` · issue #3) — Mirrors VB 1.9 `cmdRefresh_KeyPress` `cntmode 3-6`: extended `_eButton` to `[Right, Left, Right]` (third click starts license path). `FetchLicenseCharactersAsync` sends `U1` on `cntmode=3`, extracts `serialFirstChar` (`buff[3][0]`) and `versionFirstChar` (first decimal digit of `AsciiToInt(buff[5][0..1])`). KeyPress `cntmode=3/4/5/6`: Minute%10 → Day%10 → serialFirstChar → versionFirstChar.
+- **Clear EEPROM J1 write-back fixes J0 NACK on 2c v2.0** (`dcbd77a` · issue #4) — Device firmware 2c v2.0 uses extended J parameter format (584 chars data) vs VB 1.9 hardcoded strings (557 chars data). Device NACKs J0 because payload length is wrong. **Fix:** J1 pre-read before J0 → use J1 data directly as J0 payload. *(Root cause of what was later catalogued as REG-007.)*
+- **Traces ON log file** — `WriteTraceLog` to `%APPDATA%\Fiplex\USBmessages_YYYYMMDD.txt` (`80c3bb2` · issue #14).
+- **HTML modal for filter warnings** replacing native `window.confirm()` (`3ddcbbf`) — `window.confirm()` showed "localhost:8080 dice" browser chrome; replaced with a custom overlay modal matching the Fiplex brand (`#004a98` header, styled Cancel/Apply buttons). `readConfsFrm` now accepts an optional `onResult` callback enabling async flow; `submitform` in `net.js` uses the callback so the pending spinner only activates after the user confirms.
+- **TX/RX/ACK diagnostic events on serial pipeline** (`90dd627`).
+- **`FullScan` on startup + remove double port-open overhead** (`6348eec`) — Startup scan changed from `QuickScan` to `FullScan` (VB 1.9 parity: all installed Fiplex devices listed in `cmbCOM` at launch). Removed redundant `CanOpenPort()` probe eliminating one open/close cycle per port before `TryIdentifyDeviceAsync`. `OpenPortTimeout` `1200ms` → `300ms` (serial port open is near-instant).
+- **`SerialTraceLogger` non-blocking + full-frame RX** (`550411a`) — `Core/Diagnostics/SerialTraceLogger`: `ConcurrentQueue` + `StreamWriter` + 200ms background flush loop; replaces synchronous `File.AppendAllText` that blocked the serial pipeline thread on every trace write. Enable/Disable writes `=== Traces ON ===` / `=== Traces OFF ===` headers with version and machine name, matching VB 1.9 `WriteLog()` convention.
+
+### Changed
+- **T key on Scan Devices toggles Traces ON** (`c6e3eed`, `f42a1c0`, `78b58af` · issue #14) — Multiple iterations: button focus → `KeyPreview` → `ProcessCmdKey` + `ActiveControl`. VB 1.9 parity.
+- **Production Tests menu** hidden until factory sequence (`013927c` · issue #3).
+- **Calibrations menu** hidden until factory sequence (`9889a94` · issue #3) — VB 1.9 parity.
+- **`mnuCal`** enabled on factory activation; resets Visible+Enabled on disconnect (`dde0996` · issue #3).
+- **GDI+ status icons** applied to `frmEthernetInstall` with disabled-text fix (`c0181b6` · style consistency with `frmLicenseManager`).
+
+### Fixed
+- **Issue #3 (factory menu hardening)**:
+  - Guard `cmdRefresh_Click` during factory sequence — mirrors VB 1.9 `tmrModeFactory` check (`b04e2fd`).
+  - Use `System.Windows.Forms.Control.ModifierKeys` to avoid namespace clash with `Fiplex.Control` (`6649f01`).
+- **Issue #9: Save Config fails with 18 filters** (`4bc0fdf`).
+- **Issue #18: License key NACK feedback** (8 commits):
+  - `MaxRetries=1` (VB 1.9 parity), `Update()` replaces `DoEvents()` (`3a59ec1`).
+  - `Frame1.Refresh()` so `pctOK`/`pctKO` repaint after visibility change (`82544b1`).
+  - `Application.DoEvents()` after `pctOK`/`pctKO` visibility — matches VB 1.9 exactly (`0fd5411`).
+  - Explicit `BackColor` + `SizeMode` on `pctOK`/`pctKO` so indicators render without RESX image (`fb0a2b4`).
+  - GDI+ status indicators (OK green / KO red) replacing RESX icons (`5e5a7a5`).
+  - Redraw `btnEnableFeature` text in Paint event when disabled (`a33a4a2`).
+
+### QA / Documentation
+- Clear EEPROM production flow — command sequence, J write-back protocol, timing (`9197fe5`).
+- J hardcoded payload history — VB 1.9 origin, copied to C#, v2.0 incompatibility (`4926733`).
+- Issue #9 validation + version guide + serial logging design (`c97e251`).
+- Issue #3 hardware validation (`6fb9444`).
+
+---
+
+## [3.1.0] - 2026-05-15
+
+### Added
+- **`file://` URL encoding via `Uri.AbsoluteUri`** (`24df349`) — Manual string replacement of backslashes left `#` unencoded, causing WebView2 to truncate the path at the fragment separator when the project folder contained `Proyecto C#`. `Uri.AbsoluteUri` percent-encodes correctly.
+- **Maximize window on first connection per session** (`8edf1ac` · issue #20) — VB 1.9 used `SW_SHOWMAXIMIZED` when the device GUI loaded, controlled by a `maximized` flag reset on each disconnect. C# was forcing Normal with a fixed `1350x800` size. Restored VB 1.9 parity.
+- **Factory menu activation via Shift+click sequence on Refresh button** (`e9094b6` · issue #3) — Mirrors VB 1.9 `cmdRefresh_MouseDown` + `cmdRefresh_KeyPress`: Shift+RightClick → Shift+LeftClick on Refresh sets `cntmode=2`, type current minute%10 digit (`cntmode→50`), then day%10 digit.
+
+### Changed
+- **Splash screen logo** updated to v3.0.3 (`51c4300`); v3.0.2 preserved as `logo_v302.png`.
+- **`htdocs_2c2` footer**: copyright 2024 → 2026 + version `3.0.0` → `3.0.3` (`43b306f`).
+- **`htdocs_2c2/navi.html`**: copyright 2024 → 2026 (`351c28c`).
+- **`cmbCOM` resize behavior** (issue #21) — Replicated VB 1.9 `frmMain_Resize`: `cmbCOM.Width = ClientRectangle.Width - 16`, `OnResize` without `Anchor.Right`, `Visible` toggle on maximize transitions (commits `1578312`, `1b11947`, `1762791`, `014ee01`, `21cedc3`, `a172bbe`, `f963362`, `7b47f09`).
+- **`SaveFileDialog` on WebView2 file downloads** (`5e644c5` · issues #5/#6) — VB 1.9 parity.
+- **COM port number in device selector** (`490e481` · issue #16) — VB 1.9 parity.
+- **`cmbCOM` border visibility in disconnected state** — `FlatStyle.Standard` (`41629c7` · issue #19).
+
+### Removed
+- **Stale VB.NET project reference** from solution file (`df55be0`).
+
+### Fixed
+- **Issue #2: Ethernet Apply Changes returns fail even though device accepts** (`572060b`) — Root cause: `WriteFactoryStringAsync` checked `result.Data.StartsWith("ACK")`, but the pipeline consumes the ACK token leaving `result.Data` empty on a genuine ACK. Same pattern as issue #15. Fix: `isAck = result.Success && string.IsNullOrEmpty(result.Data)`.
+- **Issue #10: Extend legacy postback handler to all HTML POSTs** (`313bae6`).
+- **Issue #12: Show non-catalogued devices as "Unknown device"** (`062012a`).
+- **Issue #13: Detect USB disconnect via timer polling `BytesToRead`** (`af604f4`).
+- **Issue #15: Password change dialog improvements** (4 commits, VB 1.9 parity):
+  - Length validation 8-16 chars in edit mode (`ca9a670`).
+  - Parse device bitmask response for password change (`b44991a`).
+  - Correct button position in edit mode to avoid label overlap (`4a0afb5`).
+  - Dialog stays open during device command (`c173310`).
+- **Issue #21: `cmbCOM` resize quirk in Maximized state** — Multiple intermediate attempts (`Dock.Fill`, `Anchor`, `BeginInvoke`) converged on VB 1.9 parity. See **Changed** section above.
+
+### QA / Documentation
+- QA report — field report 260513 (`75d2105`).
+- QA validation tracking for issues #3, #6, #7, #9, #12, #13, #17, #19 (`9540fc4`, `3ca0689`, `3c023ea`, `f795b4e`, `1cdfb25`, `ee350ad`, `639c73f`, `96eaa5e`, `577f51c`).
+
+---
+
 ## [3.0.3] - 2026-05-06
 
 ### Fixed
