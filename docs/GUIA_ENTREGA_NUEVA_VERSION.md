@@ -4,6 +4,47 @@ Ejecutar en orden. Cada paso debe completarse antes de pasar al siguiente.
 
 ---
 
+## 0. Tipos de paquete (lectura obligatoria antes de ejecutar)
+
+A partir de v3.5.0, el proceso reconoce **dos paquetes distintos** con propósitos no intercambiables. La auditoría operativa determinó que entregar al cliente un paquete fuente genera fricción (el cliente debe construir Release manualmente). Por lo tanto:
+
+### SOURCE PACKAGE — `FCS-<VERSION>-source.zip`
+
+| Campo | Definición |
+|---|---|
+| **Formato** | `FCS-<VERSION>-source.zip` (ej. `FCS-3-5-0-source.zip`) |
+| **Contenido** | Repositorio fuente (`src/`), documentación pública (`README.md`, `CHANGELOG.md`, `docs/GUIA_LOGS_DIAGNOSTICO.*`), solución (`.sln`), artefactos de auditoría externos cuando corresponda |
+| **NO incluye** | `.git/`, `bin/`, `obj/`, `.vs/`, `*.user`, `*.suo`, `docs/` internos del proyecto |
+| **Uso autorizado** | Continuidad técnica · auditoría externa · soporte interno · respaldo legal/contractual |
+| **Audiencia** | Interna · auditores · custodio del código · soporte L3 |
+
+### DEPLOYMENT PACKAGE — `FCS-<VERSION>-deploy.zip`
+
+| Campo | Definición |
+|---|---|
+| **Formato** | `FCS-<VERSION>-deploy.zip` (ej. `FCS-3-5-0-deploy.zip`) |
+| **Contenido** | Únicamente artefactos ejecutables: `Fiplex.Control.Software.WinForms.exe`, DLLs, `*.deps.json`, `*.runtimeconfig.json`, `appsettings.json`, `Assets/`, `pages/`, `runtimes/win-*/native/` |
+| **NO incluye** | Código fuente (`*.cs`), proyecto (`*.csproj`, `*.sln`), `src/`, `docs/`, `.git/`, `obj/`, `bin/Debug/`, `*.pdb`, `*.xml` de IntelliSense, `runtimes/{android,linux,osx,maccatalyst}-*/` |
+| **Uso autorizado** | **Entrega operativa al cliente final** — único paquete válido para distribución productiva |
+| **Audiencia** | Cliente · técnico de campo · operador en sitio |
+
+### Regla de distribución (FORMAL)
+
+> **PROHIBIDO** enviar al cliente el `SOURCE PACKAGE` como mecanismo estándar de distribución productiva.
+>
+> El cliente recibe exclusivamente el `DEPLOYMENT PACKAGE`. El `SOURCE PACKAGE` se entrega únicamente bajo solicitud explícita justificada (auditoría contractual, escrow, traspaso de propiedad intelectual) y con autorización del responsable del proyecto.
+
+### Prerequisitos en máquina cliente (DEPLOYMENT PACKAGE)
+
+El `DEPLOYMENT PACKAGE` es framework-dependent. El cliente debe tener instalados:
+
+1. **.NET 10 Desktop Runtime** (`Microsoft.NETCore.App` + `Microsoft.WindowsDesktop.App` v10.0.0).
+2. **Microsoft Edge WebView2 Runtime** (Evergreen Bootstrapper o ya presente en Windows 11).
+
+Documentar ambos prerequisitos en `INSTALL.txt` dentro del ZIP de despliegue.
+
+---
+
 ## Variables de configuración
 
 Ajustar antes de ejecutar cualquier script:
@@ -229,14 +270,158 @@ Verificar:
 
 ---
 
-## 11. Comprimir y entregar
+## 11. Comprimir SOURCE PACKAGE
+
+> Este ZIP es el **SOURCE PACKAGE**. **NO** es el artefacto de entrega al cliente. Sigue al Paso 12.
 
 ```powershell
 Compress-Archive -Path "$entregas\FCS-$ver" `
-                 -DestinationPath "$entregas\FCS-$ver.zip" `
+                 -DestinationPath "$entregas\FCS-$ver-source.zip" `
                  -Force
-Write-Host "Listo: $entregas\FCS-$ver.zip"
+Write-Host "SOURCE PACKAGE listo: $entregas\FCS-$ver-source.zip"
 ```
+
+---
+
+## 12. Generar DEPLOYMENT PACKAGE (entregable al cliente)
+
+Carpeta canónica de origen (build output funcional verificado en auditoría):
+
+```
+$repoRoot\src\Fiplex.Control.Software.WinForms\bin\Release\net10.0-windows\
+```
+
+El build output del Paso 5 es **suficiente** (clasificación de auditoría: `BUILD_OUTPUT_SUFFICIENT`). NO ejecutar `dotnet publish` salvo que un release futuro requiera cambiar la app a `<SelfContained>true</SelfContained>` o `<PublishSingleFile>true</PublishSingleFile>`, en cuyo caso reauditar.
+
+### 12.1 Staging limpio
+
+> ⚠️ **REGLA CRÍTICA DE FILTRADO DE `runtimes/`** (incidente v3.5.0 deployment package).
+>
+> El árbol `runtimes/` contiene **dos clases distintas** de subcarpetas:
+>
+> 1. **RID-genérico** (`win`, `unix`) — contiene **managed assemblies RID-specific** bajo `lib/net{TFM}/`. Ejemplo: `runtimes/win/lib/net10.0/System.IO.Ports.dll`. El runtime .NET resuelve estos vía `runtimeTargets` con `rid="win"` y `assetType="runtime"` declarado en `deps.json`. **Su ausencia provoca `FileNotFoundException` / `Could not load file or assembly System.IO.Ports, Version=X.Y.Z`** aunque exista un binario homónimo en la raíz (es un facade RID-agnóstico distinto).
+> 2. **RID-arquitectura-específico** (`win-x64`, `win-x86`, `win-arm64`, `linux-x64`, `osx-arm64`, …) — contiene **native libraries** bajo `native/`. Ejemplo: `runtimes/win-x64/native/WebView2Loader.dll`.
+>
+> Para distribución Windows se conservan **ambos** árboles `win/` y `win-{arch}/`. Se eliminan únicamente los árboles RID-arquitectura-específicos de otras plataformas (`android-*`, `linux-*`, `osx-*`, `maccatalyst-*`) y el RID-genérico `unix` (sin impacto en Windows).
+>
+> Patrón correcto: preservar `^win$` y `^win-` (con guion). Eliminar todo lo demás.
+> Patrón incorrecto (incidente v3.5.0): preservar solo `win-*` — esto elimina `runtimes/win/` y rompe la resolución de `System.IO.Ports`.
+
+```powershell
+$binRelease = "$repoRoot\src\Fiplex.Control.Software.WinForms\bin\Release\net10.0-windows"
+$deployDir  = "$entregas\FCS-$ver-deploy"
+
+if (Test-Path $deployDir) { Remove-Item $deployDir -Recurse -Force }
+New-Item -ItemType Directory -Force $deployDir | Out-Null
+
+# Copia base (sin runtimes para filtrar después)
+robocopy $binRelease $deployDir /E `
+    /XF "*.pdb" "Microsoft.Web.WebView2.Core.xml" "Microsoft.Web.WebView2.WinForms.xml" "Microsoft.Web.WebView2.Wpf.xml" `
+    /NFL /NDL /NP /NJS /NJH | Out-Null
+
+# Eliminar runtimes NO-Windows.
+# CRÍTICO: preservar BOTH 'win' (RID-genérico, managed) Y 'win-*' (RID-arch, native).
+# Elimina: android-*, linux-*, osx-*, maccatalyst-*, unix.
+Get-ChildItem "$deployDir\runtimes" -Directory |
+    Where-Object { $_.Name -ne 'win' -and $_.Name -notmatch '^win-' } |
+    Remove-Item -Recurse -Force
+
+# Verificación obligatoria: el managed Windows debe estar presente.
+$winMgd = "$deployDir\runtimes\win\lib\net10.0\System.IO.Ports.dll"
+if (-not (Test-Path $winMgd)) {
+    throw "STAGING FAIL: $winMgd ausente. Filtrado de runtimes incorrecto."
+}
+```
+
+### 12.2 Agregar INSTALL.txt con prerequisitos
+
+```powershell
+@"
+Fiplex Control Software v$VERSION — Instalación
+
+Prerequisitos:
+1. .NET 10 Desktop Runtime
+   https://dotnet.microsoft.com/download/dotnet/10.0
+2. Microsoft Edge WebView2 Runtime (incluido en Windows 11)
+   https://developer.microsoft.com/microsoft-edge/webview2/
+
+Ejecución:
+- Doble click sobre Fiplex.Control.Software.WinForms.exe
+
+Soporte: BDAsystemsTS@honeywell.com
+"@ | Out-File -FilePath "$deployDir\INSTALL.txt" -Encoding utf8
+```
+
+### 12.3 Validación del DEPLOYMENT PACKAGE
+
+```powershell
+$violations = @()
+
+# (a) exe en raíz
+if (-not (Test-Path "$deployDir\Fiplex.Control.Software.WinForms.exe")) {
+    $violations += "FALTA exe en raíz"
+}
+
+# (b) Sin código fuente / proyecto
+$forbidden = Get-ChildItem $deployDir -Recurse -File |
+             Where-Object { $_.Extension -in '.cs','.csproj','.sln' }
+if ($forbidden) { $violations += "Contiene archivos fuente: $($forbidden.Count)" }
+
+# (c) Sin carpetas prohibidas
+@('src','docs','.git','obj','.vs','bin') | ForEach-Object {
+    if (Test-Path "$deployDir\$_") { $violations += "Carpeta prohibida: $_" }
+}
+
+# (d) Sin pdb/xml/runtimes no-Windows
+$pdbs = Get-ChildItem $deployDir -Recurse -File -Filter "*.pdb"
+if ($pdbs) { $violations += "Contiene .pdb: $($pdbs.Count)" }
+
+$nonWin = Get-ChildItem "$deployDir\runtimes" -Directory -EA SilentlyContinue |
+          Where-Object { $_.Name -ne 'win' -and $_.Name -notmatch '^win-' }
+if ($nonWin) { $violations += "Runtimes no-Windows: $($nonWin.Name -join ',')" }
+
+# (e) CRÍTICO: managed RID-specific Windows debe estar presente.
+$mustExist = @(
+    "$deployDir\runtimes\win\lib\net10.0\System.IO.Ports.dll",
+    "$deployDir\runtimes\win-x64\native\WebView2Loader.dll"
+)
+foreach ($f in $mustExist) {
+    if (-not (Test-Path $f)) { $violations += "FALTA archivo crítico runtime: $f" }
+}
+
+if ($violations.Count -eq 0) {
+    Write-Host "[OK] DEPLOYMENT PACKAGE válido"
+} else {
+    Write-Host "[FAIL] Violaciones:"
+    $violations | ForEach-Object { Write-Host "   - $_" }
+}
+```
+
+### 12.4 Comprimir y publicar hash
+
+```powershell
+$deployZip = "$entregas\FCS-$ver-deploy.zip"
+
+Compress-Archive -Path "$deployDir\*" -DestinationPath $deployZip -Force
+
+$size = (Get-Item $deployZip).Length
+$sha  = (Get-FileHash $deployZip -Algorithm SHA256).Hash
+
+Write-Host "DEPLOYMENT PACKAGE: $deployZip"
+Write-Host "  Tamaño: $([math]::Round($size/1MB, 2)) MB"
+Write-Host "  SHA-256: $sha"
+```
+
+### 12.5 Smoke test en máquina limpia (recomendado)
+
+Antes de entregar al cliente:
+
+1. Copiar `FCS-$ver-deploy.zip` a una máquina sin .NET SDK pero con .NET 10 Desktop Runtime + WebView2 Runtime instalados.
+2. Descomprimir el ZIP.
+3. Doble click sobre `Fiplex.Control.Software.WinForms.exe`.
+4. Verificar: app abre · login funciona · splash con versión correcta · scan COM lista dispositivos · footer `home.html` con versión correcta.
+
+> Esta validación es **obligatoria** antes de entregar a un cliente productivo cuando se cambia versión mayor o menor. Para parches puntuales (X.Y.Z+1) puede sustituirse por validación en una sesión Windows distinta a la de desarrollo.
 
 ---
 
@@ -253,5 +438,13 @@ Write-Host "Listo: $entregas\FCS-$ver.zip"
 [ ] 8. CHANGELOG.md limpiado en la entrega
 [ ] 9. Verificación automática — todos [OK]
 [ ] 10. Prueba de ejecución desde carpeta de entrega
-[ ] 11. ZIP generado
+[ ] 11. SOURCE PACKAGE generado (FCS-X-Y-Z-source.zip) — uso interno / auditoría
+[ ] 12. DEPLOYMENT PACKAGE generado (FCS-X-Y-Z-deploy.zip) — entregable al cliente
+       [ ] exe en raíz · sin .cs/.csproj/.sln · sin src/docs/.git/obj/bin
+       [ ] sin .pdb · sin .xml IntelliSense · sin runtimes no-Windows
+       [ ] INSTALL.txt con prerequisitos (.NET 10 Desktop Runtime + WebView2 Runtime)
+       [ ] SHA-256 calculado y publicado
+       [ ] Smoke test en máquina limpia (PASS)
 ```
+
+> **REGLA DE DISTRIBUCIÓN AL CLIENTE**: El cliente recibe **exclusivamente** `FCS-X-Y-Z-deploy.zip`. Enviar `FCS-X-Y-Z-source.zip` como mecanismo estándar de distribución productiva está **PROHIBIDO**.
