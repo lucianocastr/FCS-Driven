@@ -3,6 +3,7 @@ using System.Text;
 using System.Diagnostics;
 using Microsoft.Win32;
 using Fiplex.Control.Software.WinForms.Core.Devices.Interfaces;
+using Fiplex.Control.Software.WinForms.Core.Diagnostics;
 using Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Serial.Models;
 using Fiplex.Control.Software.WinForms.Models;
@@ -27,6 +28,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     private readonly ISerialPort _serialPort;
     private readonly ISerialCommandPipeline _pipeline;
     private readonly IDeviceCatalogService _catalog;
+    private readonly DiscoveryTelemetry _telemetry;
     private readonly ILogger<DeviceDiscoveryService> _logger;
 
     public event Action<string>? PortScanTrace;
@@ -50,11 +52,13 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         ISerialPort serialPort,
         ISerialCommandPipeline pipeline,
         IDeviceCatalogService catalog,
+        DiscoveryTelemetry telemetry,
         ILogger<DeviceDiscoveryService> logger)
     {
         _serialPort = serialPort ?? throw new ArgumentNullException(nameof(serialPort));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
+        _telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -67,6 +71,8 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         var stopOnFirstDevice = mode == DeviceScanMode.QuickScan;
         var scanId = Guid.NewGuid().ToString("N")[..8];
         var candidatePorts = GetCandidatePorts(scanId);
+        var scanStopwatch = Stopwatch.StartNew();
+        _telemetry.IncrementScansStarted();
 
         _logger.LogInformation(
             "Starting device scan {ScanId} with {PortCount} installed COM candidate(s) (Mode: {Mode})",
@@ -91,6 +97,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     "[Scan {ScanId}] Watchdog triggered after {Seconds}s — scan aborted at port {Port} ({Done}/{Total})",
                     scanId, ScanWatchdogSeconds,
                     candidatePorts[index].PortName, index, candidatePorts.Count);
+                _telemetry.IncrementScansAbortedByWatchdog();
                 break;
             }
 
@@ -137,6 +144,10 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         }
 
         _logger.LogInformation("Scan {ScanId} complete: {Count} device(s) found", scanId, foundDevices.Count);
+        scanStopwatch.Stop();
+        _telemetry.IncrementScansCompleted();
+        _telemetry.AddScanDurationMs(scanStopwatch.ElapsedMilliseconds);
+        _logger.LogInformation("{Summary}", _telemetry.FormatScanSummary(scanId, scanStopwatch.ElapsedMilliseconds));
         return foundDevices;
     }
 
@@ -217,6 +228,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     _logger.LogWarning(
                         "[Scan {ScanId}] {Port} - open hung after {Ms}ms, skipping port",
                         scanId, portName, (int)OpenPortTimeout.TotalMilliseconds);
+                    _telemetry.IncrementPortOpenHungSkipped();
                     return null;
                 }
 
@@ -265,6 +277,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                         portName,
                         retry + 1,
                         retryStopwatch.ElapsedMilliseconds);
+                    _telemetry.IncrementIdentificationTimeouts();
 
                     _pipeline.CancelPendingCommands();
 
@@ -320,12 +333,15 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     // Verify if response starts with "Fiplex"
                     if (response.StartsWith(ExpectedPrefix, StringComparison.OrdinalIgnoreCase))
                     {
+                        _telemetry.IncrementIdentificationSuccess();
+                        _telemetry.IncrementDevicesFoundTotal();
                         var frVersion = int.TryParse(response.Substring(6, 5), out var parsed) ? parsed : 0;
 
                         // Resolve device type from catalog
                         var deviceInfo = _catalog.ResolveDevice(response);
                         if (deviceInfo != null)
                         {
+                            _telemetry.IncrementDevicesInCatalog();
                             // VB6 1.12 parity line 2743: If frversion > maxversion Then frversion = maxversion
                             var cappedFrVersion = frVersion > deviceInfo.MaxVersion
                                 ? deviceInfo.MaxVersion
@@ -359,6 +375,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                             _logger.LogWarning(
                                 "Device on {Port} returned valid IDN but not in catalog: {Idn}",
                                 portName, response);
+                            _telemetry.IncrementDevicesUnknown();
 
                             // VB 1.9 parity: SetDeviceType fallback sets NameTypeDevice="Unknown device"
                             // and still adds the entry to cmbCOM. Do the same here.
@@ -370,6 +387,10 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                                 FrVersion = frVersion
                             };
                         }
+                    }
+                    else
+                    {
+                        _telemetry.IncrementNonFiplexResponses();
                     }
                 }
 

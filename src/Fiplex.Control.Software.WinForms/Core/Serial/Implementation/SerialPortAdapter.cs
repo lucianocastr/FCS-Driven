@@ -1,4 +1,5 @@
 using System.IO.Ports;
+using Fiplex.Control.Software.WinForms.Core.Diagnostics;
 using Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -15,10 +16,14 @@ namespace Fiplex.Control.Software.WinForms.Core.Serial.Implementation;
 public sealed class SerialPortAdapter : ISerialPort
 {
     private readonly ILogger<SerialPortAdapter> _logger;
+    private readonly DiscoveryTelemetry _telemetry;
     private SerialPort? _serialPort;
 
-    public SerialPortAdapter(ILogger<SerialPortAdapter> logger) 
-        => _logger = logger;
+    public SerialPortAdapter(ILogger<SerialPortAdapter> logger, DiscoveryTelemetry telemetry)
+    {
+        _logger = logger;
+        _telemetry = telemetry;
+    }
 
     public bool IsOpen => _serialPort?.IsOpen ?? false;
     public int BytesToRead => _serialPort?.BytesToRead ?? 0;
@@ -46,6 +51,7 @@ public sealed class SerialPortAdapter : ISerialPort
                 };
                 _serialPort.Open();
                 _logger.LogInformation("Serial port {Port} opened at {BaudRate} baud", portName, baudRate);
+                _telemetry.IncrementPortOpenSuccess();
                 return true;
             }
             catch (UnauthorizedAccessException ex)
@@ -53,12 +59,14 @@ public sealed class SerialPortAdapter : ISerialPort
                 // Port already in use by another process — expected during scan when
                 // the connected device's COM port is encountered. WARN, not ERR.
                 _logger.LogWarning("Failed to open {Port} — port in use: {Msg}", portName, ex.Message);
+                _telemetry.IncrementPortOpenFailedAccessDenied();
                 ErrorOccurred?.Invoke(ex);
                 return false;
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to open {Port}", portName);
+                _telemetry.IncrementPortOpenFailedOther();
                 ErrorOccurred?.Invoke(ex);
                 return false;
             }

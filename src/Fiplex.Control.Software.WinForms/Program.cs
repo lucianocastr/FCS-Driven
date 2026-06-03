@@ -102,6 +102,7 @@ internal static class Program
     private static void ConfigureLogging(IServiceCollection services)
     {
         services.AddSingleton<AppLogLevelSwitch>();
+        services.AddSingleton<DiscoveryTelemetry>();
         services.AddSingleton<AppFileLoggerProvider>(sp =>
         {
             var sw = sp.GetRequiredService<AppLogLevelSwitch>();
