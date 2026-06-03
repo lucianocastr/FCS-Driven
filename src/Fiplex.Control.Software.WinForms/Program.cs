@@ -32,17 +32,68 @@ internal static class Program
     [STAThread]
     static void Main()
     {
-        // ROB-001 Phase 1A · PR-3 · I-4 Logger ForceFlush before exit.
-        // Captured reference used by the finally block to drain pending log
-        // queue at every Main exit path (normal · login cancelled · uncaught
-        // exception that propagates out of the try). Does not alter lifecycle,
-        // shutdown flow, host.Dispose, or any singleton.
+        // ROB-001 Phase 1A · PR-3 + PR-5 lifecycle state.
+        //   exitFlushTarget (PR-3): logger reference for queue drain at Main exit paths.
+        //   hostToDispose, hostDisposed, disposeLock (PR-5): single-shot host.Dispose() guard.
         AppFileLoggerProvider? exitFlushTarget = null;
+        IHost? hostToDispose = null;
+        bool hostDisposed = false;
+        var disposeLock = new object();
+
+        // ROB-001 Phase 1A · PR-5 · I-3 Ordered host.Dispose()
+        // Single-shot, deadlock-safe disposal of the IHost root container.
+        //
+        // Why Task.Run:
+        //   Three singletons implement Dispose() as
+        //   `StopAsync().GetAwaiter().GetResult()` — a sync-over-async pattern
+        //   that would deadlock if invoked on the WinForms STA UI thread (sync
+        //   context captured by Task continuations). Dispatching via Task.Run
+        //   places execution on a ThreadPool worker with no sync context.
+        //
+        // Why a lock + flag:
+        //   Both Application.ApplicationExit handler and Main finally invoke
+        //   this function. The lock guarantees a single execution and removes
+        //   any race between the two callers.
+        //
+        // Why a 5s timeout:
+        //   Covers AppFileLoggerProvider's internal 2s flush wait plus normal
+        //   StopAsync of the other singletons. If exceeded, abandon and let
+        //   Main exit — shutdown remains best-effort and never blocks the UI
+        //   thread indefinitely. A foreground SerialPort.EventLoopRunner
+        //   stuck in kernel-mode IRP is out of scope for PR-5 (only I-1
+        //   `Environment.Exit()` escape hatch can address that vector).
+        void DisposeHostOnce()
+        {
+            lock (disposeLock)
+            {
+                if (hostDisposed) return;
+                hostDisposed = true;
+            }
+            var target = hostToDispose;
+            if (target is null) return;
+            try
+            {
+                var disposeTask = Task.Run(() => target.Dispose());
+                if (!disposeTask.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    // Timeout exceeded — log + continue. exitFlushTarget may
+                    // already be dead if AppFileLoggerProvider.Dispose ran;
+                    // the message is best-effort.
+                    exitFlushTarget?.ForceFlush("host.Dispose() timed out after 5s — abandoning, shutdown continues");
+                }
+            }
+            catch (Exception ex)
+            {
+                exitFlushTarget?.ForceFlush($"host.Dispose() threw {ex.GetType().Name}: {ex.Message}");
+            }
+        }
+
         try
         {
             ApplicationConfiguration.Initialize();
 
             var host = CreateHost();
+            hostToDispose = host;
 
             var appFileLoggerProvider = host.Services.GetRequiredService<AppFileLoggerProvider>();
             exitFlushTarget = appFileLoggerProvider;
@@ -51,6 +102,13 @@ internal static class Program
                 appFileLoggerProvider.ForceFlush($"UNHANDLED EXCEPTION: {e.ExceptionObject}");
             Application.ThreadException += (_, e) =>
                 appFileLoggerProvider.ForceFlush($"THREAD EXCEPTION: {e.Exception.GetType().Name}: {e.Exception.Message}");
+
+            // ROB-001 Phase 1A · PR-5 · I-2 ApplicationExit handler
+            // Canonical WinForms cleanup hook. Fires synchronously when
+            // Application.Run returns or when Application.Exit() is called
+            // during an active MessageLoop. Invokes single-shot host.Dispose()
+            // via DisposeHostOnce — idempotent with Main finally fallback.
+            Application.ApplicationExit += (_, _) => DisposeHostOnce();
 
             using var scope = host.Services.CreateScope();
 
@@ -89,10 +147,17 @@ internal static class Program
         finally
         {
             // ROB-001 Phase 1A · PR-3 · I-4 Logger ForceFlush
-            // Synchronously drain any log entries still queued in
-            // AppFileLoggerProvider before Main returns. Best-effort: if the
-            // provider was never resolved (very early failure) this is a no-op.
+            // Drain queue BEFORE host.Dispose runs (writer is still open here
+            // on login-cancelled or early-exception paths where Application.Run
+            // never started and ApplicationExit never fired). On normal exit
+            // paths, AppFileLoggerProvider.Dispose already ran inside the
+            // ApplicationExit handler — writer is null, ForceFlush is a no-op.
             exitFlushTarget?.ForceFlush();
+
+            // ROB-001 Phase 1A · PR-5 · Fallback for paths where the
+            // ApplicationExit handler did not fire. DisposeHostOnce is
+            // idempotent — no-op if it already ran.
+            DisposeHostOnce();
         }
     }
 
