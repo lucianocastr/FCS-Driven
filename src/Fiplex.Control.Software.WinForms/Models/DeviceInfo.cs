@@ -29,4 +29,7 @@ public record DeviceInfo
 
     /// <summary>Gets or sets the COM port number where the device is connected.</summary>
     public int ComPort { get; set; }
+
+    /// <summary>Gets the display label shown in the device selector (e.g., "COM92 - Signal Booster"). Matches VB 1.9 format.</summary>
+    public string DisplayLabel => $"COM{ComPort} - {NameTypeDevice}";
 }

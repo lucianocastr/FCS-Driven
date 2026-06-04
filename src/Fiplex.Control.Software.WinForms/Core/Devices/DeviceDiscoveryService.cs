@@ -353,6 +353,15 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                             _logger.LogWarning(
                                 "Device on {Port} returned valid IDN but not in catalog: {Idn}",
                                 portName, response);
+
+                            // VB 1.9 parity: SetDeviceType fallback sets NameTypeDevice="Unknown device"
+                            // and still adds the entry to cmbCOM. Do the same here.
+                            return new DeviceInfo
+                            {
+                                Id = response,
+                                NameTypeDevice = "Unknown device",
+                                ComPort = portNumber
+                            };
                         }
                     }
                 }

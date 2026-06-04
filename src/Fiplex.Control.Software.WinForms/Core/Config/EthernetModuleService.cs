@@ -147,8 +147,9 @@ public class EthernetModuleService : IEthernetModuleService
             };
             
             var result = await _pipeline.EnqueueCommandAsync(command);
-            var isAck = result.Success && 
-                        result.Data?.StartsWith("ACK", StringComparison.OrdinalIgnoreCase) == true;
+            // Genuine ACK: pipeline consumes ACK token → result.Data is empty.
+            // Bitmask/error responses land in result.Data non-empty.
+            var isAck = result.Success && string.IsNullOrEmpty(result.Data?.Trim());
             
             if (isAck)
             {

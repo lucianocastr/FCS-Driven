@@ -60,8 +60,15 @@ public partial class frmMain : Form
     private string _confSCA = "";
     private bool _pendingAnswer = false;
 
-    // Counter for factory mode key combination
+    // Counter for factory mode key combination (mirrors VB 1.9 cntmode)
     private short _cntmode = 0;
+    // Mouse button sequence: Right(2), Left(1) with Shift held on cmdRefresh
+    private readonly MouseButtons[] _eButton = [MouseButtons.Right, MouseButtons.Left];
+
+    // Tracks whether the window has been maximized on first connection (resets on disconnect)
+    private bool _hasMaximized = false;
+
+    private System.Windows.Forms.Timer? _portHealthTimer;
 
     // Validated password for INVALID CREDENTIALS retries
     private string? _validatedPassword;
@@ -78,7 +85,7 @@ public partial class frmMain : Form
     private static readonly string SoftwareVersion =
         (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "3.0.3")
+            ?.InformationalVersion ?? "3.1.0")
         .Split('+')[0];
 
     public frmMain(
@@ -120,6 +127,14 @@ public partial class frmMain : Form
 
         InitializeComponent();
 
+        // VB 1.9 sized cmbCOM manually in frmMain_Resize (ClientWidth - 16).
+        // Dock.Fill and Anchor.Right both conflict with the native Win32 ComboBox HWND,
+        // producing a split rendering (two visible dropdown arrows). Use no Anchor.Right
+        // and replicate VB 1.9's explicit OnResize sizing instead.
+        cmbCOM.Dock = DockStyle.None;
+        cmbCOM.Anchor = AnchorStyles.Left | AnchorStyles.Top;
+        cmbCOM.FlatStyle = FlatStyle.Standard;
+
         // Configure Debug/Tools menu for logging and diagnostics
         ConfigureDebugMenu();
 
@@ -154,6 +169,10 @@ public partial class frmMain : Form
         // Subscribe to CLSS menu events
         LogoutToolStripMenuItem.Click += LogoutToolStripMenuItem_Click;
         SubscriptionInformationToolStripMenuItem.Click += SubscriptionInformationToolStripMenuItem_Click;
+
+        // Factory mode activation: mirrors VB 1.9 cmdRefresh_MouseDown / cmdRefresh_KeyPress
+        cmdRefresh.MouseDown += cmdRefresh_MouseDown;
+        cmdRefresh.KeyPress += cmdRefresh_KeyPress;
     }
 
     /// <summary>
@@ -355,7 +374,7 @@ public partial class frmMain : Form
             webView.CoreWebView2.NavigationStarting += CoreWebView2_NavigationStarting;
             webView.CoreWebView2.NavigationCompleted += CoreWebView2_NavigationCompleted;
             webView.CoreWebView2.NewWindowRequested += CoreWebView2_NewWindowRequested;
-            // Note: We don't subscribe to DownloadStarting because .zhtml is now served as text/html
+            webView.CoreWebView2.DownloadStarting += CoreWebView2_DownloadStarting;
 
             // Disable features we don't need
             webView.AllowExternalDrop = false;
@@ -394,7 +413,7 @@ public partial class frmMain : Form
         {
             if (File.Exists(DefaultPagePath))
             {
-                var defaultUrl = $"file:///{DefaultPagePath.Replace("\\", "/")}";
+                var defaultUrl = new Uri(DefaultPagePath).AbsoluteUri;
                 webView.CoreWebView2.Navigate(defaultUrl);
                 _logger.LogInformation("Navigating to default page: {Url}", defaultUrl);
             }
@@ -813,6 +832,36 @@ public partial class frmMain : Form
         popupForm.Location = new Point(x, y);
     }
 
+    private void CoreWebView2_DownloadStarting(object? sender, Microsoft.Web.WebView2.Core.CoreWebView2DownloadStartingEventArgs e)
+    {
+        // Suppress default Chromium download notification (floats outside the app window)
+        // and show a WinForms SaveFileDialog instead — VB 1.9 parity.
+        e.Handled = true;
+
+        var suggestedName = Path.GetFileName(e.DownloadOperation.ResultFilePath);
+        var ext = Path.GetExtension(suggestedName).TrimStart('.');
+
+        var filter = ext.Length > 0
+            ? $"{ext.ToUpper()} files (*.{ext})|*.{ext}|All files (*.*)|*.*"
+            : "All files (*.*)|*.*";
+
+        using var dlg = new SaveFileDialog
+        {
+            FileName = suggestedName,
+            Filter = filter,
+            Title = "Save file"
+        };
+
+        if (dlg.ShowDialog(this) == DialogResult.OK)
+        {
+            e.ResultFilePath = dlg.FileName;
+        }
+        else
+        {
+            e.Cancel = true;
+        }
+    }
+
     private void CoreWebView2_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
     {
         // Placeholder for validations
@@ -1027,8 +1076,15 @@ public partial class frmMain : Form
         {
             var device = _foundDevices[cmbCOM.SelectedIndex];
 
-            // Enable Connect button only if training is valid
-            cmdConnect.Enabled = _trainingValidation.IsTrainingValid;
+            // VB 1.9 parity: Unknown device is shown but Connect is disabled
+            if (device.NameTypeDevice == "Unknown device")
+            {
+                cmdConnect.Enabled = false;
+            }
+            else
+            {
+                cmdConnect.Enabled = _trainingValidation.IsTrainingValid;
+            }
 
             _logger.LogDebug("Selected device: {Device} on COM{Port}",
                 device.NameTypeDevice, device.ComPort);
@@ -1185,7 +1241,7 @@ public partial class frmMain : Form
             // Use BindingList for better behavior with ComboBox
             var bindingList = new System.ComponentModel.BindingList<DeviceInfo>(_foundDevices);
             cmbCOM.DataSource = bindingList;
-            cmbCOM.DisplayMember = nameof(DeviceInfo.NameTypeDevice);
+            cmbCOM.DisplayMember = nameof(DeviceInfo.DisplayLabel);
             cmbCOM.ValueMember = nameof(DeviceInfo.ComPort);
 
             // Auto-select last used port
@@ -1342,6 +1398,13 @@ public partial class frmMain : Form
             if (!opened)
             {
                 throw new InvalidOperationException($"Failed to open serial port {portName}");
+            }
+
+            if (_devModeSettings?.NoUSB != true)
+            {
+                _portHealthTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+                _portHealthTimer.Tick += PortHealthTimer_Tick;
+                _portHealthTimer.Start();
             }
 
             _logger.LogInformation("Serial port {Status}",
@@ -1687,6 +1750,21 @@ public partial class frmMain : Form
         }
     }
 
+    private async void PortHealthTimer_Tick(object? sender, EventArgs e)
+    {
+        try
+        {
+            _ = _serialPort.BytesToRead;
+        }
+        catch
+        {
+            _portHealthTimer?.Stop();
+            _portHealthTimer?.Dispose();
+            _portHealthTimer = null;
+            await DisconnectAsync();
+        }
+    }
+
     /// <summary>
     /// Disconnects from the device and releases all resources
     /// PROMPT 6: Complete disconnection implementation
@@ -1695,6 +1773,10 @@ public partial class frmMain : Form
     {
         try
         {
+            _portHealthTimer?.Stop();
+            _portHealthTimer?.Dispose();
+            _portHealthTimer = null;
+
             _logger.LogInformation("=== STARTING DISCONNECTION ===");
             LogStatus("Disconnecting...");
 
@@ -2326,13 +2408,7 @@ public partial class frmMain : Form
             cmdIDPort.Enabled = false;
             cmbCOM.Enabled = false;
             cmdRefresh.Enabled = true;
-
-            // Set fixed size and center form on connect
-            // Size: 1350 x 800 px
-            this.WindowState = FormWindowState.Normal;
-            this.Size = new Size(1350, 800);
             this.MinimumSize = new Size(1024, 720);
-            CenterFormOnScreen();
 
             // Update firmware information in menu
             UpdateFirmwareInfo();
@@ -2341,8 +2417,13 @@ public partial class frmMain : Form
         {
             tlpMainLayout.ResumeLayout(true);
             ResumeLayout(true);
-            // Force full redraw to remove artifacts
             Refresh();
+        }
+
+        if (!_hasMaximized)
+        {
+            _hasMaximized = true;
+            BeginInvoke(() => this.WindowState = FormWindowState.Maximized);
         }
     }
 
@@ -2395,8 +2476,8 @@ public partial class frmMain : Form
             cmbCOM.Enabled = true;
             cmdRefresh.Enabled = false;
 
-            // Set minimum size and center form on disconnect
-            // Minimum size: 1024 x 720 px
+            // Restore fixed size on disconnect and reset maximize flag
+            _hasMaximized = false;
             this.WindowState = FormWindowState.Normal;
             this.MinimumSize = new Size(1024, 720);
             this.Size = new Size(1024, 720);
@@ -2408,6 +2489,22 @@ public partial class frmMain : Form
             ResumeLayout(true);
             // Force full redraw to remove artifacts
             Refresh();
+        }
+    }
+
+    // Replicates VB 1.9 frmMain_Resize: cmbCOM.Width = ClientRectangle.Width - 16
+    // When maximizing, the native Win32 ComboBox HWND button does not reposition
+    // on a programmatic resize — a Visible toggle forces it to repaint at the new width.
+    protected override void OnResize(EventArgs e)
+    {
+        base.OnResize(e);
+        if (cmbCOM == null) return;
+        var w = ClientSize.Width - 16;
+        if (w > 0) cmbCOM.Width = w;
+        if (WindowState == FormWindowState.Maximized)
+        {
+            cmbCOM.Visible = false;
+            cmbCOM.Visible = true;
         }
     }
 
@@ -2460,6 +2557,62 @@ public partial class frmMain : Form
     {
         // Call RefreshDeviceUIAsync without forcing advanced mode
         await RefreshDeviceUIAsync();
+    }
+
+    private void cmdRefresh_MouseDown(object sender, MouseEventArgs e)
+    {
+        if (_sessionContext.State != ConnectionState.Connected) return;
+        if (_cntmode >= _eButton.Length) return;
+
+        if (e.Button == _eButton[_cntmode] && (Control.ModifierKeys & Keys.Shift) != 0)
+        {
+            cmdRefresh.Focus();
+            _cntmode++;
+        }
+        else
+        {
+            _cntmode = 0;
+        }
+    }
+
+    private void cmdRefresh_KeyPress(object sender, KeyPressEventArgs e)
+    {
+        if (_cntmode == 50)
+        {
+            char expected = (char)('0' + DateTime.Now.Day % 10);
+            if (e.KeyChar == expected)
+                _ = ShowFactoryMenuAsync();
+            else
+                _cntmode = 0;
+            e.Handled = true;
+        }
+        else if (_cntmode == 2)
+        {
+            char expected = (char)('0' + DateTime.Now.Minute % 10);
+            if (e.KeyChar == expected)
+                _cntmode = 50;
+            else
+                _cntmode = 0;
+            e.Handled = true;
+        }
+    }
+
+    private async Task ShowFactoryMenuAsync()
+    {
+        _cntmode = 0;
+        if (webView?.CoreWebView2 == null) return;
+
+        try
+        {
+            _logger.LogInformation("Factory mode activated");
+            // Navigate the navi frame (std.html frameset) to expose factory sidebar links
+            await webView.CoreWebView2.ExecuteScriptAsync(
+                "try { window.frames['navi'].location.href = '/navi.html?isFactory=true'; } catch(e) {}");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error activating factory mode");
+        }
     }
 
     /// <summary>
@@ -2995,7 +3148,7 @@ public partial class frmMain : Form
     /// <remarks>
     /// Allows changing the password of the connected device using ^0 command.
     /// </remarks>
-    private async void mnuPassword_Click(object sender, EventArgs e)
+    private void mnuPassword_Click(object sender, EventArgs e)
     {
         if (_sessionContext.State != ConnectionState.Connected)
         {
@@ -3007,94 +3160,72 @@ public partial class frmMain : Form
             return;
         }
 
-        // Create dialog in edit mode
         using var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>();
-        passwordDialog.IsEditMode = true;  // Configures title, prompt and hides chkRemember
-        passwordDialog.ShowCancel = true;  // Allow cancellation
+        passwordDialog.IsEditMode = true;
+        passwordDialog.ShowCancel = true;
 
-        if (passwordDialog.ShowDialog(this) != DialogResult.OK)
+        // Delegate: dialog stays open while sending to device (VB 1.9 parity).
+        // Returns null on success, error message on failure.
+        passwordDialog.ChangePasswordCommand = async (newPassword) =>
         {
-            _logger.LogDebug("Password change cancelled by user");
-            return;
-        }
-
-        var newPassword = passwordDialog.Password;
-
-        if (string.IsNullOrWhiteSpace(newPassword))
-        {
-            MessageBox.Show(
-                "Password cannot be empty.",
-                "Invalid Password",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-            return;
-        }
-
-        try
-        {
-            LogStatus("Changing device password...");
-            cmdConnect.Enabled = false;
-            mnuPassword.Enabled = false;
-
-            // Command ^0 = Password change (not to be confused with *0 which is authentication)
-            var serialCommand = new SerialCommand
+            try
             {
-                Payload = $"^0{newPassword}",
-                ExpectsAck = true,
-                ExpectsData = false,  // Device only sends ACK, no additional data frame
-                MaxRetries = 2,
-                AckTimeout = TimeSpan.FromSeconds(2),
-                CancellationToken = _cts?.Token ?? default
-            };
-            var result = await _pipeline.EnqueueCommandAsync(serialCommand);
+                LogStatus("Changing device password...");
+                cmdConnect.Enabled = false;
+                mnuPassword.Enabled = false;
 
-            // Verify successful response
-            if (result.Success)
-            {
-                // Update stored password
-                _validatedPassword = newPassword;
-                _pipeline.SetStoredPassword(newPassword);
-                _commandRouter.SetStoredPassword(newPassword);
+                // ^0 = Password change (distinct from *0 = authentication)
+                var serialCommand = new SerialCommand
+                {
+                    Payload = $"^0{newPassword}",
+                    ExpectsAck = true,
+                    ExpectsData = false,
+                    MaxRetries = 2,
+                    AckTimeout = TimeSpan.FromSeconds(2),
+                    CancellationToken = _cts?.Token ?? default
+                };
+                var result = await _pipeline.EnqueueCommandAsync(serialCommand);
 
-                LogStatus("Password changed successfully");
-                MessageBox.Show(
-                    "Device password has been changed successfully.",
-                    "Password Changed",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Information);
+                // Device responds "ACK" on success, hex bitmask on failure.
+                // Pipeline classifies bitmask as DataFrame → result.Data non-empty.
+                // Genuine ACK → result.Data empty.
+                var responsePayload = result.Data?.Trim() ?? string.Empty;
+                var isGenuineAck = result.Success && string.IsNullOrEmpty(responsePayload);
 
-                _logger.LogInformation("Device password changed successfully");
+                if (isGenuineAck)
+                {
+                    _validatedPassword = newPassword;
+                    _pipeline.SetStoredPassword(newPassword);
+                    _commandRouter.SetStoredPassword(newPassword);
+                    LogStatus("Password changed successfully");
+                    _logger.LogInformation("Device password changed successfully");
+                    return null;
+                }
+                else
+                {
+                    var errorDetail = !string.IsNullOrEmpty(responsePayload)
+                        ? ParsePasswordValidationError(responsePayload)
+                        : "The device did not accept the new password.";
+                    _logger.LogWarning("Password change failed: {Status} Response: {Data}", result.Status, responsePayload);
+                    LogStatus("Password change failed");
+                    return errorDetail;
+                }
             }
-            else
+            catch (Exception ex)
             {
-                // If device returns NACK or error, result.Success will be false
-                _logger.LogWarning("Password change failed: {Status}", result.Status);
-                LogStatus("Password change failed");
-                MessageBox.Show(
-                    "Failed to change password.\n\nThe device did not accept the new password.",
-                    "Password Change Failed",
-                    MessageBoxButtons.OK,
-                    MessageBoxIcon.Error);
+                _logger.LogError(ex, "Error changing device password");
+                LogStatus("Password change error");
+                return $"An error occurred: {ex.Message}";
             }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error changing device password");
-            LogStatus("Password change error");
-            MessageBox.Show(
-                $"An error occurred while changing the password.\n\n{ex.Message}",
-                "Error",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Error);
-        }
-        finally
-        {
-            cmdConnect.Enabled = true;
-            if (_sessionContext.State == ConnectionState.Connected)
+            finally
             {
-                mnuPassword.Enabled = true;
+                cmdConnect.Enabled = true;
+                if (_sessionContext.State == ConnectionState.Connected)
+                    mnuPassword.Enabled = true;
             }
-        }
+        };
+
+        passwordDialog.ShowDialog(this);
     }
 
     /// <summary>
