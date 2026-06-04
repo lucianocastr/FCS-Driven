@@ -2,29 +2,17 @@ using System.ComponentModel;
 
 namespace Fiplex.Control.Software.WinForms.Forms;
 
-/// <summary>
-/// Modal dialog for secure device password capture.
-/// </summary>
-/// <remarks>
-/// Supports two modes of operation:
-/// <list type="bullet">
-///   <item><description>Capture mode: Standard device authentication</description></item>
-///   <item><description>Edit mode: Password change (shows confirmation field)</description></item>
-/// </list>
-/// </remarks>
 public partial class frmPassword : Form
 {
     private bool _isEditMode;
+    private System.Windows.Forms.Timer? _errorTimer;
 
-    // Delegate set by caller in edit mode. Sends password to device.
-    // Returns null on success, error message string on failure (VB 1.9 parity).
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public Func<string, Task<string?>>? ChangePasswordCommand { get; set; }
 
-    /// <summary>
-    /// Gets or sets the password entered by the user.
-    /// Allows pre-population of the field for improved UX.
-    /// </summary>
+    [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
+    public Func<string, Task<string?>>? AuthenticateCommand { get; set; }
+
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string Password
     {
@@ -32,9 +20,6 @@ public partial class frmPassword : Form
         set => txtPassword.Text = value ?? string.Empty;
     }
 
-    /// <summary>
-    /// Gets or sets the confirmation password in edit mode.
-    /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public string ConfirmPassword
     {
@@ -42,13 +27,6 @@ public partial class frmPassword : Form
         set => txtConfirmPassword.Text = value ?? string.Empty;
     }
 
-    /// <summary>
-    /// Indicates whether the dialog is in edit mode (password change).
-    /// </summary>
-    /// <remarks>
-    /// In edit mode: Title and prompt change, chkRemember is hidden,
-    /// confirmation field is shown.
-    /// </remarks>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool IsEditMode
     {
@@ -60,10 +38,6 @@ public partial class frmPassword : Form
         }
     }
 
-    /// <summary>
-    /// Controls Cancel button visibility.
-    /// Visible by default. Hide to force password entry.
-    /// </summary>
     [DesignerSerializationVisibility(DesignerSerializationVisibility.Hidden)]
     public bool ShowCancel
     {
@@ -71,82 +45,89 @@ public partial class frmPassword : Form
         set => btnCancel.Visible = value;
     }
 
-    /// <summary>
-    /// Password form constructor.
-    /// </summary>
     public frmPassword()
     {
         InitializeComponent();
+        UpdateModeDisplay();
     }
 
-    /// <summary>
-    /// Updates the display according to the mode (capture vs edit).
-    /// </summary>
     private void UpdateModeDisplay()
     {
         if (_isEditMode)
         {
-            // Edit mode: Change device password
             Text = "Change Device Password";
             lblPrompt.Text = "Enter new password:";
-            txtPassword.MaxLength = 16;  // device hard limit
+            txtPassword.MaxLength = 16;
 
-            // Label must not overflow dialog width
             lblPasswordError.AutoSize = false;
             lblPasswordError.Size = new Size(318, 32);
 
-            // Show confirmation field and adjust height
             lblConfirm.Visible = true;
             txtConfirmPassword.Visible = true;
             lblPasswordError.Visible = true;
             lblPasswordError.Text = string.Empty;
 
-            // Adjust button position for edit mode
-            Height = 235;
             btnOK.Top = 162;
             btnCancel.Top = 162;
+            ClientSize = new Size(ClientSize.Width, 200);
         }
         else
         {
-            // Capture mode: Standard authentication
             Text = "Device Authentication";
             lblPrompt.Text = "Enter device password:";
             txtPassword.MaxLength = 50;
 
-            // Hide confirmation field
             lblConfirm.Visible = false;
             txtConfirmPassword.Visible = false;
+
+            lblPasswordError.AutoSize = true;
+            lblPasswordError.Location = new Point(20, 76);
             lblPasswordError.Visible = false;
 
-            // Adjust height for authentication mode
-            Height = 160;
-            btnOK.Top = 85;
-            btnCancel.Top = 85;
+            btnOK.Top = 110;
+            btnCancel.Top = 110;
+            ClientSize = new Size(ClientSize.Width, 155);
         }
     }
 
-    /// <summary>
-    /// Displays a validation error message in red.
-    /// </summary>
     public void ShowValidationError(string errorMessage)
     {
-        if (_isEditMode && lblPasswordError != null)
+        if (lblPasswordError == null) return;
+
+        StopErrorTimer();
+
+        lblPasswordError.ForeColor = Color.FromArgb(196, 32, 32);
+        lblPasswordError.Text = errorMessage;
+        lblPasswordError.Visible = true;
+
+        if (!_isEditMode)
         {
-            lblPasswordError.ForeColor = Color.Red;
-            lblPasswordError.Text = errorMessage;
-            lblPasswordError.Visible = true;
+            // VB 1.9 parity: "Wrong password" auto-dismisses after a short period.
+            _errorTimer = new System.Windows.Forms.Timer { Interval = 4000 };
+            _errorTimer.Tick += (s, e) =>
+            {
+                lblPasswordError.Visible = false;
+                StopErrorTimer();
+            };
+            _errorTimer.Start();
         }
     }
 
-    /// <summary>
-    /// Clears error messages.
-    /// </summary>
     public void ClearValidationError()
     {
+        StopErrorTimer();
         if (lblPasswordError != null)
         {
             lblPasswordError.Text = string.Empty;
+            lblPasswordError.Visible = false;
         }
+    }
+
+    private void StopErrorTimer()
+    {
+        _errorTimer?.Stop();
+        _errorTimer?.Dispose();
+        _errorTimer = null;
     }
 
     private void SetControlsEnabled(bool enabled)
@@ -157,28 +138,17 @@ public partial class frmPassword : Form
         btnCancel.Enabled = enabled;
     }
 
-    /// <summary>
-    /// Handles OK button click with validation.
-    /// </summary>
-    /// <remarks>
-    /// In edit mode validates that passwords match, then delegates to device
-    /// via ChangePasswordCommand (VB 1.9 parity: dialog stays open, errors inline).
-    /// </remarks>
     private async void btnOK_Click(object sender, EventArgs e)
     {
         ClearValidationError();
 
-        // Validate that the password is not empty
-        if (string.IsNullOrWhiteSpace(txtPassword.Text))
+        // VB 1.9 parity (auth mode): any input — including empty string or spaces — is sent
+        // directly to the device. The device responds "Wrong password" and the error persists.
+        // Client-side empty validation only applies to Change Password (edit mode).
+        if (_isEditMode && string.IsNullOrEmpty(txtPassword.Text))
         {
-            MessageBox.Show(
-                _isEditMode
-                    ? "New password cannot be empty."
-                    : "Password cannot be empty.",
-                "Validation Error",
-                MessageBoxButtons.OK,
-                MessageBoxIcon.Warning);
-
+            MessageBox.Show("New password cannot be empty.", "Validation Error",
+                MessageBoxButtons.OK, MessageBoxIcon.Warning);
             DialogResult = DialogResult.None;
             txtPassword.Focus();
             return;
@@ -186,7 +156,6 @@ public partial class frmPassword : Form
 
         if (_isEditMode)
         {
-            // Client-side: only check passwords match (VB 1.9 — device validates complexity)
             if (string.IsNullOrWhiteSpace(txtConfirmPassword.Text))
             {
                 ShowValidationError("Please confirm the new password.");
@@ -204,7 +173,6 @@ public partial class frmPassword : Form
                 return;
             }
 
-            // Send to device; dialog stays open while awaiting (VB 1.9 parity)
             if (ChangePasswordCommand != null)
             {
                 SetControlsEnabled(false);
@@ -215,8 +183,7 @@ public partial class frmPassword : Form
 
                 if (error == null)
                 {
-                    // Success: green feedback for 1.5s, then close (VB 1.9 parity)
-                    lblPasswordError.ForeColor = Color.Green;
+                    lblPasswordError.ForeColor = Color.FromArgb(0, 140, 60);
                     lblPasswordError.Text = "Password changed successfully.";
                     await Task.Delay(1500);
                     DialogResult = DialogResult.OK;
@@ -224,7 +191,6 @@ public partial class frmPassword : Form
                 }
                 else
                 {
-                    // Device rejected — show inline, stay open (VB 1.9 parity)
                     SetControlsEnabled(true);
                     ShowValidationError(error);
                     DialogResult = DialogResult.None;
@@ -234,15 +200,45 @@ public partial class frmPassword : Form
             }
         }
 
-        // Capture mode or no delegate — standard close
+        if (AuthenticateCommand != null)
+        {
+            // Set DialogResult.None before the await to prevent WinForms from closing
+            // the form via AcceptButton mechanics while the serial call is in flight.
+            DialogResult = DialogResult.None;
+            SetControlsEnabled(false);
+            lblPasswordError.ForeColor = SystemColors.GrayText;
+            lblPasswordError.Text = "Verifying...";
+            lblPasswordError.Visible = true;
+
+            string? error = await AuthenticateCommand(txtPassword.Text);
+
+            if (error == null)
+            {
+                DialogResult = DialogResult.OK;
+                Close();
+            }
+            else
+            {
+                SetControlsEnabled(true);
+                ShowValidationError(error);
+                DialogResult = DialogResult.None;
+                txtPassword.SelectAll();
+                txtPassword.Focus();
+            }
+            return;
+        }
+
         DialogResult = DialogResult.OK;
     }
 
-    /// <summary>
-    /// Handles Cancel button click.
-    /// </summary>
     private void btnCancel_Click(object sender, EventArgs e)
     {
         DialogResult = DialogResult.Cancel;
+    }
+
+    protected override void OnFormClosing(FormClosingEventArgs e)
+    {
+        StopErrorTimer();
+        base.OnFormClosing(e);
     }
 }

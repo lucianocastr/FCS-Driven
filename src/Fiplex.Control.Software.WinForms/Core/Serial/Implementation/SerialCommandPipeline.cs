@@ -125,6 +125,13 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
         _logger.LogDebug("FlushInputBuffer: parser state reset (instRx=\"\" equivalent)");
     }
 
+    public void DiscardAndFlushBuffer()
+    {
+        _serialPort.DiscardInBuffer();
+        _parser.Reset();
+        _logger.LogDebug("DiscardAndFlushBuffer: OS buffer discarded + parser state reset");
+    }
+
     /// <summary>
     /// Cancels all pending commands in the queue.
     /// Used when loading base.js and during disconnection.
@@ -313,7 +320,8 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 UpdateState(cmd.Id, CommandState.Sending);
                 var payload = Encoding.ASCII.GetBytes(cmd.Payload + "\n");
                 var bytesSent = await _serialPort.WriteAsync(payload, ctx.Cts.Token);
-                _logger.LogDebug("TX: {Payload}", cmd.Payload);
+                if (!cmd.IsSilent) _logger.LogDebug("TX: {Payload}", cmd.Payload[..Math.Min(20, cmd.Payload.Length)]);
+                if (!cmd.IsSilent) _logger.LogTrace("TX_FULL: {Payload}", cmd.Payload);
                 TxDiagnostic?.Invoke($"Tx0 {cmd.Payload}");
                 _pendingAnswer = true;
                 
@@ -327,7 +335,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
                     if (ackResult == TokenType.InvalidCredentials)
                     {
-                        // INVALID CREDENTIALS - Try with password
+                        RxDiagnostic?.Invoke("Rx0 INVALID CREDENTIALS");
                         var retriedResult = await HandleInvalidCredentialsAsync(ctx, cmd, bytesSent);
                         if (retriedResult != null)
                         {
@@ -337,30 +345,45 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         continue;
                     }
 
-                    // NEW: If we receive DataFrame when expecting ACK, 
+                    // NEW: If we receive DataFrame when expecting ACK,
                     // the device responded directly without ACK (valid behavior for some devices)
                     if (ackResult == TokenType.DataFrame)
                     {
-                        _logger.LogDebug("DataFrame received directly without previous ACK for {CmdId}", cmd.Id);
-                        _pendingAnswer = false;
-                        
-                        // Validate length if necessary
-                        if (cmd.ExpectedLengths.Length > 0)
+                        // If DiscardDataBeforeAck is set, this DataFrame is likely a stale response
+                        // from a previously cancelled command (in-flight bytes arriving after cancellation).
+                        // Discard it and continue waiting for the real ACK — do NOT re-send the command.
+                        if (cmd.DiscardDataBeforeAck)
                         {
-                            var lengthSpec = string.Join(",", cmd.ExpectedLengths);
-                            if (!_validator.ValidateLength(ackData, lengthSpec))
-                            {
-                                _logger.LogWarning(
-                                    "Response validation failed {CmdId} retry {Retry}/{Max}. Spec: [{Spec}], Got: {Actual} chars",
-                                    cmd.Id, ctx.RetryCount, cmd.MaxRetries, lengthSpec, ackData.Length);
-                                continue;
-                            }
+                            _logger.LogWarning(
+                                "Discarding stale DataFrame ({Len} chars) for {Cmd} — likely a cancelled command response. Continuing ACK wait.",
+                                ackData?.Length ?? 0, cmd.Payload[..Math.Min(2, cmd.Payload.Length)]);
+                            // Re-wait for ACK on the same attempt (do not re-send)
+                            (ackResult, ackData) = await WaitForTokenWithTypeAsync(cmd.AckTimeout, ctx.Cts.Token);
+                            // Fall through to normal ACK check below
                         }
-                        
-                        _logger.LogDebug("RX (direct DataFrame): {Data}", ackData.Length > 100 ? ackData[..100] + "..." : ackData);
-                        RxDiagnostic?.Invoke($"Rx0 {ackData}");
-                        CompleteCommand(ctx, CommandResultStatus.Success, ackData, bytesSent);
-                        return;
+                        else
+                        {
+                            _logger.LogDebug("DataFrame received directly without previous ACK for {CmdId}", cmd.Id);
+                            _pendingAnswer = false;
+
+                            // Validate length if necessary
+                            if (cmd.ExpectedLengths.Length > 0)
+                            {
+                                var lengthSpec = string.Join(",", cmd.ExpectedLengths);
+                                if (!_validator.ValidateLength(ackData, lengthSpec))
+                                {
+                                    _logger.LogWarning(
+                                        "Response validation failed {CmdId} retry {Retry}/{Max}. Spec: [{Spec}], Got: {Actual} chars",
+                                        cmd.Id, ctx.RetryCount, cmd.MaxRetries, lengthSpec, ackData.Length);
+                                    continue;
+                                }
+                            }
+
+                            if (!cmd.IsSilent) _logger.LogDebug("RX (direct DataFrame): {Data}", ackData.Length > 100 ? ackData[..100] + "..." : ackData);
+                            RxDiagnostic?.Invoke($"Rx0 {ackData}");
+                            CompleteCommand(ctx, CommandResultStatus.Success, ackData, bytesSent);
+                            return;
+                        }
                     }
 
                     if (ackResult != TokenType.Ack)
@@ -382,7 +405,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         continue;
                     }
 
-                    AckDiagnostic?.Invoke($"ACK ok ({ctx.AckTimer.ElapsedMilliseconds}ms)");
+                    AckDiagnostic?.Invoke("Rx0 ACK");
                 }
 
                 // Wait Data
@@ -436,7 +459,8 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         }
                     }
 
-                    _logger.LogDebug("RX: {Data}", data.Length > 100 ? data[..100] + "..." : data);
+                    if (!cmd.IsSilent) _logger.LogDebug("RX: {Length} chars — \"{Preview}\"", data.Length, data[..Math.Min(20, data.Length)]);
+                    if (!cmd.IsSilent) _logger.LogTrace("RX_FULL: {Length} chars — \"{Preview}\"", data.Length, data[..Math.Min(80, data.Length)]);
                     RxDiagnostic?.Invoke($"Rx0 {data}");
                     CompleteCommand(ctx, CommandResultStatus.Success, data, bytesSent);
                     return;
@@ -506,6 +530,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
         // Send authenticated command
         var payload = Encoding.ASCII.GetBytes(authPayload + "\n");
         await _serialPort.WriteAsync(payload, ctx.Cts.Token);
+        TxDiagnostic?.Invoke($"Tx0 {authPayload}");
 
         // Wait for response
         if (cmd.ExpectsData)
@@ -526,6 +551,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 }
 
                 _logger.LogInformation("Authentication retry successful (data frame)");
+                RxDiagnostic?.Invoke($"Rx0 {data}");
                 return new SerialResult(cmd.Id, true, CommandResultStatus.Success, data, null, null);
             }
 
@@ -542,6 +568,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
             if (dataResult == TokenType.Timeout)
             {
                 _logger.LogInformation("Auth retry got ACK without data, treating as success");
+                AckDiagnostic?.Invoke("Rx0 ACK");
                 return new SerialResult(cmd.Id, true, CommandResultStatus.Success, string.Empty, null, null);
             }
         }

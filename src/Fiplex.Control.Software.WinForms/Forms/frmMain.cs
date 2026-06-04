@@ -72,11 +72,29 @@ public partial class frmMain : Form
     private bool _hasMaximized = false;
 
     private SerialTraceLogger _traceLogger = null!;
+    private AppLogLevelSwitch _appLogSwitch = null!;
 
     private System.Windows.Forms.Timer? _portHealthTimer;
 
     // Validated password for INVALID CREDENTIALS retries
     private string? _validatedPassword;
+
+    // Set when user explicitly cancels the password dialog (vs wrong password)
+    private bool _userCancelledAuth;
+
+    // Guards against opening a second password dialog while ConnectAsync auth is already
+    // in progress. The pipeline calls OnPipelineCredentialsRequired when the device returns
+    // INVALID CREDENTIALS — including during *0{password} attempts — which would otherwise
+    // open a second frmPassword while the first is still waiting for the serial response.
+    private bool _authDialogOpen;
+
+    // Set during production tests (Clear EEPROM, 1CH, 2CH, etc.) to prevent
+    // base.js reload from cancelling in-progress pipeline commands.
+    private bool _productionTestInProgress;
+
+    // VB 1.9 parity: last-used calibration file paths (retained across saves/loads)
+    private string? _lastCalSavePath;
+    private string? _lastCalLoadPath;
 
     // Default page path for initial load and disconnection
     // Used when no device is connected or when executing Disconnect
@@ -90,7 +108,7 @@ public partial class frmMain : Form
     private static readonly string SoftwareVersion =
         (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "3.3.0")
+            ?.InformationalVersion ?? "3.4.0")
         .Split('+')[0];
 
     public frmMain(
@@ -111,7 +129,8 @@ public partial class frmMain : Form
         IServiceProvider serviceProvider,
         IConfiguration configuration,
         ILogger<frmMain> logger,
-        SerialTraceLogger traceLogger)
+        SerialTraceLogger traceLogger,
+        AppLogLevelSwitch appLogSwitch)
     {
         _pipeline = pipeline;
         _discovery = discovery;
@@ -131,6 +150,7 @@ public partial class frmMain : Form
         _configuration = configuration;
         _logger = logger;
         _traceLogger = traceLogger;
+        _appLogSwitch = appLogSwitch;
 
         InitializeComponent();
 
@@ -154,6 +174,7 @@ public partial class frmMain : Form
 
         // Configure Debug/Tools menu for logging and diagnostics
         ConfigureDebugMenu();
+        ConfigureLogMenu();
 
         // Load development mode configuration
         _devModeSettings = _configuration
@@ -380,6 +401,56 @@ public partial class frmMain : Form
         MainMenu1.Items.Add(mnuDebug);
 
         _logger.LogDebug("Debug menu configured");
+    }
+
+    private void ConfigureLogMenu()
+    {
+        var mnuLog = new ToolStripMenuItem("LOG");
+
+        ToolStripMenuItem[] levelItems =
+        [
+            new ToolStripMenuItem("Warning + Error"),
+            new ToolStripMenuItem("Info"),
+            new ToolStripMenuItem("Debug"),
+            new ToolStripMenuItem("Trace"),
+        ];
+
+        Microsoft.Extensions.Logging.LogLevel[] levels =
+        [
+            Microsoft.Extensions.Logging.LogLevel.Warning,
+            Microsoft.Extensions.Logging.LogLevel.Information,
+            Microsoft.Extensions.Logging.LogLevel.Debug,
+            Microsoft.Extensions.Logging.LogLevel.Trace,
+        ];
+
+        void UpdateChecks()
+        {
+            for (int i = 0; i < levels.Length; i++)
+                levelItems[i].Checked = _appLogSwitch.CurrentLevel == levels[i];
+        }
+
+        for (int i = 0; i < levelItems.Length; i++)
+        {
+            var level = levels[i];
+            levelItems[i].Click += (_, _) =>
+            {
+                _appLogSwitch.SetLevel(level);
+                UpdateChecks();
+                UpdateWindowTitle();
+            };
+            mnuLog.DropDownItems.Add(levelItems[i]);
+        }
+
+        _appLogSwitch.LevelChanged += (_, _) => UpdateChecks();
+
+        MainMenu1.Items.Add(mnuLog);
+        UpdateChecks();
+        UpdateWindowTitle();
+    }
+
+    private void UpdateWindowTitle()
+    {
+        Text = $"Fiplex Control Software {SoftwareVersion}  {_appLogSwitch.DisplayLabel}";
     }
 
     private async Task InitializeWebView2Async()
@@ -663,16 +734,24 @@ public partial class frmMain : Form
             if (string.IsNullOrWhiteSpace(frmsJson) || webView?.CoreWebView2 == null)
                 return;
 
-            // Clear the filterToolCheckApply flag before relaying to toolSubmit.
-            // Both navi.js polling and this C# handler would otherwise both call toolSubmit,
-            // sending C0 twice and potentially leaving the device in a confused state.
+            // Clear the filterToolCheckApply flag to prevent navi.js polling from also
+            // calling toolSubmit (would send C0 twice, leaving device in confused state).
+            // Navigate to the status page first if the content frame is not already there —
+            // toolSubmit is only defined when start.zhtml is loaded in the content frame.
             var script = $@"(function(){{try{{
                 var ks=Object.keys(localStorage);
                 for(var i=0;i<ks.length;i++){{
                     if(ks[i].indexOf('filterToolCheckApply')===0)localStorage.setItem(ks[i],'0');
                 }}
                 var frms={frmsJson};
-                top.frames['content'].toolSubmit(frms);
+                var cf=top.frames['content'];
+                if(!cf)return;
+                if(cf.startPage){{
+                    cf.toolSubmit(frms);
+                }}else{{
+                    cf.location.href='start.zhtml';
+                    setTimeout(function(){{top.frames['content'].toolSubmit(frms);}},3000);
+                }}
             }}catch(e){{}}}})()" ;
             _ = webView.CoreWebView2.ExecuteScriptAsync(script);
             _logger.LogDebug("Filter Tool Apply Proposal relayed to content frame");
@@ -1005,6 +1084,11 @@ public partial class frmMain : Form
     {
         try
         {
+            if (_productionTestInProgress)
+            {
+                _logger.LogDebug("base.js loaded during production test — skipping CancelPendingCommands");
+                return;
+            }
             _logger.LogDebug("base.js loaded - cancelling pending commands");
             _pipeline.CancelPendingCommands();
         }
@@ -1567,27 +1651,70 @@ public partial class frmMain : Form
                     return;
 
                 case AuthResult.IncorrectPassword:
-                    // Equivalente VB.NET: When frmPassword sends *0{password} and it fails,
-                    // VB shows "Wrong password" label inside the dialog and user can retry.
-                    // In C#, the pipeline's CredentialsRequired handler already showed the
-                    // password dialog during CheckAuthenticationRequirementAsync. If the password
-                    // was wrong, the pipeline returned AuthenticationFailed, which we map here.
+                    if (_userCancelledAuth)
+                    {
+                        // User explicitly cancelled — disconnect quietly (VB 1.9: no message on cancel)
+                        _userCancelledAuth = false;
+                        _validatedPassword = null;
+                        _pipeline.SetStoredPassword(null);
+                        await DisconnectAsync();
+                        return;
+                    }
+
+                    // Wrong password — show dialog with inline error, stay open for retry (VB 1.9 parity)
                     _logger.LogWarning("Authentication failed - incorrect password");
-                    await DisconnectAsync();
-                    MessageBox.Show(
-                        "Incorrect password.\nPlease verify your credentials and try again.",
-                        "Authentication Failed",
-                        MessageBoxButtons.OK,
-                        MessageBoxIcon.Warning);
-                    return;
+                    _validatedPassword = null;
+                    _pipeline.SetStoredPassword(null);
+
+                    _authDialogOpen = true;
+                    try
+                    {
+                        using (var retryDialog = _serviceProvider.GetRequiredService<frmPassword>())
+                        {
+                            retryDialog.Text = "Authentication Required";
+                            retryDialog.AuthenticateCommand = async (pwd) =>
+                            {
+                                var r = await _authService.AuthenticateAsync(pwd, _cts.Token);
+                                return r == AuthResult.AuthenticationSuccessful ? null : "Wrong password";
+                            };
+                            retryDialog.ShowValidationError("Wrong password");
+
+                            if (retryDialog.ShowDialog(this) != DialogResult.OK)
+                            {
+                                await DisconnectAsync();
+                                return;
+                            }
+
+                            _validatedPassword = retryDialog.Password;
+                            _pipeline.SetStoredPassword(retryDialog.Password);
+                            _commandRouter.SetStoredPassword(retryDialog.Password);
+                        }
+                    }
+                    finally { _authDialogOpen = false; }
+                    break;
 
                 case AuthResult.PasswordRequired:
                     _logger.LogInformation("Device requires authentication");
                     LogStatus("Password required...");
 
-                    // Manual password dialog
+                    _authDialogOpen = true;
+                    try
+                    {
                     using (var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>())
                     {
+                        // Auth runs inside the dialog — stays open on wrong password (VB 1.9 parity)
+                        passwordDialog.AuthenticateCommand = async (pwd) =>
+                        {
+                            var result = await _authService.AuthenticateAsync(pwd, _cts.Token);
+                            return result switch
+                            {
+                                AuthResult.AuthenticationSuccessful => null,
+                                AuthResult.IncorrectPassword        => "Wrong password",
+                                AuthResult.DeviceNotResponding      => "Device not responding",
+                                _                                   => "Authentication failed"
+                            };
+                        };
+
                         if (passwordDialog.ShowDialog(this) != DialogResult.OK)
                         {
                             _logger.LogInformation("User cancelled password dialog");
@@ -1595,53 +1722,15 @@ public partial class frmMain : Form
                             return;
                         }
 
-                        var authenticationResult = await _authService.AuthenticateAsync(
-                            passwordDialog.Password, _cts.Token);
-
-                        if (authenticationResult == AuthResult.IncorrectPassword)
-                        {
-                            _logger.LogWarning("Authentication failed - incorrect password");
-                            await DisconnectAsync();
-                            MessageBox.Show(
-                                "Incorrect password.\nPlease verify your credentials and try again.",
-                                "Authentication Failed",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Warning);
-                            return;
-                        }
-
-                        if (authenticationResult == AuthResult.DeviceNotResponding)
-                        {
-                            _logger.LogError("Device not responding during authentication");
-                            await DisconnectAsync();
-                            MessageBox.Show(
-                                "Device is not responding.\nPlease check the connection and try again.",
-                                "Connection Error",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Error);
-                            return;
-                        }
-
-                        if (authenticationResult != AuthResult.AuthenticationSuccessful)
-                        {
-                            _logger.LogError("Unexpected authentication result: {Result}", authenticationResult);
-                            await DisconnectAsync();
-                            MessageBox.Show(
-                                "Authentication failed.\nPlease try again.",
-                                "Authentication Failed",
-                                MessageBoxButtons.OK,
-                                MessageBoxIcon.Warning);
-                            return;
-                        }
-
                         _logger.LogInformation("Authentication successful");
                         LogStatus("Authentication successful");
 
-                        // Store validated password and configure in pipeline and router
                         _validatedPassword = passwordDialog.Password;
                         _pipeline.SetStoredPassword(passwordDialog.Password);
                         _commandRouter.SetStoredPassword(passwordDialog.Password);
                     }
+                    }
+                    finally { _authDialogOpen = false; }
                     break;
 
                 case AuthResult.NoAuthRequired:
@@ -1768,8 +1857,8 @@ public partial class frmMain : Form
             mnuLoadConfig.Enabled = configEnabled;
             mnuSaveConfig.Enabled = configEnabled;
 
-            // Enable calibration menus if visible
-            if (mnuCal.Visible)
+            // Enable calibration menus if available (Available, not Visible — see comment in ExecuteFileOperationAsync)
+            if (mnuCal.Available)
             {
                 mnuCal.Enabled = true;
                 mnuSaveCal.Enabled = true;
@@ -1946,6 +2035,7 @@ public partial class frmMain : Form
             mnuFWVer.Visible = false;
 
             // Hide calibration menus (only visible in factory mode)
+            _logger.LogWarning("DisconnectAsync: hiding cal menus (mnuCal.Visible was {V})", mnuCal.Visible);
             mnuCal.Visible = false;
             mnuCal.Enabled = false;
             mnuLoadCal.Visible = false;
@@ -2019,6 +2109,15 @@ public partial class frmMain : Form
     /// </remarks>
     private async Task<string?> OnPipelineCredentialsRequired()
     {
+        // If ConnectAsync already has an auth dialog open (e.g. waiting for *0{password} ACK),
+        // the pipeline's INVALID CREDENTIALS callback must not open a second dialog.
+        // The auth result will be handled by the existing dialog's AuthenticateCommand delegate.
+        if (_authDialogOpen)
+        {
+            _logger.LogDebug("Auth dialog already open — suppressing duplicate credential prompt");
+            return null;
+        }
+
         // First try to use already validated password
         if (!string.IsNullOrEmpty(_validatedPassword))
         {
@@ -2037,9 +2136,9 @@ public partial class frmMain : Form
                 using var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>();
                 passwordDialog.Text = "Authentication Required";
                 if (passwordDialog.ShowDialog(this) == DialogResult.OK)
-                {
                     password = passwordDialog.Password;
-                }
+                else
+                    _userCancelledAuth = true;
             });
         }
         else
@@ -2047,9 +2146,9 @@ public partial class frmMain : Form
             using var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>();
             passwordDialog.Text = "Authentication Required";
             if (passwordDialog.ShowDialog(this) == DialogResult.OK)
-            {
                 password = passwordDialog.Password;
-            }
+            else
+                _userCancelledAuth = true;
         }
 
         if (!string.IsNullOrEmpty(password))
@@ -2714,7 +2813,10 @@ public partial class frmMain : Form
                 mnuCal.Visible = showCal;
                 mnuCal.Enabled = showCal;
                 mnuLoadCal.Visible = showCal;
+                mnuLoadCal.Enabled = showCal;
                 mnuSaveCal.Visible = showCal;
+                mnuSaveCal.Enabled = showCal;
+                _logger.LogDebug("ShowFactory: TDev={TDev} showCal={ShowCal}", device.TDev, showCal);
             }
 
             // Update navi frame to expose factory sidebar links, then auto-navigate content to factory page.
@@ -2786,6 +2888,11 @@ public partial class frmMain : Form
             Form licenseForm = device?.TDev == "5dm"
                 ? _serviceProvider.GetRequiredService<frmLicenseMaster>()
                 : _serviceProvider.GetRequiredService<frmLicense>();
+
+            if (licenseForm is frmLicense lic)
+                lic.ChangesApplied += async (s, args) => await NavigateToDeviceUIAsync(forceAdvanced: true);
+            else if (licenseForm is frmLicenseMaster licM)
+                licM.ChangesApplied += async (s, args) => await NavigateToDeviceUIAsync(forceAdvanced: true);
 
             licenseForm.Show(this);
         }
@@ -2968,15 +3075,15 @@ public partial class frmMain : Form
         using var saveDialog = new SaveFileDialog
         {
             Title = "Save Device Calibration",
-            // Supports new format (.cal)
             Filter = "Calibration Files (*.cal)|*.cal|Legacy Format (*.calr)|*.calr|All Files (*.*)|*.*",
             DefaultExt = "cal",
-            FileName = $"{_sessionContext.Device?.TDev ?? "device"}_calibration_{DateTime.Now:yyyyMMdd_HHmmss}.cal"
+            FileName = _lastCalSavePath ?? string.Empty
         };
 
         if (saveDialog.ShowDialog() != DialogResult.OK)
             return;
 
+        _lastCalSavePath = saveDialog.FileName;
         await ExecuteFileOperationAsync(FileOperationType.SaveCalibration, saveDialog.FileName, saveCommands);
     }
 
@@ -3004,14 +3111,15 @@ public partial class frmMain : Form
         using var openDialog = new OpenFileDialog
         {
             Title = "Load Device Calibration",
-            // Supports new format (.cal)
             Filter = "Calibration Files (*.cal;*.calr)|*.cal;*.calr|New Format (*.cal)|*.cal|Legacy Format (*.calr)|*.calr|All Files (*.*)|*.*",
-            DefaultExt = "cal"
+            DefaultExt = "cal",
+            FileName = _lastCalLoadPath ?? string.Empty
         };
 
         if (openDialog.ShowDialog() != DialogResult.OK)
             return;
 
+        _lastCalLoadPath = openDialog.FileName;
         await ExecuteFileOperationAsync(FileOperationType.LoadCalibration, openDialog.FileName, loadCommands);
     }
 
@@ -3054,6 +3162,15 @@ public partial class frmMain : Form
             LogStatus($"{operationName}: {message} ({p.PercentComplete:F0}%)");
         });
 
+        // Use Available (not Visible) for snapshot: ToolStripMenuItem.Visible getter returns
+        // Available && parent.Visible. When the File dropdown is closed, parent.Visible=false
+        // → Visible always reads back false even after setting it to true. Available reflects
+        // the item's own visibility state, independent of parent dropdown state.
+        bool calMenuWasVisible = mnuCal.Available;
+        _logger.LogDebug(
+            "FileOp start: op={Op} calMenuWasVisible={V} mnuCal.Available={A} mnuCal.Enabled={CE}",
+            operationType, calMenuWasVisible, mnuCal.Available, mnuCal.Enabled);
+
         try
         {
             // Disable menus during operation
@@ -3087,11 +3204,26 @@ public partial class frmMain : Form
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Information);
 
-                // Post-operation navigation for calibration
+                // Post-calibration menu restoration.
+                // NavigateToFactoryMenuAsync() was removed: navigating fact.zhtml reloads
+                // base.js → BaseJsLoaded → CancelPendingCommands() fires on the HTTP thread
+                // while the pipeline's internal state races against the UI re-enable.
+                // The content frame is already on fact.zhtml from ShowFactoryMenuAsync —
+                // no navigation is needed; just re-assert factory menu visibility.
                 if (operationType == FileOperationType.SaveCalibration ||
                     operationType == FileOperationType.LoadCalibration)
                 {
-                    await NavigateToFactoryMenuAsync();
+                    _logger.LogDebug("Cal {Op} restore: calMenuWasVisible={V}", operationType, calMenuWasVisible);
+                    if (calMenuWasVisible)
+                    {
+                        mnuCal.Visible = true;
+                        mnuCal.Enabled = true;
+                        mnuSaveCal.Visible = true;
+                        mnuSaveCal.Enabled = true;
+                        mnuLoadCal.Visible = true;
+                        mnuLoadCal.Enabled = true;
+                        _logger.LogDebug("Factory cal menus restored after {Op}", operationType);
+                    }
                 }
 
                 // Refresh WebView for successful LoadConfig and SaveConfig
@@ -3140,6 +3272,9 @@ public partial class frmMain : Form
         {
             // Re-enable menus if still connected
             // Includes parent menus along with child items
+            _logger.LogDebug(
+                "FileOp finally: state={State} calMenuWasVisible={V} mnuCal.Available={A} mnuCal.Enabled={CE}",
+                _sessionContext.State, calMenuWasVisible, mnuCal.Available, mnuCal.Enabled);
             if (_sessionContext.State == ConnectionState.Connected)
             {
                 // mnuConfig stays disabled for Flex devices (4dm*, 5dm, 2c)
@@ -3147,13 +3282,24 @@ public partial class frmMain : Form
                 mnuConfig.Enabled = configEnabled;
                 mnuSaveConfig.Enabled = configEnabled;
                 mnuLoadConfig.Enabled = configEnabled;
-                // Re-enable calibration menus only if device supports them
-                if (mnuCal.Visible)
+                // Re-enable calibration menus using pre-operation snapshot — avoids the
+                // guard failing if a navigation race reset Visible during the operation.
+                if (calMenuWasVisible)
                 {
+                    mnuCal.Visible = true;
                     mnuCal.Enabled = true;
+                    mnuSaveCal.Visible = true;
                     mnuSaveCal.Enabled = true;
+                    mnuLoadCal.Visible = true;
                     mnuLoadCal.Enabled = true;
+                    _logger.LogDebug("Factory cal menus restored in finally block");
                 }
+            }
+            else
+            {
+                _logger.LogWarning(
+                    "FileOp finally: NOT connected ({State}) — cal menu restore skipped",
+                    _sessionContext.State);
             }
             cmdConnect.Enabled = true;
         }
@@ -3169,30 +3315,23 @@ public partial class frmMain : Form
     {
         try
         {
-            if (!_httpServerIsRunning)
-            {
-                _logger.LogWarning("HTTP server not running, cannot navigate to factory menu");
+            if (webView?.CoreWebView2 == null)
                 return;
-            }
 
-            var factoryMenuUrl = $"http://localhost:{_httpPort}/factory/fmenu.html";
-            _logger.LogInformation("Navigating to factory menu: {Url}", factoryMenuUrl);
+            // Navigate only the content frame — mirrors ShowFactoryMenuAsync's frame-only
+            // approach. Full main-WebView navigation (factory/index.html) caused head.html
+            // to trigger a second base.js load whose side-effects raced against menu re-enable.
+            var device = _sessionContext.Device;
+            string factoryPage = (device?.TDev == "1de") ? "/factory/index.html" : "/factory/fact.zhtml";
 
-            // Stop current navigation first
-            webView.Stop();
+            await webView.CoreWebView2.ExecuteScriptAsync(
+                $"try {{ window.frames['content'].location.href = '{factoryPage}'; }} catch(e) {{}}");
 
-            // Small delay to ensure browser is ready
-            await Task.Delay(100);
-
-            // Navigate to factory menu
-            webView.Source = new Uri(factoryMenuUrl);
-
-            _logger.LogDebug("Navigation to factory menu initiated");
+            _logger.LogDebug("Factory content frame navigated to {Page}", factoryPage);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error navigating to factory menu");
-            // Don't throw exception - navigation is secondary to main operation
         }
     }
 
@@ -3908,6 +4047,7 @@ public partial class frmMain : Form
             }
         }
 
+        _productionTestInProgress = true;
         try
         {
             LogStatus($"Applying {operationName}...");
@@ -3956,6 +4096,7 @@ public partial class frmMain : Form
         }
         finally
         {
+            _productionTestInProgress = false;
             Cursor = Cursors.Default;
             if (_sessionContext.State == ConnectionState.Connected)
             {
@@ -4111,7 +4252,19 @@ public partial class frmMain : Form
         _logger.LogInformation("SendProdConfig: tdev={TDev}, ndev={NDev}, nchannels={Channels}, mode={Mode}, clearROM={Clear}",
             tdev, ndev, nchannels, mode, clearROM);
 
-        var _prodLog = Path.Combine(Path.GetTempPath(), "fcs_prod_log.txt");
+        var _prodLogDir = Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            "FiplexControlSoftware");
+        Directory.CreateDirectory(_prodLogDir);
+        var _prodLog = Path.Combine(_prodLogDir, $"FCSProd_{DateTime.Now:yyyyMMdd}.txt");
+        try
+        {
+            foreach (var f in Directory.GetFiles(_prodLogDir, "FCSProd_*.txt"))
+                if (File.GetLastWriteTime(f) < DateTime.Now.AddDays(-7))
+                    File.Delete(f);
+        }
+        catch { }
+
         void ProdLog(string msg)
         {
             var line = $"{DateTime.Now:HH:mm:ss.fff} {msg}";
@@ -4124,7 +4277,7 @@ public partial class frmMain : Form
 
         try
         {
-            File.WriteAllText(_prodLog, $"=== FCS Production Log {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==={Environment.NewLine}");
+            File.AppendAllText(_prodLog, $"=== FCS Production Log {DateTime.Now:yyyy-MM-dd HH:mm:ss} ==={Environment.NewLine}");
             ProdLog($"Device: tdev={tdev} ndev={ndev} nchannels={nchannels} mode={mode} clearROM={clearROM}");
 
             // Stabilization delay before sending commands

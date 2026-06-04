@@ -142,7 +142,7 @@ public class SerialProtocolParser : ISerialProtocolParser
             _buffer.Clear();
             _waitingLF = false;
             
-            _logger?.LogWarning("Partial data timeout after {Ms}ms: {Data}", elapsed, 
+            _logger?.LogDebug("Partial data timeout after {Ms}ms: {Data}", elapsed,
                 data.Length > 50 ? data[..50] + "..." : data);
             
             return new ProtocolToken(TokenType.PartialResponse, data);

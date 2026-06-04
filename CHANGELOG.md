@@ -1,6 +1,71 @@
 #
 
-## [3.3.0] - 2026-05-19
+## [3.4.0] - 2026-05-26
+
+### Added
+- **Sistema de logging de diagnóstico de campo** (`Core/Diagnostics/AppFileLoggerProvider`, `AppFileLogger`, `AppLogLevelSwitch`)
+  - Archivo diario `%APPDATA%\FiplexControlSoftware\FCSLog_YYYYMMDD.txt` activo desde el primer arranque.
+  - Cuatro niveles seleccionables por el usuario: **Error** (default), **Info**, **Debug**, **Trace**.
+  - Menú `LOG` público en la barra de menú principal (accesible sin restricciones) con checkmark en el nivel activo.
+  - Título de ventana refleja el nivel activo: `[Log: WARN]` / `[Log: INFO]` / `[Log: DBG]` / `[Log: TRC]`.
+  - Separadores `SESSION START / SESSION END` con timestamp y nivel al abrir y cerrar la app.
+  - Retención automática de 7 días; archivos anteriores eliminados al iniciar.
+  - `ForceFlush` en handlers `UnhandledException` y `ThreadException` — los últimos eventos antes de un crash llegan al disco.
+  - Sanitizador en el logger: `*0[***]`, Bearer tokens y JWT claims nunca aparecen en el archivo.
+  - Nivel Trace cubre TX payload completo y RX primeros 80 chars (`SerialCommandPipeline.cs`).
+  - Coexiste con `USBmessages_YYYYMMDD.txt` (`SerialTraceLogger`) — ambos sistemas activos en paralelo.
+- **Guía de diagnóstico de logs** (`docs/GUIA_LOGS_DIAGNOSTICO.md`, `docs/GUIA_LOGS_DIAGNOSTICO.pdf`)
+  - Documento de referencia para soporte en campo: descripción de `FCSLog` y `FCSProd`, formato de línea, niveles de log, componentes principales, escenarios de uso paso a paso, tabla de referencia rápida e instrucciones para compartir logs con soporte.
+
+### Fixed
+- **#28 — Calibration submenus disabled after Save/Load Calibration in factory mode** (`frmMain.cs`, `FileOperationService.cs`, `SerialCommandPipeline.cs`, `SerialCommand.cs`)
+  - **Root cause 1 — `ToolStripMenuItem.Visible` getter behavior:** `ExecuteFileOperationAsync` capturaba el snapshot del menú con `bool calMenuWasVisible = mnuCal.Visible`. El getter `ToolStripMenuItem.Visible` retorna `Available && ParentDropdown.Visible`. Cuando el dropdown de File está cerrado, `ParentDropdown.Visible = false` → el getter siempre retorna `false` aunque el ítem esté activo. Al cerrar el diálogo de Save/Load, el snapshot era `false` → el bloque `finally` no restauraba los submenús. Confirmado por log: `ShowFactory: showCal=True mnuCal.Visible=False`.
+  - **Fix 1:** Reemplazado `mnuCal.Visible` por `mnuCal.Available` en el snapshot. `Available` retorna el estado propio del ítem independientemente del estado del dropdown padre. Aplicado también en el guard de reconexión (`if (mnuCal.Available)`).
+  - **Root cause 2 — LoadCAL: buffer serial contaminado por respuesta tardía de S1:** La operación LoadCAL cancela los comandos de polling activos (S1 watchdog) y envía F0+482 chars. S1 fue cancelado pero el device respondió igualmente con 1584 bytes en tránsito. F0 fue encolado 1ms después de la cancelación. El pipeline capturó los 1584 bytes de S1 como respuesta de F0 vía el path "DataFrame before ACK" → `result.Data = 1584 chars` ≠ "ACK" → LoadCAL fallaba con "Error sending calibration. Commands executed: 0/2". Confirmado por log: `LoadCal frame 0: Success=True Status=Success DataLen=1584`.
+  - **Fix 2a — Nuevo método `DiscardAndFlushBuffer()` en `ISerialCommandPipeline`:** Combina `SerialPort.DiscardInBuffer()` (buffer OS) + `_parser.Reset()` (estado interno). `FlushInputBuffer()` queda sin cambios (solo parser reset) para mantener parity VB 1.9 en production test — VB 1.9 omite `FlushRS232()` para devices con password. `DiscardAndFlushBuffer()` se usa exclusivamente en LoadCAL donde la limpieza agresiva es necesaria.
+  - **Fix 2b — `SerialCommand.DiscardDataBeforeAck`:** Nuevo flag. Cuando `true`, si el pipeline recibe un DataFrame mientras espera el ACK token, lo descarta y espera el ACK real sin reenviar el comando. Previene que bytes en tránsito de comandos cancelados contaminen el ACK wait del siguiente comando.
+  - **Fix 2c — `ExpectsData = false` + `AckTimeout = 5s` para F0/Q0:** F0 y Q0 son write commands; el device responde solo con ACK token, sin data payload. `ExpectsData = true` era incorrecto. `AckTimeout` aumentado de 800ms a 5s para dar tiempo al device de procesar los 482 bytes antes de responder. La comprobación de éxito cambiada a `result.Success` únicamente.
+  - **UX:** Diálogos de Save/Load Calibration retienen el último path usado (`_lastCalSavePath` / `_lastCalLoadPath`), replicando comportamiento de VB 1.9.
+  - **Confirmado en hardware:** Save OK + Load OK, menú Calibrations visible y activo después de ambas operaciones. Duración típica: ~12.7s para 2 frames (482 + 384 chars).
+- **#29 — UI not refreshing after License Apply Changes** (`frmMain.cs`)
+  - **Root cause:** `ShowLicenseManager()` never subscribed to the `ChangesApplied` event on `frmLicense` / `frmLicenseMaster`. Changes were applied to the device but the web UI remained stale until the user manually refreshed.
+  - **Fix:** Subscribe to `ChangesApplied` before `Show()` — calls `NavigateToDeviceUIAsync(forceAdvanced: true)` to reload the device page.
+- **#30 — PROJECT RELATED tag not retained after Save post-Clear EEPROM** (`global.js`, `global.jsm` — `htdocs_2c`, `htdocs_2c1`, `htdocs_2c2`)
+  - **Root cause:** `formatProjConfig` applied `str.trim()` to the 730-byte positional buffer before hex-encoding. When all hidden fields (prjinfo_0–prjinfo_7, offsets 0–699) were empty spaces — exactly the state after Clear EEPROM — `trim()` collapsed the leading pad bytes, shifting the Tag value (prjinfo_8, offset 700) to offset 0. On reload, `parseProjConfig` read `str.substr(700, 30)` and found empty bytes.
+  - **Fix:** Removed `str.trim()` / `t=t.trim()` from `formatProjConfig` in all three device variants (`.js` and `.jsm`). The buffer is assembled by the Save handler with exact positional padding — trim must never be applied.
+- **#30 — PROJECT RELATED tag intermittently not stored despite green check** (`DeviceCommandRouter.cs`)
+  - **Root cause:** `UpdatePostCaches` evaluated `effectiveSuccess = commandSucceeded || !postCommand.WaitResponse`. For fire-and-forget commands (`!0`, `T0`, `C0`, etc., all with `WaitResponse=false`) this always resolved to `true`, so `_previousAnswer = "0"` regardless of whether the device ACK'd the write. If the device silently dropped the ACK, the tag was never stored but the JS showed a green check.
+  - **Fix:** Use `commandSucceeded` directly: `_previousAnswer = commandSucceeded ? "0" : "1"`. A missing ACK now returns `"1"` (ERR_FAIL), detected immediately by `check_result()` without the 25-second polling fallback.
+- **#31 — Device password authentication — VB 1.9 parity** (`frmPassword.cs`, `frmMain.cs`)
+  - **Root cause 1:** `IsNullOrWhiteSpace` blocked space-only passwords client-side; VB 1.9 passes any non-empty string (including spaces) to the device for validation.
+  - **Root cause 2:** Auth mode showed "Password cannot be empty." client-side for empty input instead of sending to device; VB 1.9 sends all input and shows "Wrong password" from device.
+  - **Root cause 3:** "Wrong password" auto-dismissed after 4 s in auth mode but the timer was also applied to client-side validation errors, causing the "dialog resets without warning" perception.
+  - **Root cause 4:** `DialogResult` not set to `None` before `await AuthenticateCommand(...)` — WinForms `AcceptButton` mechanism could close the form during the serial await, producing a "new dialog" effect instead of showing "Wrong password".
+  - **Root cause 5:** `OnPipelineCredentialsRequired` opened a second unstyled `frmPassword` while the first was already waiting for the device's response to `*0{password}`. The pipeline fires the credential callback on any "INVALID CREDENTIALS" response — including during the auth attempt itself. `_validatedPassword` was null at that point, triggering the duplicate dialog.
+  - **Fix 1:** `IsNullOrEmpty` replaces `IsNullOrWhiteSpace` for new-password field; auth mode skips client-side empty check entirely — all input goes to device.
+  - **Fix 2:** Auto-dismiss timer (4 s) retained for auth mode only; applies to all "Wrong password" responses regardless of input (empty, spaces, incorrect).
+  - **Fix 3:** `DialogResult = None` set before `await AuthenticateCommand(...)` to anchor the form during the serial wait.
+  - **Fix 4:** `_authDialogOpen` flag in `frmMain` — set before `ShowDialog` in both `IncorrectPassword` and `PasswordRequired` cases, cleared in `finally`. `OnPipelineCredentialsRequired` returns `null` immediately when flag is set, suppressing the duplicate dialog.
+- **Filter Tool — Apply Proposal produces no visual feedback when content frame is not on the status page** (`frmMain.cs`)
+  - **Root cause:** `FilterToolPopup_WebMessageReceived` called `top.frames['content'].toolSubmit(frms)` directly. `toolSubmit` is only defined when the status page (`start.zhtml`) is loaded in the content frame. When the user was on any other page (e.g. IP Config) at the time of clicking Apply Proposal, the call failed silently — no pending indicator, no green check ✓, no background status refresh.
+  - **Fix:** Added `cf.startPage` guard before calling `toolSubmit`. If the content frame is not on the status page, it navigates to `start.zhtml` first and calls `toolSubmit` after a 3 s load delay, matching the page-switching logic already present in `navi.js`.
+- **Clear EEPROM production test cancelled mid-sequence by web UI reload** (`frmMain.cs`)
+  - **Root cause:** Pressing any web UI button (e.g. Status) during a production test triggered a page reload → `base.js` request → `OnHttpServerBaseJsLoaded` → `CancelPendingCommands()`. The J0 command (sent ~5 s into the sequence) received a cancellation token signal, returned `Status=Cancelled` with RTT=60 ms (far below the 10 s ACK timeout), and the test reported failure.
+  - **Confirmed via** `FCSProd_YYYYMMDD.txt`: `[J1→J0] Result: Success=False Status=Cancelled Retries=1 RTT=60ms`, followed 200 ms later by `POST command not found: global_req` — the reloaded page's first request.
+  - **Fix:** Added `_productionTestInProgress` flag (set before `SendProdConfigAsync`, cleared in `finally`). `OnHttpServerBaseJsLoaded` returns early without calling `CancelPendingCommands()` while the flag is set.
+
+### Changed
+- **FCSProd log relocated and date-stamped** (`frmMain.cs`)
+  - Moved from `%TEMP%\fcs_prod_log.txt` (ephemeral, overwritten on each run) to `%APPDATA%\FiplexControlSoftware\FCSProd_YYYYMMDD.txt`.
+  - Multiple production test runs on the same day accumulate in the same file (append mode with per-run header).
+  - Automatic 7-day retention — same policy as `FCSLog_YYYYMMDD.txt`.
+- **Log level default label corrected** (`AppLogLevelSwitch.cs`, `frmMain.cs`)
+  - `[Log: ERR]` renamed to `[Log: WARN]` in the window title — the default level (`Warning`) captures both warnings and errors. The previous label implied only errors were logged, which caused field technicians to underestimate the diagnostic value of the default log.
+  - Menu item "Error / Warning" renamed to "Warning + Error" for consistency.
+
+---
+
+## [3.3.0] - 2026-05-20
 
 ### Added
 - **Factory mode access** — Activation sequence triggers auto-navigation to factory page on entry, matching FCS 1.9 behavior.

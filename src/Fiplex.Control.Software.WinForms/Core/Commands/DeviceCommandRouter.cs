@@ -574,6 +574,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                         AckTimeout = TimeSpan.FromMilliseconds(800),
                         DataTimeout = TimeSpan.FromSeconds(5),
                         MaxRetries = 1,
+                        IsSilent = serialCommandPayload.Equals("S1", StringComparison.OrdinalIgnoreCase),
                         CancellationToken = ct
                     };
 
@@ -836,7 +837,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 }
             }
 
-            _logger.LogWarning("POST command not found: {Page}. Candidates: {Candidates}", page, string.Join(", ", lookupCandidates));
+            _logger.LogDebug("POST command not found: {Page}. Candidates: {Candidates}", page, string.Join(", ", lookupCandidates));
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "not_found", stopwatch.Elapsed.TotalSeconds, 0);
@@ -956,9 +957,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             {
                 lock (_previousAnswerLock)
                 {
-                    // WaitResponse=false → fire-and-forget: assume OK regardless of ACK
-                    bool effectiveSuccess = commandSucceeded || !postCommand.WaitResponse;
-                    _previousAnswer = effectiveSuccess ? "0" : "-1";
+                    _previousAnswer = commandSucceeded ? "0" : "1";
                     _decodedPreviousAnswer = dataResponse;
                 }
             }

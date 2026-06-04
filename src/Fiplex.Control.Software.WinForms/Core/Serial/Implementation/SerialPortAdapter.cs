@@ -48,6 +48,14 @@ public sealed class SerialPortAdapter : ISerialPort
                 _logger.LogInformation("Serial port {Port} opened at {BaudRate} baud", portName, baudRate);
                 return true;
             }
+            catch (UnauthorizedAccessException ex)
+            {
+                // Port already in use by another process — expected during scan when
+                // the connected device's COM port is encountered. WARN, not ERR.
+                _logger.LogWarning("Failed to open {Port} — port in use: {Msg}", portName, ex.Message);
+                ErrorOccurred?.Invoke(ex);
+                return false;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Failed to open {Port}", portName);

@@ -52,7 +52,7 @@ public class SettingsParser : ISettingsParser
         }
         else
         {
-            _logger.LogWarning("Unknown settings format in {Path}, trying legacy format", filePath);
+            _logger.LogInformation("Unknown settings format in {Path}, trying legacy format", filePath);
             return await ParseVbNetFormatAsync(filePath, content);
         }
     }

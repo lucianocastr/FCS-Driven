@@ -183,7 +183,9 @@ private const int CircuitBreakerResetMs = 30000;
 |----------|-------------|-------|
 | `Console` | Console window | Development |
 | `Debug` | Visual Studio Output | Debug |
-| `File` (future) | Files on disk | Production |
+| `AppFileLoggerProvider` | `%APPDATA%\FiplexControlSoftware\FCSLog_YYYYMMDD.txt` | Field diagnostics — always active |
+
+The `AppFileLoggerProvider` is a custom `ILoggerProvider` registered in DI that intercepts all MEL events and routes them to a daily log file. Level is controlled at runtime via the `LOG` menu in the main form. See `docs/DISEÑO_LOGGING_DIAGNOSTICO.md` for full design specification.
 
 ### Log Levels
 

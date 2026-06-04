@@ -1822,8 +1822,7 @@ function GuiFact() {
 		var row = document.createElement("tr");
 		row.style.display = 'none';
 		try {
-			el = window.parent.navi.document.getElementById("pass");
-			if (el && el.style.display !== 'none') {
+			if (window.parent.navi.isEthernetMode) {
 				row.style.display = 'table-row';
 			}
 		} catch (err) { return row; }

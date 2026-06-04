@@ -1352,7 +1352,9 @@ function parseProjConfig(sr){
 }
 function formatProjConfig(str){
 	var ret='';
-	str = str.trim();
+	// str arrives as exactly 730 chars (positional buffer) — trim() must NOT be applied
+	// because leading spaces are significant pad bytes for fields before prjinfo_8 (Tag).
+	// Applying trim() shifts Tag data to offset 0 when hidden fields are empty (e.g. post Clear EEPROM).
 	for (var j = 0; j < 730; ++j)
 		str += ' ';
 	str = str.slice(0, 730);

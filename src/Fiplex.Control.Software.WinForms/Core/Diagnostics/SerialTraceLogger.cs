@@ -18,7 +18,7 @@ public sealed class SerialTraceLogger : IDisposable
     public bool IsEnabled { get; private set; }
     public string LogFilePath { get; private set; } = string.Empty;
 
-    public void Enable(string version, string machine)
+    public void Enable()
     {
         if (IsEnabled) return;
 
@@ -31,16 +31,12 @@ public sealed class SerialTraceLogger : IDisposable
         IsEnabled = true;
         _cts = new CancellationTokenSource();
         _flushTask = Task.Run(() => FlushLoop(_cts.Token));
-
-        Log("=== Traces ON ===");
-        Log($"=== FCS {version}  Machine: {machine} ===");
     }
 
     public void Disable()
     {
         if (!IsEnabled) return;
 
-        Log("=== Traces OFF ===");
         IsEnabled = false;
         _cts?.Cancel();
         _flushTask?.Wait(TimeSpan.FromSeconds(2));
