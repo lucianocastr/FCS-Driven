@@ -311,6 +311,31 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     }
 
     /// <summary>
+    /// Determines whether the current POST request matches the FL2 Master Global Config
+    /// scenario for DAS Master SDRP (htdocs_5dm1_1 → gbconf_str → U1"").
+    ///
+    /// VB6 1.12 parity: processGlobalConfigCommandFl2Master invocation predicate
+    /// (frmMainW.frm:2183). The FrVersion&gt;0 condition is implicit by deduction:
+    /// only the FL2 versioned page (htdocs_5dm1_1) emits gbconf_str/U1"" — the legacy
+    /// htdocs_5dm1 page declares /global_conf.shtml→U1 (without "") and has no
+    /// gbconf_str POST mapping (verified by settings.cfg SHA-256 divergence).
+    ///
+    /// INIT-004 Componente A — FL2 Routing. See:
+    ///   E:\Personal\Capacitaciones\Claude\ClaudeIA\docs\analysis\
+    ///     INIT-004_PARITY_GAP_ASSESSMENT.md §1
+    /// </summary>
+    private bool IsFl2MasterGlobalConfigContext(string page, string serialPayload, PostCommand postCommand)
+    {
+        if (_currentDeviceParams == null) return false;
+        if (!string.Equals(_currentDeviceParams.TDev, "5dm", StringComparison.OrdinalIgnoreCase)) return false;
+        if (_currentDeviceParams.NDev < 1) return false;
+        if (!string.Equals(page, "gbconf_str", StringComparison.OrdinalIgnoreCase)) return false;
+        if (!string.Equals(serialPayload, "U1\"\"", StringComparison.Ordinal)) return false;
+        if (!postCommand.WaitResponse) return false;
+        return true;
+    }
+
+    /// <summary>
     /// Processes fragmented command for 5dm devices.
     ///   U1 → U10002 + U10305 + U10608
     ///   O1 → O10002 + O10305 + O10608
@@ -355,11 +380,193 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         
         // Concatenate with triple-tab
         var combined = string.Join("\t\t\t", responses);
-        
+
         _logger.LogInformation("Fragmented command {Command} completed: {TotalLength} chars total",
             baseCommand, combined.Length);
-        
+
         return combined;
+    }
+
+    /// <summary>
+    /// FL2 Master Global Config assembly handler for DAS Master SDRP.
+    /// VB6 1.12 parity: processGlobalConfigCommandFl2Master (frmMainW.frm:2219-2249).
+    ///
+    /// Phase A — up to 3 simple retries with ",14000" pre-flush
+    /// (VB6 line 2229). Classified PHASE_A_OPTIONAL by PHASE_A_JUSTIFICATION_AUDIT —
+    /// included for baseline byte-fidelity. Pre-flush is fire-and-forget per VB6
+    /// (its result is discarded on line 2229: GetUSBAnswer ",14000" as statement).
+    ///
+    /// Phase B — up to 3 fragmentation cycles with sub-commands
+    /// U1""00000105 / U1""01060503 / U1""05040807 concatenated PLAIN
+    /// (no separator inserted by handler — VB6 line 2235-2237 uses string concatenation
+    /// without delimiter; the device emits separators embedded in each fragment).
+    ///
+    /// Validation: CheckLenCommand equivalent against splitwith3tabs:2815,349,215,6
+    /// (each \t\t\t-delimited segment must have length in {2815, 349, 215, 6}).
+    /// VB6 frmMainW.frm:961-1000 CheckLenCommand semantics.
+    ///
+    /// Cota superior: 3+3 retries. Returns last assembled response if neither phase
+    /// converges (paridad VB6 Wend with bounded iterations · line 2224 cota ntries≤3).
+    /// </summary>
+    private async Task<string> ProcessFl2MasterGlobalConfigAsync(string firstResponse, CancellationToken ct)
+    {
+        const string PreFlushCommand = ",14000";
+        const string FullCommand = "U1\"\"";
+        const string Fragment1 = "U1\"\"00000105";
+        const string Fragment2 = "U1\"\"01060503";
+        const string Fragment3 = "U1\"\"05040807";
+        const string TripleTab = "\t\t\t";
+
+        // Expected segment lengths per htdocs_5dm1_1/settings.cfg
+        // splitwith3tabs:2815,349,215,6 — VB6 baseline (CheckLenCommand semantics
+        // accepts each segment length if it matches ANY value in the set).
+        var expectedLengths = new HashSet<int> { 2815, 349, 215, 6 };
+
+        bool IsValid(string response)
+        {
+            if (string.IsNullOrEmpty(response)) return false;
+            var segments = response.Split(new[] { TripleTab }, StringSplitOptions.None);
+            foreach (var segment in segments)
+            {
+                if (!expectedLengths.Contains(segment.Length)) return false;
+            }
+            return true;
+        }
+
+        _logger.LogInformation(
+            "[FL2] Entering FL2 Master Global Config handler · firstResponse.Length={Length}",
+            firstResponse?.Length ?? 0);
+
+        var current = firstResponse ?? string.Empty;
+
+        // Phase A — up to 3 simple retries with pre-flush ",14000"
+        // VB6 frmMainW.frm:2226-2230
+        int ntries = 0;
+        while (ntries < 3 && !IsValid(current) && !string.IsNullOrEmpty(current))
+        {
+            _logger.LogDebug("[FL2] Phase A retry {Ntries}/3 · current.Length={Length}",
+                ntries, current.Length);
+
+            // Pre-flush — VB6 GetUSBAnswer ",14000" (line 2229, fire-and-forget)
+            try
+            {
+                var preFlush = new SerialCommand
+                {
+                    Payload = PreFlushCommand,
+                    ExpectsAck = true,
+                    ExpectsData = false,
+                    AckTimeout = TimeSpan.FromMilliseconds(500),
+                    DataTimeout = TimeSpan.FromMilliseconds(500),
+                    MaxRetries = 0,
+                    IsSilent = true,
+                    CancellationToken = ct
+                };
+                await _serialPipeline.EnqueueCommandAsync(preFlush);
+                _logger.LogTrace("[FL2] Phase A pre-flush sent");
+            }
+            catch (Exception ex)
+            {
+                // Fire-and-forget per VB6 semantics — continue even on failure
+                _logger.LogTrace(ex, "[FL2] Phase A pre-flush exception (ignored, fire-and-forget)");
+            }
+
+            // Retransmit U1"" — VB6 strans = GetUSBAnswer(strCommand) (line 2230)
+            var retryCmd = new SerialCommand
+            {
+                Payload = FullCommand,
+                ExpectsAck = true,
+                ExpectsData = true,
+                AckTimeout = TimeSpan.FromMilliseconds(3000),
+                DataTimeout = TimeSpan.FromSeconds(10),
+                MaxRetries = 0,
+                CancellationToken = ct
+            };
+            var retryResult = await _serialPipeline.EnqueueCommandAsync(retryCmd);
+            if (retryResult.Success)
+            {
+                current = retryResult.Data;
+            }
+
+            ntries++;
+        }
+
+        if (IsValid(current))
+        {
+            _logger.LogInformation(
+                "[FL2] Phase A converged after {Ntries} retries · response.Length={Length}",
+                ntries, current.Length);
+            return current;
+        }
+
+        // Phase B — up to 3 fragmentation cycles
+        // VB6 frmMainW.frm:2231-2240
+        _logger.LogInformation("[FL2] Phase A did not converge · entering Phase B fragmentation");
+        int ntries2 = 0;
+        while (ntries2 < 3 && !IsValid(current) && !string.IsNullOrEmpty(current))
+        {
+            _logger.LogDebug("[FL2] Phase B cycle {Ntries2}/3", ntries2);
+
+            // VB6 line 2235: strans = GetUSBAnswer("U1" & c & c & "00000105")
+            var r1Cmd = new SerialCommand
+            {
+                Payload = Fragment1,
+                ExpectsAck = true,
+                ExpectsData = true,
+                AckTimeout = TimeSpan.FromMilliseconds(3000),
+                DataTimeout = TimeSpan.FromSeconds(10),
+                MaxRetries = 0,
+                CancellationToken = ct
+            };
+            var r1 = await _serialPipeline.EnqueueCommandAsync(r1Cmd);
+
+            // VB6 line 2236: strans = strans & GetUSBAnswer("U1" & c & c & "01060503")
+            var r2Cmd = new SerialCommand
+            {
+                Payload = Fragment2,
+                ExpectsAck = true,
+                ExpectsData = true,
+                AckTimeout = TimeSpan.FromMilliseconds(3000),
+                DataTimeout = TimeSpan.FromSeconds(10),
+                MaxRetries = 0,
+                CancellationToken = ct
+            };
+            var r2 = await _serialPipeline.EnqueueCommandAsync(r2Cmd);
+
+            // VB6 line 2237: strans = strans & GetUSBAnswer("U1" & c & c & "05040807")
+            var r3Cmd = new SerialCommand
+            {
+                Payload = Fragment3,
+                ExpectsAck = true,
+                ExpectsData = true,
+                AckTimeout = TimeSpan.FromMilliseconds(3000),
+                DataTimeout = TimeSpan.FromSeconds(10),
+                MaxRetries = 0,
+                CancellationToken = ct
+            };
+            var r3 = await _serialPipeline.EnqueueCommandAsync(r3Cmd);
+
+            // PLAIN concatenation — no separator inserted by handler
+            // VB6 line 2235-2237 uses & operator without delimiter
+            var assembled = (r1.Success ? r1.Data : string.Empty)
+                          + (r2.Success ? r2.Data : string.Empty)
+                          + (r3.Success ? r3.Data : string.Empty);
+            current = assembled;
+
+            ntries2++;
+
+            if (IsValid(current))
+            {
+                _logger.LogInformation(
+                    "[FL2] Phase B converged in cycle {Ntries2} · assembled.Length={Length}",
+                    ntries2, current.Length);
+                return current;
+            }
+        }
+
+        _logger.LogWarning(
+            "[FL2] Phase A+B exhausted (3+3 retries) without convergence · last.Length={Length}",
+            current?.Length ?? 0);
+        return current ?? string.Empty;
     }
 
     /// <summary>
@@ -885,6 +1092,49 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             }
 
             _logger.LogDebug("HTTP → Serial: {Page} → {Command}", normalizedPage, serialCommandPayload);
+
+            // VB6 1.12 parity: processGlobalConfigCommandFl2Master (frmMainW.frm:2183-2249)
+            // INIT-004 Componente A — FL2 Routing
+            // Dispatch to FL2 Master Global Config handler for DAS Master SDRP scenario
+            // (htdocs_5dm1_1 → gbconf_str → U1""). Predicate evaluated in-situ per
+            // SINGLE_FILE_IMPLEMENTATION_RECOMMENDED + KEEP_F1_ONLY decisions.
+            // Outside this predicate, behavior is identical to v3.5.0 (retry loop below).
+            if (IsFl2MasterGlobalConfigContext(page, serialCommandPayload, postCommand))
+            {
+                _logger.LogInformation("[FL2] Dispatch · DAS Master SDRP gbconf_str detected");
+
+                // First send of U1"" — VB6 frmMainW.frm:2181
+                //   dpreviousans = GetUSBAnswer(strCommand)
+                var firstCmd = new SerialCommand
+                {
+                    Payload = serialCommandPayload,
+                    ExpectsAck = true,
+                    ExpectsData = true,
+                    AckTimeout = TimeSpan.FromMilliseconds(3000),
+                    DataTimeout = TimeSpan.FromSeconds(10),
+                    MaxRetries = 0,
+                    CancellationToken = ct
+                };
+                var firstResult = await _serialPipeline.EnqueueCommandAsync(firstCmd);
+                var firstResponse = firstResult.Success ? firstResult.Data : string.Empty;
+
+                var assembled = await ProcessFl2MasterGlobalConfigAsync(firstResponse, ct);
+
+                // Update _decodedPreviousAnswer cache inline.
+                // (UpdatePostCaches local function is declared later in this method;
+                // we apply the same lock/assignment semantics here.)
+                lock (_previousAnswerLock)
+                {
+                    _previousAnswer = "0";
+                    _decodedPreviousAnswer = assembled;
+                }
+
+                stopwatch.Stop();
+                _metrics?.RecordCommand(normalizedPage, "success", stopwatch.Elapsed.TotalSeconds, 0);
+
+                _logger.LogInformation("[FL2] Dispatch complete · assembled.Length={Length}", assembled.Length);
+                return assembled;
+            }
 
             // Retry logic con manejo de INVALID CREDENTIALS
             string response = string.Empty;

@@ -1,5 +1,79 @@
 #
 
+## [3.6.0] - 2026-06-03
+
+### Added
+- **ROB-001 Phase 1A — Discovery Telemetry** (`9da316e` · PR-1 · I-6)
+  - `DiscoveryTelemetry` singleton lock-free con 14 counters (scan, port-open, identification, device categories)
+  - `[Telemetry] ScansCompleted=N PortsOpenSucceeded=M ...` summary line por scan completo
+  - Instrumentación pasiva en `DeviceDiscoveryService`, `SerialPortAdapter` y `SimulatedSerialPort` (F-1 closure)
+- **ROB-001 Phase 1A — Open/Close logging explícito** (`347e9bd` · PR-2 · I-8)
+  - `[Serial] {Action} {Port} {Outcome} duration={Ms}ms [reason={Reason}]` formato congelado
+  - `Stopwatch` local por operación · sin cambios a control flow ni retries/timeouts
+- **ROB-001 Phase 1A — Logger ForceFlush antes de exit** (`cd8efe3` · PR-3 · I-4)
+  - `AppFileLoggerProvider.ForceFlush()` invocado en `Program.Main` finally
+  - Drena cola pendiente de log antes de exit · sin tocar lifecycle ni singletons
+- **ROB-001 Phase 1A — ApplicationExit + ordered host.Dispose** (`3414abe` · PR-5 · I-2 + I-3)
+  - `Application.ApplicationExit` handler subscribed
+  - `DisposeHostOnce()` con idempotency lock + `Task.Run` con timeout 5s + invocación en finally como fallback
+  - Neutraliza sync-over-async (`Dispose() => StopAsync().GetAwaiter().GetResult()`) sin modificar singletons (`EmbeddedHttpServer`, `WatchdogService`, `SerialCommandPipeline`)
+  - `SESSION END YYYY-MM-DD HH:MM:SS` footer empíricamente observado por primera vez post-migración
+- **ROB-001 Phase 1A — Hard timeout DisconnectAsync** (`0b5c1ae` · PR-4 · I-7)
+  - `await DisconnectAsync()` en `frmMain2_FormClosing` wrapped con `Task.WhenAny + Task.Delay(5s)`
+  - Log warning si excede budget · `DisconnectAsync` interno preservado intacto
+- **INIT-004 Componente A — FL2 Master Global Config dispatch** (`83e1d2a`)
+  - `IsFl2MasterGlobalConfigContext` + `ProcessFl2MasterGlobalConfigAsync` con dispatch en `ProcessPostRequestAsync`
+  - Resto INIT-004 ON HOLD hardware-gated (requiere DAS Master Flex 2.0)
+
+### Changed
+- **SOURCE vs DEPLOYMENT package model formalizado** (`8999b3a`)
+  - `docs/GUIA_ENTREGA_NUEVA_VERSION.md` actualizada con regla de filtrado `runtimes/`
+  - Regla v1.2: preservar `runtimes/win` (RID-genérico managed) + `runtimes/win-*` (RID-arch native) · filtro previo eliminaba `win` causando System.IO.Ports load failure
+  - Cliente recibe DEPLOYMENT package · SOURCE package solo bajo solicitud explícita y autorización
+
+### Fixed
+- **BUG-002 · INIT-002 regression preservation U1 multi-segment response** (`cccbc4a`)
+  - `DeviceBbuResponseHandler.ProcessResponse()` ya NO devuelve `_factStrFixed` aislado (~484 chars)
+  - Parchea voltage bytes `"27D8"` in-place dentro de `segments[1]` offset 434 (longitud invariante)
+  - Preserva trama multi-segmento (`splitwith3tabs:3104,2870,2528,4`) per VB6 1.12 baseline (`GetFromFileData.bas` 397-401, 495-520)
+  - Hardware validado: DAS Master legacy `Fiplex000000085` (5dm/1.0 frVersion=0) COM8 · Status Page renderiza FW/SW/SN · "PLEASE WAIT LOADING" desaparece
+  - INIT-002 sigue COMPLETED · sin reapertura
+
+### Architectural Debt Closed
+- **7 de 9 hallazgos OPS-003 cerrados directamente por ROB-001 PR-5**
+  - `host.Dispose()` cableado por primera vez post-migración (era no-cabled desde commit inicial `8cf3177` 2025-12-11)
+  - `ApplicationExit` handler agregado (ausencia histórica)
+  - `EmbeddedHttpServer`, `WatchdogService`, `SerialCommandPipeline` liberados deterministicamente vía cadena Dispose
+  - Log retenido post-cierre resuelto (`AppFileLoggerProvider.Dispose` ejecuta)
+  - Proceso residente post-cierre visual resuelto bajo hardware healthy (`Get-Process *Fiplex*` vacío)
+- Hallazgos pendientes:
+  - `frmMain2_FormClosing` async void preservado intencionalmente (cambio de tipo tendría impacto de propagación inaceptable · OPS-003 fuera de scope)
+  - Shutdown incompleto bajo hostile USB-Serial drivers (kernel-mode IRP) requiere I-1 diferida (Bounded shutdown timer + `Environment.Exit` escape hatch)
+- **OBSERVATIONS documentadas** (no bloqueantes):
+  - OBSERVATION-001: COM9 retry 5 timeout intermitente · pre-existente
+  - OBSERVATION-002: kernel-mode IRP zombie bajo hostile USB-Serial drivers · cerrado parcialmente
+  - OBSERVATION-003: `ObjectDisposedException` race en `DisconnectAsync` continuation · pre-existente
+- **Iniciativas diferidas con criterios de reactivación**:
+  - I-1 (Bounded shutdown timer + `Environment.Exit` escape hatch)
+  - I-5 (Per-port blacklist con TTL)
+
+### Governance
+- **GOV-001 cleanup ejecutado**:
+  - G1: CHANGELOG backfill `[3.1.0]` + `[3.2.0]` (commit `f81bc9f`)
+  - G2: Tags históricos creados v3.0.3 · v3.1.0 · v3.2.0 · v3.3.0 (lightweight per precedente)
+  - G3: `RELEASE_BY_RELEASE_MERGE_PLAN.md` v2.1 → v2.2
+  - G5: Final cleanup validation · 10/10 checks PASS · 7/7 criterios PASS
+- Autoridades de versionado consolidadas: L1 CHANGELOG.md + L2 GUIA_ENTREGA_NUEVA_VERSION.md
+- Modelo de versionado de 5 niveles documentado (N1 BUSINESS_BASELINE · N2 PRODUCT_RELEASE · N3 BUILD_METADATA · N4 DEVICE_VERSION · N5 GIT TAG)
+
+### Build Metadata
+- `<Version>` (ProductVersion): **3.5.0 → 3.6.0**
+- `<AssemblyVersion>`: `3.0.2.0` (sin cambio · **CONGELADO** por diseño .NET binding)
+- `<FileVersion>`: `3.0.2.0` (sin cambio · **CONGELADO** · Windows file metadata)
+- TargetFramework: `net10.0-windows` (sin cambio)
+
+---
+
 ## [3.5.0] - 2026-06-01
 
 ### Added
@@ -117,6 +191,82 @@
   - **Fix — auth sequence:** `HandleInvalidCredentialsAsync` now logs `Tx0 V1` → `Rx0 INVALID CREDENTIALS` → `Tx0 *0{password}` → `Rx0 ACK`, matching VB 1.9 format exactly.
   - **Fix — TX/RX/ACK events:** `TxDiagnostic`, `RxDiagnostic`, `AckDiagnostic` events subscribed in `frmMain.cs` — every command TX and its ACK response are written to the trace file while logging is active.
   - **Residual difference (by design):** S1 spectrum polls run concurrently in v3.x vs. sequentially in VB 1.9; total elapsed time is similar (~2.5 s). Does not affect field diagnostics.
+
+---
+
+## [3.2.0] - 2026-05-18
+
+### Added
+- **License Manager activation sequence + hide CLSS menu** (`fe9aef4` · issue #3) — Mirrors VB 1.9 `cmdRefresh_KeyPress` `cntmode 3-6`: extended `_eButton` to `[Right, Left, Right]` (third click starts license path). `FetchLicenseCharactersAsync` sends `U1` on `cntmode=3`, extracts `serialFirstChar` (`buff[3][0]`) and `versionFirstChar` (first decimal digit of `AsciiToInt(buff[5][0..1])`). KeyPress `cntmode=3/4/5/6`: Minute%10 → Day%10 → serialFirstChar → versionFirstChar.
+- **Clear EEPROM J1 write-back fixes J0 NACK on 2c v2.0** (`dcbd77a` · issue #4) — Device firmware 2c v2.0 uses extended J parameter format (584 chars data) vs VB 1.9 hardcoded strings (557 chars data). Device NACKs J0 because payload length is wrong. **Fix:** J1 pre-read before J0 → use J1 data directly as J0 payload. *(Root cause of what was later catalogued as REG-007.)*
+- **Traces ON log file** — `WriteTraceLog` to `%APPDATA%\Fiplex\USBmessages_YYYYMMDD.txt` (`80c3bb2` · issue #14).
+- **HTML modal for filter warnings** replacing native `window.confirm()` (`3ddcbbf`) — `window.confirm()` showed "localhost:8080 dice" browser chrome; replaced with a custom overlay modal matching the Fiplex brand (`#004a98` header, styled Cancel/Apply buttons). `readConfsFrm` now accepts an optional `onResult` callback enabling async flow; `submitform` in `net.js` uses the callback so the pending spinner only activates after the user confirms.
+- **TX/RX/ACK diagnostic events on serial pipeline** (`90dd627`).
+- **`FullScan` on startup + remove double port-open overhead** (`6348eec`) — Startup scan changed from `QuickScan` to `FullScan` (VB 1.9 parity: all installed Fiplex devices listed in `cmbCOM` at launch). Removed redundant `CanOpenPort()` probe eliminating one open/close cycle per port before `TryIdentifyDeviceAsync`. `OpenPortTimeout` `1200ms` → `300ms` (serial port open is near-instant).
+- **`SerialTraceLogger` non-blocking + full-frame RX** (`550411a`) — `Core/Diagnostics/SerialTraceLogger`: `ConcurrentQueue` + `StreamWriter` + 200ms background flush loop; replaces synchronous `File.AppendAllText` that blocked the serial pipeline thread on every trace write. Enable/Disable writes `=== Traces ON ===` / `=== Traces OFF ===` headers with version and machine name, matching VB 1.9 `WriteLog()` convention.
+
+### Changed
+- **T key on Scan Devices toggles Traces ON** (`c6e3eed`, `f42a1c0`, `78b58af` · issue #14) — Multiple iterations: button focus → `KeyPreview` → `ProcessCmdKey` + `ActiveControl`. VB 1.9 parity.
+- **Production Tests menu** hidden until factory sequence (`013927c` · issue #3).
+- **Calibrations menu** hidden until factory sequence (`9889a94` · issue #3) — VB 1.9 parity.
+- **`mnuCal`** enabled on factory activation; resets Visible+Enabled on disconnect (`dde0996` · issue #3).
+- **GDI+ status icons** applied to `frmEthernetInstall` with disabled-text fix (`c0181b6` · style consistency with `frmLicenseManager`).
+
+### Fixed
+- **Issue #3 (factory menu hardening)**:
+  - Guard `cmdRefresh_Click` during factory sequence — mirrors VB 1.9 `tmrModeFactory` check (`b04e2fd`).
+  - Use `System.Windows.Forms.Control.ModifierKeys` to avoid namespace clash with `Fiplex.Control` (`6649f01`).
+- **Issue #9: Save Config fails with 18 filters** (`4bc0fdf`).
+- **Issue #18: License key NACK feedback** (8 commits):
+  - `MaxRetries=1` (VB 1.9 parity), `Update()` replaces `DoEvents()` (`3a59ec1`).
+  - `Frame1.Refresh()` so `pctOK`/`pctKO` repaint after visibility change (`82544b1`).
+  - `Application.DoEvents()` after `pctOK`/`pctKO` visibility — matches VB 1.9 exactly (`0fd5411`).
+  - Explicit `BackColor` + `SizeMode` on `pctOK`/`pctKO` so indicators render without RESX image (`fb0a2b4`).
+  - GDI+ status indicators (OK green / KO red) replacing RESX icons (`5e5a7a5`).
+  - Redraw `btnEnableFeature` text in Paint event when disabled (`a33a4a2`).
+
+### QA / Documentation
+- Clear EEPROM production flow — command sequence, J write-back protocol, timing (`9197fe5`).
+- J hardcoded payload history — VB 1.9 origin, copied to C#, v2.0 incompatibility (`4926733`).
+- Issue #9 validation + version guide + serial logging design (`c97e251`).
+- Issue #3 hardware validation (`6fb9444`).
+
+---
+
+## [3.1.0] - 2026-05-15
+
+### Added
+- **`file://` URL encoding via `Uri.AbsoluteUri`** (`24df349`) — Manual string replacement of backslashes left `#` unencoded, causing WebView2 to truncate the path at the fragment separator when the project folder contained `Proyecto C#`. `Uri.AbsoluteUri` percent-encodes correctly.
+- **Maximize window on first connection per session** (`8edf1ac` · issue #20) — VB 1.9 used `SW_SHOWMAXIMIZED` when the device GUI loaded, controlled by a `maximized` flag reset on each disconnect. C# was forcing Normal with a fixed `1350x800` size. Restored VB 1.9 parity.
+- **Factory menu activation via Shift+click sequence on Refresh button** (`e9094b6` · issue #3) — Mirrors VB 1.9 `cmdRefresh_MouseDown` + `cmdRefresh_KeyPress`: Shift+RightClick → Shift+LeftClick on Refresh sets `cntmode=2`, type current minute%10 digit (`cntmode→50`), then day%10 digit.
+
+### Changed
+- **Splash screen logo** updated to v3.0.3 (`51c4300`); v3.0.2 preserved as `logo_v302.png`.
+- **`htdocs_2c2` footer**: copyright 2024 → 2026 + version `3.0.0` → `3.0.3` (`43b306f`).
+- **`htdocs_2c2/navi.html`**: copyright 2024 → 2026 (`351c28c`).
+- **`cmbCOM` resize behavior** (issue #21) — Replicated VB 1.9 `frmMain_Resize`: `cmbCOM.Width = ClientRectangle.Width - 16`, `OnResize` without `Anchor.Right`, `Visible` toggle on maximize transitions (commits `1578312`, `1b11947`, `1762791`, `014ee01`, `21cedc3`, `a172bbe`, `f963362`, `7b47f09`).
+- **`SaveFileDialog` on WebView2 file downloads** (`5e644c5` · issues #5/#6) — VB 1.9 parity.
+- **COM port number in device selector** (`490e481` · issue #16) — VB 1.9 parity.
+- **`cmbCOM` border visibility in disconnected state** — `FlatStyle.Standard` (`41629c7` · issue #19).
+
+### Removed
+- **Stale VB.NET project reference** from solution file (`df55be0`).
+
+### Fixed
+- **Issue #2: Ethernet Apply Changes returns fail even though device accepts** (`572060b`) — Root cause: `WriteFactoryStringAsync` checked `result.Data.StartsWith("ACK")`, but the pipeline consumes the ACK token leaving `result.Data` empty on a genuine ACK. Same pattern as issue #15. Fix: `isAck = result.Success && string.IsNullOrEmpty(result.Data)`.
+- **Issue #10: Extend legacy postback handler to all HTML POSTs** (`313bae6`).
+- **Issue #12: Show non-catalogued devices as "Unknown device"** (`062012a`).
+- **Issue #13: Detect USB disconnect via timer polling `BytesToRead`** (`af604f4`).
+- **Issue #15: Password change dialog improvements** (4 commits, VB 1.9 parity):
+  - Length validation 8-16 chars in edit mode (`ca9a670`).
+  - Parse device bitmask response for password change (`b44991a`).
+  - Correct button position in edit mode to avoid label overlap (`4a0afb5`).
+  - Dialog stays open during device command (`c173310`).
+- **Issue #21: `cmbCOM` resize quirk in Maximized state** — Multiple intermediate attempts (`Dock.Fill`, `Anchor`, `BeginInvoke`) converged on VB 1.9 parity. See **Changed** section above.
+
+### QA / Documentation
+- QA report — field report 260513 (`75d2105`).
+- QA validation tracking for issues #3, #6, #7, #9, #12, #13, #17, #19 (`9540fc4`, `3ca0689`, `3c023ea`, `f795b4e`, `1cdfb25`, `ee350ad`, `639c73f`, `96eaa5e`, `577f51c`).
 
 ---
 

@@ -108,7 +108,7 @@ public partial class frmMain : Form
     private static readonly string SoftwareVersion =
         (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "3.5.0")
+            ?.InformationalVersion ?? "3.6.0")
         .Split('+')[0];
 
     public frmMain(
@@ -5431,7 +5431,19 @@ public partial class frmMain : Form
 
             if (_serialPort.IsOpen)
             {
-                await DisconnectAsync();
+                // ROB-001 Phase 1A · PR-4 · I-7 Hard timeout on DisconnectAsync.
+                // Bounds the wait at the FormClosing callsite only. Internal
+                // DisconnectAsync semantics preserved unchanged for any other
+                // invocation path (user-triggered Disconnect, state transitions).
+                // If the 5s budget is exceeded, the in-flight task is abandoned
+                // and FormClosing continues — PR-5 host.Dispose() will dispose
+                // the remaining singletons (Watchdog, HTTP server, SerialPipeline,
+                // logger) deterministically afterward.
+                var disconnectTask = DisconnectAsync();
+                if (await Task.WhenAny(disconnectTask, Task.Delay(TimeSpan.FromSeconds(5))) != disconnectTask)
+                {
+                    _logger.LogWarning("DisconnectAsync timed out after 5s — abandoning, FormClosing continues");
+                }
             }
 
             // Guard StopAsync with timeout to avoid indefinite wait on close.

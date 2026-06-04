@@ -1,4 +1,6 @@
+using System.Diagnostics;
 using System.IO.Ports;
+using Fiplex.Control.Software.WinForms.Core.Diagnostics;
 using Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -15,10 +17,14 @@ namespace Fiplex.Control.Software.WinForms.Core.Serial.Implementation;
 public sealed class SerialPortAdapter : ISerialPort
 {
     private readonly ILogger<SerialPortAdapter> _logger;
+    private readonly DiscoveryTelemetry _telemetry;
     private SerialPort? _serialPort;
 
-    public SerialPortAdapter(ILogger<SerialPortAdapter> logger) 
-        => _logger = logger;
+    public SerialPortAdapter(ILogger<SerialPortAdapter> logger, DiscoveryTelemetry telemetry)
+    {
+        _logger = logger;
+        _telemetry = telemetry;
+    }
 
     public bool IsOpen => _serialPort?.IsOpen ?? false;
     public int BytesToRead => _serialPort?.BytesToRead ?? 0;
@@ -35,6 +41,7 @@ public sealed class SerialPortAdapter : ISerialPort
     {
         return Task.Run(() =>
         {
+            var sw = Stopwatch.StartNew();
             try
             {
                 Close();
@@ -45,20 +52,23 @@ public sealed class SerialPortAdapter : ISerialPort
                     NewLine = "\n"
                 };
                 _serialPort.Open();
-                _logger.LogInformation("Serial port {Port} opened at {BaudRate} baud", portName, baudRate);
+                _logger.LogInformation("[Serial] Open  {Port} OK     duration={Ms}ms", portName, sw.ElapsedMilliseconds);
+                _telemetry.IncrementPortOpenSuccess();
                 return true;
             }
             catch (UnauthorizedAccessException ex)
             {
                 // Port already in use by another process — expected during scan when
                 // the connected device's COM port is encountered. WARN, not ERR.
-                _logger.LogWarning("Failed to open {Port} — port in use: {Msg}", portName, ex.Message);
+                _logger.LogWarning("[Serial] Open  {Port} FAIL   duration={Ms}ms reason=AccessDenied", portName, sw.ElapsedMilliseconds);
+                _telemetry.IncrementPortOpenFailedAccessDenied();
                 ErrorOccurred?.Invoke(ex);
                 return false;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to open {Port}", portName);
+                _logger.LogError(ex, "[Serial] Open  {Port} FAIL   duration={Ms}ms reason={Reason}", portName, sw.ElapsedMilliseconds, ex.GetType().Name);
+                _telemetry.IncrementPortOpenFailedOther();
                 ErrorOccurred?.Invoke(ex);
                 return false;
             }
@@ -127,10 +137,19 @@ public sealed class SerialPortAdapter : ISerialPort
         _serialPort = null;
         if (portToClose == null) return Task.CompletedTask;
 
+        var portName = portToClose.PortName;
         return Task.Run(() =>
         {
-            try { if (portToClose.IsOpen) portToClose.Close(); }
-            catch { }
+            var sw = Stopwatch.StartNew();
+            try
+            {
+                if (portToClose.IsOpen) portToClose.Close();
+                _logger.LogInformation("[Serial] Close {Port} OK     duration={Ms}ms", portName, sw.ElapsedMilliseconds);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("[Serial] Close {Port} FAIL   duration={Ms}ms reason={Reason}", portName, sw.ElapsedMilliseconds, ex.GetType().Name);
+            }
             finally
             {
                 try { portToClose.Dispose(); }

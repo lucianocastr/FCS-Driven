@@ -1,3 +1,5 @@
+using System.Diagnostics;
+using Fiplex.Control.Software.WinForms.Core.Diagnostics;
 using Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 using Microsoft.Extensions.Logging;
 
@@ -10,6 +12,7 @@ namespace Fiplex.Control.Software.WinForms.Core.Serial.Implementation;
 public sealed class SimulatedSerialPort : ISerialPort
 {
     private readonly ILogger<SimulatedSerialPort> _logger;
+    private readonly DiscoveryTelemetry _telemetry;
     private bool _isOpen = false;
     private string _portName = string.Empty;
     private byte[] _pendingResponse = Array.Empty<byte>();
@@ -73,9 +76,10 @@ public sealed class SimulatedSerialPort : ISerialPort
         ["L0"] = "ACK", // Write License
     };
 
-    public SimulatedSerialPort(ILogger<SimulatedSerialPort> logger)
+    public SimulatedSerialPort(ILogger<SimulatedSerialPort> logger, DiscoveryTelemetry telemetry)
     {
         _logger = logger;
+        _telemetry = telemetry;
     }
 
     public bool IsOpen => _isOpen;
@@ -91,9 +95,11 @@ public sealed class SimulatedSerialPort : ISerialPort
 
     public Task<bool> OpenAsync(string portName, int baudRate = 9600, CancellationToken ct = default)
     {
+        var sw = Stopwatch.StartNew();
         _portName = portName;
         _isOpen = true;
-        _logger.LogInformation("🔧 SimulatedSerialPort opened: {Port} (simulated)", portName);
+        _logger.LogInformation("[Serial] Open  {Port} OK     duration={Ms}ms", portName, sw.ElapsedMilliseconds);
+        _telemetry.IncrementPortOpenSuccess();
         return Task.FromResult(true);
     }
 
@@ -150,7 +156,12 @@ public sealed class SimulatedSerialPort : ISerialPort
 
     public Task CloseAsync()
     {
-        Close();
+        var portName = _portName;
+        var sw = Stopwatch.StartNew();
+        _isOpen = false;
+        _pendingResponse = Array.Empty<byte>();
+        _readPosition = 0;
+        _logger.LogInformation("[Serial] Close {Port} OK     duration={Ms}ms", portName, sw.ElapsedMilliseconds);
         return Task.CompletedTask;
     }
 

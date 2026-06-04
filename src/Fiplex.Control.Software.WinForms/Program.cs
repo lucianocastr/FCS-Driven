@@ -32,48 +32,132 @@ internal static class Program
     [STAThread]
     static void Main()
     {
-        ApplicationConfiguration.Initialize();
+        // ROB-001 Phase 1A · PR-3 + PR-5 lifecycle state.
+        //   exitFlushTarget (PR-3): logger reference for queue drain at Main exit paths.
+        //   hostToDispose, hostDisposed, disposeLock (PR-5): single-shot host.Dispose() guard.
+        AppFileLoggerProvider? exitFlushTarget = null;
+        IHost? hostToDispose = null;
+        bool hostDisposed = false;
+        var disposeLock = new object();
 
-        var host = CreateHost();
-
-        var appFileLoggerProvider = host.Services.GetRequiredService<AppFileLoggerProvider>();
-        AppDomain.CurrentDomain.UnhandledException += (_, e) =>
-            appFileLoggerProvider.ForceFlush($"UNHANDLED EXCEPTION: {e.ExceptionObject}");
-        Application.ThreadException += (_, e) =>
-            appFileLoggerProvider.ForceFlush($"THREAD EXCEPTION: {e.Exception.GetType().Name}: {e.Exception.Message}");
-
-        using var scope = host.Services.CreateScope();
-        
-        // Login flow: First show Login, then frmMain if login successful
-        var loginForm = scope.ServiceProvider.GetRequiredService<Login>();
-        var loginResult = loginForm.ShowDialog();
-        
-        if (loginResult == DialogResult.OK && loginForm.LoginSuccessful)
+        // ROB-001 Phase 1A · PR-5 · I-3 Ordered host.Dispose()
+        // Single-shot, deadlock-safe disposal of the IHost root container.
+        //
+        // Why Task.Run:
+        //   Three singletons implement Dispose() as
+        //   `StopAsync().GetAwaiter().GetResult()` — a sync-over-async pattern
+        //   that would deadlock if invoked on the WinForms STA UI thread (sync
+        //   context captured by Task continuations). Dispatching via Task.Run
+        //   places execution on a ThreadPool worker with no sync context.
+        //
+        // Why a lock + flag:
+        //   Both Application.ApplicationExit handler and Main finally invoke
+        //   this function. The lock guarantees a single execution and removes
+        //   any race between the two callers.
+        //
+        // Why a 5s timeout:
+        //   Covers AppFileLoggerProvider's internal 2s flush wait plus normal
+        //   StopAsync of the other singletons. If exceeded, abandon and let
+        //   Main exit — shutdown remains best-effort and never blocks the UI
+        //   thread indefinitely. A foreground SerialPort.EventLoopRunner
+        //   stuck in kernel-mode IRP is out of scope for PR-5 (only I-1
+        //   `Environment.Exit()` escape hatch can address that vector).
+        void DisposeHostOnce()
         {
-            // Login successful → Load token information and show subscription
+            lock (disposeLock)
+            {
+                if (hostDisposed) return;
+                hostDisposed = true;
+            }
+            var target = hostToDispose;
+            if (target is null) return;
             try
             {
-                // Load training/license information BEFORE showing the dialog
-                var trainingService = scope.ServiceProvider.GetRequiredService<ITrainingValidationService>();
-                trainingService.ReadTokenInformationAsync().GetAwaiter().GetResult();
-                
-                var subscriptionDialog = scope.ServiceProvider.GetRequiredService<SubscriptionInfo>();
-                subscriptionDialog.ShowDialog();
+                var disposeTask = Task.Run(() => target.Dispose());
+                if (!disposeTask.Wait(TimeSpan.FromSeconds(5)))
+                {
+                    // Timeout exceeded — log + continue. exitFlushTarget may
+                    // already be dead if AppFileLoggerProvider.Dispose ran;
+                    // the message is best-effort.
+                    exitFlushTarget?.ForceFlush("host.Dispose() timed out after 5s — abandoning, shutdown continues");
+                }
             }
             catch (Exception ex)
             {
-                // Do not block if there is an error showing SubscriptionInfo
-                Console.WriteLine($"Warning: Could not show subscription info: {ex.Message}");
+                exitFlushTarget?.ForceFlush($"host.Dispose() threw {ex.GetType().Name}: {ex.Message}");
             }
-            
-            // Show main application
-            var mainForm = scope.ServiceProvider.GetRequiredService<frmMain>();
-            Application.Run(mainForm);
         }
-        else
+
+        try
         {
-            // Login cancelled or failed → close application
-            Application.Exit();
+            ApplicationConfiguration.Initialize();
+
+            var host = CreateHost();
+            hostToDispose = host;
+
+            var appFileLoggerProvider = host.Services.GetRequiredService<AppFileLoggerProvider>();
+            exitFlushTarget = appFileLoggerProvider;
+
+            AppDomain.CurrentDomain.UnhandledException += (_, e) =>
+                appFileLoggerProvider.ForceFlush($"UNHANDLED EXCEPTION: {e.ExceptionObject}");
+            Application.ThreadException += (_, e) =>
+                appFileLoggerProvider.ForceFlush($"THREAD EXCEPTION: {e.Exception.GetType().Name}: {e.Exception.Message}");
+
+            // ROB-001 Phase 1A · PR-5 · I-2 ApplicationExit handler
+            // Canonical WinForms cleanup hook. Fires synchronously when
+            // Application.Run returns or when Application.Exit() is called
+            // during an active MessageLoop. Invokes single-shot host.Dispose()
+            // via DisposeHostOnce — idempotent with Main finally fallback.
+            Application.ApplicationExit += (_, _) => DisposeHostOnce();
+
+            using var scope = host.Services.CreateScope();
+
+            // Login flow: First show Login, then frmMain if login successful
+            var loginForm = scope.ServiceProvider.GetRequiredService<Login>();
+            var loginResult = loginForm.ShowDialog();
+
+            if (loginResult == DialogResult.OK && loginForm.LoginSuccessful)
+            {
+                // Login successful → Load token information and show subscription
+                try
+                {
+                    // Load training/license information BEFORE showing the dialog
+                    var trainingService = scope.ServiceProvider.GetRequiredService<ITrainingValidationService>();
+                    trainingService.ReadTokenInformationAsync().GetAwaiter().GetResult();
+
+                    var subscriptionDialog = scope.ServiceProvider.GetRequiredService<SubscriptionInfo>();
+                    subscriptionDialog.ShowDialog();
+                }
+                catch (Exception ex)
+                {
+                    // Do not block if there is an error showing SubscriptionInfo
+                    Console.WriteLine($"Warning: Could not show subscription info: {ex.Message}");
+                }
+
+                // Show main application
+                var mainForm = scope.ServiceProvider.GetRequiredService<frmMain>();
+                Application.Run(mainForm);
+            }
+            else
+            {
+                // Login cancelled or failed → close application
+                Application.Exit();
+            }
+        }
+        finally
+        {
+            // ROB-001 Phase 1A · PR-3 · I-4 Logger ForceFlush
+            // Drain queue BEFORE host.Dispose runs (writer is still open here
+            // on login-cancelled or early-exception paths where Application.Run
+            // never started and ApplicationExit never fired). On normal exit
+            // paths, AppFileLoggerProvider.Dispose already ran inside the
+            // ApplicationExit handler — writer is null, ForceFlush is a no-op.
+            exitFlushTarget?.ForceFlush();
+
+            // ROB-001 Phase 1A · PR-5 · Fallback for paths where the
+            // ApplicationExit handler did not fire. DisposeHostOnce is
+            // idempotent — no-op if it already ran.
+            DisposeHostOnce();
         }
     }
 
@@ -102,6 +186,7 @@ internal static class Program
     private static void ConfigureLogging(IServiceCollection services)
     {
         services.AddSingleton<AppLogLevelSwitch>();
+        services.AddSingleton<DiscoveryTelemetry>();
         services.AddSingleton<AppFileLoggerProvider>(sp =>
         {
             var sw = sp.GetRequiredService<AppLogLevelSwitch>();
