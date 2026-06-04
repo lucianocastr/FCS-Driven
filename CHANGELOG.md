@@ -1,5 +1,79 @@
 #
 
+## [3.6.0] - 2026-06-03
+
+### Added
+- **ROB-001 Phase 1A — Discovery Telemetry** (`9da316e` · PR-1 · I-6)
+  - `DiscoveryTelemetry` singleton lock-free con 14 counters (scan, port-open, identification, device categories)
+  - `[Telemetry] ScansCompleted=N PortsOpenSucceeded=M ...` summary line por scan completo
+  - Instrumentación pasiva en `DeviceDiscoveryService`, `SerialPortAdapter` y `SimulatedSerialPort` (F-1 closure)
+- **ROB-001 Phase 1A — Open/Close logging explícito** (`347e9bd` · PR-2 · I-8)
+  - `[Serial] {Action} {Port} {Outcome} duration={Ms}ms [reason={Reason}]` formato congelado
+  - `Stopwatch` local por operación · sin cambios a control flow ni retries/timeouts
+- **ROB-001 Phase 1A — Logger ForceFlush antes de exit** (`cd8efe3` · PR-3 · I-4)
+  - `AppFileLoggerProvider.ForceFlush()` invocado en `Program.Main` finally
+  - Drena cola pendiente de log antes de exit · sin tocar lifecycle ni singletons
+- **ROB-001 Phase 1A — ApplicationExit + ordered host.Dispose** (`3414abe` · PR-5 · I-2 + I-3)
+  - `Application.ApplicationExit` handler subscribed
+  - `DisposeHostOnce()` con idempotency lock + `Task.Run` con timeout 5s + invocación en finally como fallback
+  - Neutraliza sync-over-async (`Dispose() => StopAsync().GetAwaiter().GetResult()`) sin modificar singletons (`EmbeddedHttpServer`, `WatchdogService`, `SerialCommandPipeline`)
+  - `SESSION END YYYY-MM-DD HH:MM:SS` footer empíricamente observado por primera vez post-migración
+- **ROB-001 Phase 1A — Hard timeout DisconnectAsync** (`0b5c1ae` · PR-4 · I-7)
+  - `await DisconnectAsync()` en `frmMain2_FormClosing` wrapped con `Task.WhenAny + Task.Delay(5s)`
+  - Log warning si excede budget · `DisconnectAsync` interno preservado intacto
+- **INIT-004 Componente A — FL2 Master Global Config dispatch** (`83e1d2a`)
+  - `IsFl2MasterGlobalConfigContext` + `ProcessFl2MasterGlobalConfigAsync` con dispatch en `ProcessPostRequestAsync`
+  - Resto INIT-004 ON HOLD hardware-gated (requiere DAS Master Flex 2.0)
+
+### Changed
+- **SOURCE vs DEPLOYMENT package model formalizado** (`8999b3a`)
+  - `docs/GUIA_ENTREGA_NUEVA_VERSION.md` actualizada con regla de filtrado `runtimes/`
+  - Regla v1.2: preservar `runtimes/win` (RID-genérico managed) + `runtimes/win-*` (RID-arch native) · filtro previo eliminaba `win` causando System.IO.Ports load failure
+  - Cliente recibe DEPLOYMENT package · SOURCE package solo bajo solicitud explícita y autorización
+
+### Fixed
+- **BUG-002 · INIT-002 regression preservation U1 multi-segment response** (`cccbc4a`)
+  - `DeviceBbuResponseHandler.ProcessResponse()` ya NO devuelve `_factStrFixed` aislado (~484 chars)
+  - Parchea voltage bytes `"27D8"` in-place dentro de `segments[1]` offset 434 (longitud invariante)
+  - Preserva trama multi-segmento (`splitwith3tabs:3104,2870,2528,4`) per VB6 1.12 baseline (`GetFromFileData.bas` 397-401, 495-520)
+  - Hardware validado: DAS Master legacy `Fiplex000000085` (5dm/1.0 frVersion=0) COM8 · Status Page renderiza FW/SW/SN · "PLEASE WAIT LOADING" desaparece
+  - INIT-002 sigue COMPLETED · sin reapertura
+
+### Architectural Debt Closed
+- **7 de 9 hallazgos OPS-003 cerrados directamente por ROB-001 PR-5**
+  - `host.Dispose()` cableado por primera vez post-migración (era no-cabled desde commit inicial `8cf3177` 2025-12-11)
+  - `ApplicationExit` handler agregado (ausencia histórica)
+  - `EmbeddedHttpServer`, `WatchdogService`, `SerialCommandPipeline` liberados deterministicamente vía cadena Dispose
+  - Log retenido post-cierre resuelto (`AppFileLoggerProvider.Dispose` ejecuta)
+  - Proceso residente post-cierre visual resuelto bajo hardware healthy (`Get-Process *Fiplex*` vacío)
+- Hallazgos pendientes:
+  - `frmMain2_FormClosing` async void preservado intencionalmente (cambio de tipo tendría impacto de propagación inaceptable · OPS-003 fuera de scope)
+  - Shutdown incompleto bajo hostile USB-Serial drivers (kernel-mode IRP) requiere I-1 diferida (Bounded shutdown timer + `Environment.Exit` escape hatch)
+- **OBSERVATIONS documentadas** (no bloqueantes):
+  - OBSERVATION-001: COM9 retry 5 timeout intermitente · pre-existente
+  - OBSERVATION-002: kernel-mode IRP zombie bajo hostile USB-Serial drivers · cerrado parcialmente
+  - OBSERVATION-003: `ObjectDisposedException` race en `DisconnectAsync` continuation · pre-existente
+- **Iniciativas diferidas con criterios de reactivación**:
+  - I-1 (Bounded shutdown timer + `Environment.Exit` escape hatch)
+  - I-5 (Per-port blacklist con TTL)
+
+### Governance
+- **GOV-001 cleanup ejecutado**:
+  - G1: CHANGELOG backfill `[3.1.0]` + `[3.2.0]` (commit `f81bc9f`)
+  - G2: Tags históricos creados v3.0.3 · v3.1.0 · v3.2.0 · v3.3.0 (lightweight per precedente)
+  - G3: `RELEASE_BY_RELEASE_MERGE_PLAN.md` v2.1 → v2.2
+  - G5: Final cleanup validation · 10/10 checks PASS · 7/7 criterios PASS
+- Autoridades de versionado consolidadas: L1 CHANGELOG.md + L2 GUIA_ENTREGA_NUEVA_VERSION.md
+- Modelo de versionado de 5 niveles documentado (N1 BUSINESS_BASELINE · N2 PRODUCT_RELEASE · N3 BUILD_METADATA · N4 DEVICE_VERSION · N5 GIT TAG)
+
+### Build Metadata
+- `<Version>` (ProductVersion): **3.5.0 → 3.6.0**
+- `<AssemblyVersion>`: `3.0.2.0` (sin cambio · **CONGELADO** por diseño .NET binding)
+- `<FileVersion>`: `3.0.2.0` (sin cambio · **CONGELADO** · Windows file metadata)
+- TargetFramework: `net10.0-windows` (sin cambio)
+
+---
+
 ## [3.5.0] - 2026-06-01
 
 ### Added
