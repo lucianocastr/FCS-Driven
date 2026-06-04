@@ -61,9 +61,9 @@ partial class frmLicense
         chkNbEn0.BackColor = Color.FromArgb(255, 255, 255);
         chkNbEn0.Font = new Font("Segoe UI", 9F);
         chkNbEn0.ForeColor = Color.FromArgb(34, 34, 34);
-        chkNbEn0.Location = new Point(208, 40);
+        chkNbEn0.Location = new Point(206, 38);
         chkNbEn0.Name = "chkNbEn0";
-        chkNbEn0.Size = new Size(17, 13);
+        chkNbEn0.Size = new Size(20, 20);
         chkNbEn0.TabIndex = 8;
         ToolTip1.SetToolTip(chkNbEn0, "Enable Narrow Filters for Band 0");
         chkNbEn0.UseVisualStyleBackColor = false;
@@ -73,9 +73,9 @@ partial class frmLicense
         chkNbEn1.BackColor = Color.FromArgb(255, 255, 255);
         chkNbEn1.Font = new Font("Segoe UI", 9F);
         chkNbEn1.ForeColor = Color.FromArgb(34, 34, 34);
-        chkNbEn1.Location = new Point(248, 40);
+        chkNbEn1.Location = new Point(270, 38);
         chkNbEn1.Name = "chkNbEn1";
-        chkNbEn1.Size = new Size(17, 13);
+        chkNbEn1.Size = new Size(20, 20);
         chkNbEn1.TabIndex = 9;
         ToolTip1.SetToolTip(chkNbEn1, "Enable Narrow Filters for Band 1");
         chkNbEn1.UseVisualStyleBackColor = false;
@@ -85,9 +85,9 @@ partial class frmLicense
         chkAdjEn0.BackColor = Color.FromArgb(255, 255, 255);
         chkAdjEn0.Font = new Font("Segoe UI", 9F);
         chkAdjEn0.ForeColor = Color.FromArgb(34, 34, 34);
-        chkAdjEn0.Location = new Point(208, 64);
+        chkAdjEn0.Location = new Point(206, 62);
         chkAdjEn0.Name = "chkAdjEn0";
-        chkAdjEn0.Size = new Size(17, 13);
+        chkAdjEn0.Size = new Size(20, 20);
         chkAdjEn0.TabIndex = 10;
         ToolTip1.SetToolTip(chkAdjEn0, "Enable Adjacent Bandwidth Filters for Band 0");
         chkAdjEn0.UseVisualStyleBackColor = false;
@@ -97,9 +97,9 @@ partial class frmLicense
         chkAdjEn1.BackColor = Color.FromArgb(255, 255, 255);
         chkAdjEn1.Font = new Font("Segoe UI", 9F);
         chkAdjEn1.ForeColor = Color.FromArgb(34, 34, 34);
-        chkAdjEn1.Location = new Point(248, 64);
+        chkAdjEn1.Location = new Point(270, 62);
         chkAdjEn1.Name = "chkAdjEn1";
-        chkAdjEn1.Size = new Size(17, 13);
+        chkAdjEn1.Size = new Size(20, 20);
         chkAdjEn1.TabIndex = 11;
         ToolTip1.SetToolTip(chkAdjEn1, "Enable Adjacent Bandwidth Filters for Band 1");
         chkAdjEn1.UseVisualStyleBackColor = false;
@@ -109,9 +109,9 @@ partial class frmLicense
         chkSingEn0.BackColor = Color.FromArgb(255, 255, 255);
         chkSingEn0.Font = new Font("Segoe UI", 9F);
         chkSingEn0.ForeColor = Color.FromArgb(34, 34, 34);
-        chkSingEn0.Location = new Point(208, 88);
+        chkSingEn0.Location = new Point(206, 86);
         chkSingEn0.Name = "chkSingEn0";
-        chkSingEn0.Size = new Size(17, 13);
+        chkSingEn0.Size = new Size(20, 20);
         chkSingEn0.TabIndex = 12;
         ToolTip1.SetToolTip(chkSingEn0, "Enable Single Band mode for Band 0");
         chkSingEn0.UseVisualStyleBackColor = false;
@@ -121,9 +121,9 @@ partial class frmLicense
         chkSingEn1.BackColor = Color.FromArgb(255, 255, 255);
         chkSingEn1.Font = new Font("Segoe UI", 9F);
         chkSingEn1.ForeColor = Color.FromArgb(34, 34, 34);
-        chkSingEn1.Location = new Point(248, 88);
+        chkSingEn1.Location = new Point(270, 86);
         chkSingEn1.Name = "chkSingEn1";
-        chkSingEn1.Size = new Size(17, 13);
+        chkSingEn1.Size = new Size(20, 20);
         chkSingEn1.TabIndex = 13;
         ToolTip1.SetToolTip(chkSingEn1, "Enable Single Band mode for Band 1");
         chkSingEn1.UseVisualStyleBackColor = false;
@@ -134,12 +134,12 @@ partial class frmLicense
         txtPowDL0.BorderStyle = BorderStyle.FixedSingle;
         txtPowDL0.Font = new Font("Consolas", 9F);
         txtPowDL0.ForeColor = Color.FromArgb(34, 34, 34);
-        txtPowDL0.Location = new Point(192, 108);
+        txtPowDL0.Location = new Point(195, 108);
         txtPowDL0.MaxLength = 4;
         txtPowDL0.Name = "txtPowDL0";
         txtPowDL0.Size = new Size(41, 22);
         txtPowDL0.TabIndex = 14;
-        txtPowDL0.TextAlign = HorizontalAlignment.Right;
+        txtPowDL0.TextAlign = HorizontalAlignment.Center;
         ToolTip1.SetToolTip(txtPowDL0, "Power Limit Downlink for Band 0 (-128 to 127 dBm)");
         // 
         // txtPowDL1
@@ -148,12 +148,12 @@ partial class frmLicense
         txtPowDL1.BorderStyle = BorderStyle.FixedSingle;
         txtPowDL1.Font = new Font("Consolas", 9F);
         txtPowDL1.ForeColor = Color.FromArgb(34, 34, 34);
-        txtPowDL1.Location = new Point(235, 108);
+        txtPowDL1.Location = new Point(259, 108);
         txtPowDL1.MaxLength = 4;
         txtPowDL1.Name = "txtPowDL1";
         txtPowDL1.Size = new Size(41, 22);
         txtPowDL1.TabIndex = 15;
-        txtPowDL1.TextAlign = HorizontalAlignment.Right;
+        txtPowDL1.TextAlign = HorizontalAlignment.Center;
         ToolTip1.SetToolTip(txtPowDL1, "Power Limit Downlink for Band 1 (-128 to 127 dBm)");
         // 
         // cmdApply
@@ -166,7 +166,7 @@ partial class frmLicense
         cmdApply.FlatStyle = FlatStyle.Flat;
         cmdApply.Font = new Font("Segoe UI", 9F);
         cmdApply.ForeColor = Color.White;
-        cmdApply.Location = new Point(88, 152);
+        cmdApply.Location = new Point(103, 152);
         cmdApply.MinimumSize = new Size(90, 30);
         cmdApply.Name = "cmdApply";
         cmdApply.Size = new Size(120, 30);
@@ -179,7 +179,7 @@ partial class frmLicense
         // pctOK
         // 
         pctOK.Image = (Image)resources.GetObject("pctOK.Image");
-        pctOK.Location = new Point(232, 152);
+        pctOK.Location = new Point(231, 152);
         pctOK.Name = "pctOK";
         pctOK.Size = new Size(33, 33);
         pctOK.SizeMode = PictureBoxSizeMode.Zoom;
@@ -191,7 +191,7 @@ partial class frmLicense
         // pctKO
         // 
         pctKO.Image = (Image)resources.GetObject("pctKO.Image");
-        pctKO.Location = new Point(232, 152);
+        pctKO.Location = new Point(231, 152);
         pctKO.Name = "pctKO";
         pctKO.Size = new Size(33, 33);
         pctKO.SizeMode = PictureBoxSizeMode.Zoom;
@@ -224,7 +224,7 @@ partial class frmLicense
         Frame1.ForeColor = Color.FromArgb(34, 34, 34);
         Frame1.Location = new Point(8, 8);
         Frame1.Name = "Frame1";
-        Frame1.Size = new Size(297, 193);
+        Frame1.Size = new Size(326, 193);
         Frame1.TabIndex = 0;
         Frame1.TabStop = false;
         Frame1.Text = "Device Options:";
@@ -245,7 +245,7 @@ partial class frmLicense
         Label2.ForeColor = Color.FromArgb(34, 34, 34);
         Label2.Location = new Point(16, 64);
         Label2.Name = "Label2";
-        Label2.Size = new Size(193, 17);
+        Label2.Size = new Size(180, 17);
         Label2.TabIndex = 2;
         Label2.Text = "ADJBW FILTERS ENABLED";
         // 
@@ -273,20 +273,20 @@ partial class frmLicense
         // 
         Label5.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         Label5.ForeColor = Color.FromArgb(34, 34, 34);
-        Label5.Location = new Point(192, 16);
+        Label5.Location = new Point(184, 16);
         Label5.Name = "Label5";
-        Label5.Size = new Size(47, 17);
+        Label5.Size = new Size(64, 17);
         Label5.TabIndex = 5;
         Label5.Text = "BAND0";
         Label5.TextAlign = ContentAlignment.TopCenter;
-        // 
+        //
         // Label6
-        // 
+        //
         Label6.Font = new Font("Segoe UI", 9F, FontStyle.Bold);
         Label6.ForeColor = Color.FromArgb(34, 34, 34);
-        Label6.Location = new Point(240, 16);
+        Label6.Location = new Point(248, 16);
         Label6.Name = "Label6";
-        Label6.Size = new Size(40, 17);
+        Label6.Size = new Size(64, 17);
         Label6.TabIndex = 6;
         Label6.Text = "BAND1";
         Label6.TextAlign = ContentAlignment.TopCenter;
@@ -296,7 +296,7 @@ partial class frmLicense
         AutoScaleDimensions = new SizeF(96F, 96F);
         AutoScaleMode = AutoScaleMode.Dpi;
         BackColor = Color.FromArgb(255, 255, 255);
-        ClientSize = new Size(310, 213);
+        ClientSize = new Size(342, 213);
         Controls.Add(Frame1);
         Font = new Font("Segoe UI", 9F);
         FormBorderStyle = FormBorderStyle.FixedDialog;

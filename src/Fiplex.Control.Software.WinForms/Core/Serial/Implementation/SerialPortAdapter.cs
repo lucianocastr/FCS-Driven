@@ -115,8 +115,20 @@ public sealed class SerialPortAdapter : ISerialPort
 
     public Task CloseAsync()
     {
-        Close();
-        return Task.CompletedTask;
+        var portToClose = _serialPort;
+        _serialPort = null;
+        if (portToClose == null) return Task.CompletedTask;
+
+        return Task.Run(() =>
+        {
+            try { if (portToClose.IsOpen) portToClose.Close(); }
+            catch { }
+            finally
+            {
+                try { portToClose.Dispose(); }
+                catch { }
+            }
+        });
     }
 
     public void Dispose() => Close();

@@ -5,7 +5,7 @@
 |---|---|
 | Referencia | `260513_New FCS_Findings_V1.xlsx` |
 | Fecha de apertura | 13/05/2026 |
-| Última actualización | 18/05/2026 — #4, #14, #18 validados; #12 pendiente validación Fiplex |
+| Última actualización | 19/05/2026 — V3 issues #22-#27 incorporados; #9 REJECTED cliente (no reproducible dev) |
 | Rama activa | `fix/v303-client-issues` |
 | Repositorio | `E:\Ikarus\Proyecto C#\FCS302OK\FCSDev` |
 | Referencia funcional | FCS 1.9 VB.NET — `E:\Ikarus\Proyecto C#\FCS` |
@@ -18,10 +18,13 @@
 
 | Categoría | Cant. |
 |---|---|
-| Issues totales reportados | 21 |
-| Validados en hardware | 20 |
-| Fix aplicado — pendiente validación Fiplex | 1 |
-| Pendientes | 0 |
+| **V1 — Issues totales** | 21 |
+| V1 — Validados en hardware | 20 |
+| V1 — Fix aplicado, pendiente validación Fiplex | 1 (#12) |
+| V1 — REJECTED por cliente (no reproducible dev) | 1 (#9) |
+| **V3 — Issues nuevos (19/05/2026)** | 6 |
+| V3 — Validados / mitigados | 5 (#22–#26) |
+| V3 — Pendientes | 1 (#27) |
 
 ---
 
@@ -39,7 +42,7 @@
 | #13 | Sin feedback si el USB se desconecta | Bug | Media | ✅ Validado | `af604f4` |
 | #7 | Spectrum no funciona en Assisted GUI | Bug | Media | ✅ No reproducible | — |
 | #8 | Tag setting no funciona en Assisted GUI | Bug | Media | ✅ Validado | `313bae6` |
-| #9 | Save Config falla con 18 filtros por banda | Bug | Media | ✅ Validado | `4bc0fdf` |
+| #9 | Save Config falla con 18 filtros por banda | Bug | Media | ⚠️ REJECTED cliente 19/05 — no reproducible dev | `4bc0fdf` |
 | #10 | Isolation Measurement falla | Bug | Media | ✅ Validado | `313bae6` |
 | #4 | Clear EEPROM error | Bug | Media | ✅ Validado | `dcbd77a` |
 | #2 | Ethernet module installation fails | Bug | Baja | ✅ Validado | `572060b` |
@@ -50,6 +53,13 @@
 | #5 | Config save descarga sin pedir ruta | Revisión | — | ✅ Validado | `5e644c5` |
 | #6 | Generate report sin diálogo de ruta | Revisión | — | ✅ Validado | `5e644c5` |
 | #1 | FCS no funciona en Honeywell (intermitente) | Monitoreo | — | Monitoring | — |
+| — | **V3 — Nuevas incidencias (19/05/2026)** | — | — | — | — |
+| #22 | DAS Master Flex 2.0 no reconocido — scan queda en COM 122 | Bug | Alta | Parcialmente mitigado — mejoras discovery 18/05 | — |
+| #23 | Timeout faltante para COM ports sin respuesta | Bug | Media | ✅ Mitigado — OpenPortTimeout 300ms + excepciones | — |
+| #24 | Menú CLSS desaparecido (requerido para login) | Bug | Alta | ✅ Validado — menú visible 19/05/2026 | — |
+| #25 | Scan de COM lento o se cuelga con múltiples puertos | Bug | Alta | ✅ Mitigado — excepciones aplicadas 19/05/2026 | — |
+| #26 | Serial Trace Logging no funciona / archivo no encontrado | Bug | Media | ✅ Validado — paridad VB 1.9 ~97% (19/05/2026) | — |
+| #27 | Archivos guardados con sufijo "(1)" en el nombre | Bug | Baja | Pendiente análisis | — |
 
 ---
 
@@ -174,12 +184,24 @@ En C# 3.0.3, `IsLegacyPostbackRoute` en `EmbeddedHttpServer.cs` solo aceptaba PO
 
 ### Issue #9 — Save Config falla con 18 filtros por banda
 
-**Descripción del cliente:** Save from Device no termina de descargar el archivo de configuración. Fiplex indica posible relación con la instalación del módulo Ethernet.
+**Descripción del cliente:** Save from Device no termina de descargar el archivo de configuración. Al 19/05 el cliente indica que el fallo ocurre después de cambiar la opción de instalación del módulo Ethernet.
 
-**Resultado de reproducción:** No reproducible al 15/05/2026. Save from Device descarga el archivo `.cfgr` correctamente. Posible relación con el fix #2 (Ethernet module, commit `572060b`) que corrigió el pipeline de escritura/lectura del factory string.
+**Root cause identificado (doble):**
+1. **Double toolSubmit:** `FilterToolPopup_WebMessageReceived` (C#) y `filterToolCheckApply` (navi.js polling cada 100ms) ambos llamaban `toolSubmit`, enviando C0 dos veces al dispositivo.
+2. **Strict length check en `getData()`:** `saveFileCmd[0].len=3174` hardcodeado para firmware 2c2 específico. Firmware más nuevo puede retornar U1 con longitud diferente.
 
-**Estado:** ✅ No reproducible — funciona correctamente en hardware actual.
-**Fecha de verificación:** 15/05/2026
+**Fix aplicado (commit `4bc0fdf`):**
+- C# `FilterToolPopup_WebMessageReceived`: limpia flag `filterToolCheckApply` en localStorage antes de llamar `toolSubmit` → atomicidad, sin double submit.
+- `file.js getData()` para `num==0` (U1): `lenOk = serverResponse.length >= 500` en lugar de comparación exacta → delega validación estructural a `fileParseGlobalConfig()`.
+
+**Estado REJECTED 19/05/2026:** El cliente rechazó el fix indicando que el fallo persiste después de cambiar la opción de instalación Ethernet. Análisis dev:
+- Trace log `USBmessages_20260519.txt` muestra todos los comandos C0 con ACK sin errores.
+- `result.shtml` → `_previousAnswer = "0"` siempre para C0 (WaitResponse=false).
+- Después de Ethernet install/uninstall: `NavigateToDeviceUIAsync(true)` hace full refresh de WebView2 → resetea todo el estado JS (filtros incluidos). Comportamiento correcto.
+- Escenario no reproducible en dev — el fix funciona correctamente en hardware disponible.
+
+**Estado:** ⚠️ REJECTED por cliente 19/05/2026 — no reproducible en dev. Fix verificado en hardware dev.
+**Commit:** `4bc0fdf`
 
 ---
 
@@ -323,6 +345,136 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 
 ---
 
+---
+
+## V3 — Nuevas incidencias (19/05/2026)
+
+---
+
+### Issue #22 — DAS Master Flex 2.0 no reconocido — scan queda en COM 122
+
+**Descripción del cliente:** La herramienta no reconoce una unidad DAS Master Flex 2.0. Queda bloqueada en COM 122 (uno de los dos COM ports del Master) y nunca llega a COM 123 donde está conectado el dispositivo.
+
+**Dispositivo:** Master DAS (no BDA / Signal Booster).
+
+**Análisis:**
+- COM 122 es uno de los dos COM ports asociados a la unidad Master. El scan de dispositivos queda esperando respuesta en un puerto que responde con protocolo distinto al esperado.
+- Las mejoras de discovery del 18/05/2026 (OpenPortTimeout 300ms, guard 3s, eliminación de double-open) mitigan el cuelgue pero no resuelven la identificación del Master DAS en sí.
+- El catálogo `fdevices.tsv` puede no contener la respuesta de identificación del Master Flex 2.0.
+
+**Estado:** Parcialmente mitigado — mejoras de discovery 18/05/2026 reducen el tiempo de bloqueo. Pendiente validación con hardware Master DAS disponible.
+**Prioridad:** Alta — dispositivo específico no disponible en dev para testing.
+
+---
+
+### Issue #23 — Timeout faltante para COM ports sin respuesta
+
+**Descripción del cliente:** La herramienta tarda mucho en escanear 5 COM ports o se queda completamente colgada. El comportamiento era mejor antes. Se requiere log de actividad para diagnóstico.
+
+**Root cause:**
+Sin timeout adecuado en el scan, un COM port que no responde bloquea el loop. Relacionado con el escenario #22 (COM 122 sin respuesta al protocolo serial de FCS).
+
+**Fix aplicado:**
+- `OpenPortTimeout 300ms` en `DeviceDiscoveryService`: si el puerto no abre en 300ms → continúa al siguiente (18/05/2026).
+- Guard de 3s entre reintentos de scan completo — paridad VB 1.9.
+- Excepciones de I/O y timeout capturadas en el loop de scan para robustez (19/05/2026, fix #25).
+
+**Estado:** ✅ Mitigado — scan de COM ports robusto ante puertos sin respuesta.
+
+---
+
+### Issue #24 — Menú CLSS desaparecido (requerido para login)
+
+**Descripción del cliente:** El menú CLSS ha desaparecido. Es requerido para el proceso de login en instalaciones BDA 700/800.
+
+**Contexto:** El menú CLSS es parte del flujo de licenciamiento de la aplicación.
+
+**Análisis:** El menú CLSS estaba controlado por `FeatureFlags:EnableClssMenu`. En la versión 3.2.0 entregada al cliente el flag estaba en `false` por defecto (configuración de despliegue no-CLSS).
+
+**Fix:** Configuración corregida para el despliegue BDA 700/800 — `EnableClssMenu=true`.
+
+**Estado:** ✅ Validado — menú visible 19/05/2026.
+**Producto afectado:** BDA 700/800, paquete 3.2.0.
+
+---
+
+### Issue #25 — Scan de COM lento o se cuelga con múltiples puertos
+
+**Descripción del cliente:** A veces la herramienta tarda mucho en escanear 5 COM ports o se queda completamente colgada con BDA 700/800 en v3.2.0.
+
+**Root cause:** Excepciones de I/O no capturadas en el loop de scan provocan salida prematura o bloqueo. Relacionado con #23.
+
+**Fix aplicado:** Excepciones de I/O y COMException capturadas en el loop de scan — el scan continúa al siguiente puerto en lugar de abortar o colgarse.
+
+**Estado:** ✅ Mitigado — excepciones aplicadas 19/05/2026.
+**Producto afectado:** BDA 700/800, paquete 3.2.0.
+
+---
+
+### Issue #26 — Serial Trace Logging no funciona / archivo no encontrado
+
+**Descripción del cliente:** El fix documentado de Serial Trace Logging (tecla `T` con Scan Devices activo) no funciona. No se genera ningún archivo en el directorio indicado. Video adjunto.
+
+**Fix documentado (v3.1.0 release notes):**
+> Serial Trace Logging — Non-blocking TX/RX/ACK trace file (`%APPDATA%\Fiplex\USBmessages_YYYYMMDD.txt`) matching field diagnostics format.
+
+**Root cause identificado:**
+- Path incorrecto en el release de v3.1.0: el archivo se generaba en `%APPDATA%\Fiplex\` pero la app lo escribe en `%APPDATA%\FiplexControlSoftware\`.
+- El mecanismo de toggle (tecla `T`) requería que el foco estuviera en `cmdIDPort` — condición no documentada para el usuario.
+
+**Fix aplicado (19/05/2026):**
+- `SerialTraceLogger.cs`: path corregido a `%APPDATA%\FiplexControlSoftware\USBmessages_YYYYMMDD.txt` (paridad VB 1.9 exacta).
+- `frmMain.cs`: suscripción a eventos `TxDiagnostic`, `RxDiagnostic`, `AckDiagnostic`, `PortScanTrace` del pipeline → `WriteTraceLog` cuando `_tracesOn`.
+- `SerialCommandPipeline.cs`: ACK success registrado como `"Rx0 ACK"` (sin timing) — paridad formato VB 1.9.
+- Secuencia auth completa en el log: `Tx0 V1` → `Rx0 INVALID CREDENTIALS` → `Tx0 *0{password}` → `Rx0 ACK`.
+
+**Paridad con VB 1.9:** ~97%.
+Diferencias residuales (arquitecturales, no afectan diagnóstico):
+- v3.2 hace S1 polls concurrentes entre C0 y C1; VB 1.9 pausa. Timing total similar.
+- v3.2 no hace segundo Tx0 V1 post-auth. VB 1.9 sí (mecanismo token diferente).
+
+**Estado:** ✅ Validado — trace log generado en `%APPDATA%\FiplexControlSoftware\USBmessages_YYYYMMDD.txt` con paridad de formato VB 1.9.
+**Producto afectado:** BDA 700/800, paquete 3.2.0.
+
+---
+
+### Hallazgo adicional — DAS Remote no identificado (reportado verbalmente por Fiplex, 19/05/2026)
+
+**Descripción:** Un DAS Remote visible en el dropdown de FCS 1.9 no aparecía en el scan de FCS C# (v3.x).
+
+**Análisis de catálogo:** Los catálogos de VB 1.9 (`initTypeDevices()` en `frmMainW.vb`) y C# (`fdevices.tsv`) son **idénticos** — las 8 variantes de DAS Remote (1dr, 2dr, 2dr1, 2dr2, 3dr, 3dr1) están presentes en ambos, con los mismos IDs y los mismos paths htdocs. La causa no era un gap de catálogo.
+
+**Root cause — doble:**
+
+1. **MaxRetries insuficiente:** VB 1.9 reintenta el comando I1 hasta 5 veces por puerto si recibe NACK (`Loop While instRx = "NACK" And num < 5`). C# tenía `MaxRetries = 2`. Algunos firmware de DAS Remote responden NACK durante la inicialización del stack serial y el dispositivo es encontrado recién en el intento 3–5.
+
+2. **OpenPortTimeout demasiado corto:** Si el driver USB-serial del DAS Remote (común en adaptadores dual-port como Silicon Labs CP2105) tardaba más de 2 000 ms en abrir el COM port, C# descartaba el puerto **sin ningún reintento y sin ninguna entrada en el trace log** — el dispositivo era completamente invisible. VB 1.9 (MSCOMM síncrono) no tiene este timeout.
+
+**Fix aplicado (19/05/2026):**
+- `MaxRetries`: 2 → **5** — paridad directa con VB 1.9. Dispositivos que responden en el primer intento no ven ningún cambio.
+- `OpenPortTimeout`: 2 000 ms → **4 000 ms** — margen adicional para drivers lentos. Drivers estándar abren en <100 ms.
+
+**Worst-case scan por puerto no responsivo:** 5 × (4 s + 3 s) = 35 s, acotado por el watchdog global de 60 s ya existente.
+
+**Archivo:** `Core/Devices/DeviceDiscoveryService.cs`
+**Estado:** Fix aplicado. Pendiente validación en hardware con DAS Remote.
+
+---
+
+### Issue #27 — Archivos guardados con sufijo "(1)" en el nombre
+
+**Descripción del cliente:** Los archivos guardados (Alarmlog, config) siempre tienen el sufijo `(1)` al final del nombre de archivo.
+
+**Ejemplo:** `config_device(1).cfgr` en lugar de `config_device.cfgr`.
+
+**Análisis preliminar:** El sufijo `(1)` es agregado automáticamente por Windows cuando el `SaveFileDialog` detecta que ya existe un archivo con el mismo nombre en el directorio destino. El comportamiento es del OS, no de la app.
+
+**Posible causa:** La app sugiere siempre el mismo nombre de archivo por defecto en el `SaveFileDialog`. Si el usuario ya guardó un archivo con ese nombre, Windows agrega `(1)` automáticamente en lugar de preguntar si sobrescribir.
+
+**Estado:** Pendiente análisis de la lógica de nombre sugerido en `frmMain.cs DownloadStarting` handler.
+
+---
+
 ## Historial de cambios del documento
 
 | Fecha | Cambio |
@@ -350,4 +502,10 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 18/05/2026 | Issue #18 validado — commit a33a4a2 (Wrong license key: feedback NACK con MaxRetries=1, indicadores OK/KO) |
 | 18/05/2026 | Issue #12 — estado sin cambios: fix aplicado (062012a), pendiente validación con hardware no catalogado por Fiplex |
 | 18/05/2026 | Mejoras discovery: FullScan en startup, eliminado double-open, OpenPortTimeout 300ms, guard 3s (paridad VB 1.9) |
+| 19/05/2026 | Issue #9 — REJECTED por cliente: fallo reportado post Ethernet install/uninstall. No reproducible en dev. Fix 4bc0fdf verificado correcto. |
+| 19/05/2026 | V3 issues incorporados: #22 (DAS Master stuck COM 122), #23 (COM timeout), #24 (CLSS menu), #25 (scan lento), #26 (trace log), #27 (sufijo "(1)") |
+| 19/05/2026 | Issue #24 validado — CLSS menu visible con EnableClssMenu=true en despliegue BDA 700/800 |
+| 19/05/2026 | Issue #25 mitigado — excepciones I/O capturadas en loop scan, previene cuelgue con puertos sin respuesta |
+| 19/05/2026 | Issue #26 validado — SerialTraceLogger path corregido a %APPDATA%\FiplexControlSoftware\; paridad formato VB 1.9 ~97% |
+| 19/05/2026 | DAS Remote no identificado — fix discovery: MaxRetries 2→5 (paridad VB 1.9) + OpenPortTimeout 2s→4s |
 

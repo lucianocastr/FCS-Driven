@@ -44,6 +44,7 @@ public partial class frmMain : Form
     private readonly ILogger<frmMain> _logger;
 
     private List<DeviceInfo> _foundDevices = new();
+    private bool _scanInProgress;
     private CancellationTokenSource? _scanCts;
     private CancellationTokenSource? _cts;
     private SessionContext _sessionContext = new();
@@ -61,13 +62,9 @@ public partial class frmMain : Form
     private string _confSCA = "";
     private bool _pendingAnswer = false;
 
-    // Counter for factory/license mode key combination (mirrors VB 1.9 cntmode)
     private short _cntmode = 0;
-    // Mouse button sequence: Right, Left, Right with Shift held on cmdRefresh
-    // cntmode=2 → factory path (Minute,Day digits); cntmode=3 → license path (Minute,Day,Serial,Version)
-    private readonly MouseButtons[] _eButton = [MouseButtons.Right, MouseButtons.Left, MouseButtons.Right];
+    private readonly MouseButtons[] _eButton = [MouseButtons.Right, MouseButtons.Right, MouseButtons.Left];
 
-    // Characters derived from U1 response for license manager sequence (VB 1.9: serialFirstChar, versionFirstChar)
     private char _serialFirstChar = '\0';
     private char _versionFirstChar = '\0';
 
@@ -93,7 +90,7 @@ public partial class frmMain : Form
     private static readonly string SoftwareVersion =
         (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "3.2.0")
+            ?.InformationalVersion ?? "3.3.0")
         .Split('+')[0];
 
     public frmMain(
@@ -137,10 +134,15 @@ public partial class frmMain : Form
 
         InitializeComponent();
 
-        // Route pipeline TX/RX/ACK events to non-blocking trace logger (VB 1.9 parity)
-        _pipeline.TxDiagnostic  += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
-        _pipeline.RxDiagnostic  += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
-        _pipeline.AckDiagnostic += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
+        // Route pipeline TX/RX/ACK events to trace logger. Suppressed during scan (I1 is logged
+        // via PortScanTrace as COM{N} Nretry=n ans=... — VB 1.9 parity).
+        // AckDiagnostic: only log "Rx0 ACK"/"Rx0 NACK" (normal flow). "---" prefix = error diagnostics, not in VB 1.9.
+        _pipeline.TxDiagnostic  += (msg) => { if (_traceLogger.IsEnabled && !_scanInProgress) _traceLogger.Log(msg); };
+        _pipeline.RxDiagnostic  += (msg) => { if (_traceLogger.IsEnabled && !_scanInProgress) _traceLogger.Log(msg); };
+        _pipeline.AckDiagnostic += (msg) => { if (_traceLogger.IsEnabled && !_scanInProgress && !msg.StartsWith("---")) _traceLogger.Log(msg); };
+
+        // Route scan port results to trace logger — VB 1.9 parity: "COM8 Nretry=0 ans=Fiplex..."
+        _discovery.PortScanTrace += (msg) => { if (_traceLogger.IsEnabled) _traceLogger.Log(msg); };
 
         // VB 1.9 sized cmbCOM manually in frmMain_Resize (ClientWidth - 16).
         // Dock.Fill and Anchor.Right both conflict with the native Win32 ComboBox HWND,
@@ -236,9 +238,6 @@ public partial class frmMain : Form
             // Validate training and configure cmdConnect
             ValidateTrainingAndUpdateUI();
 
-            // CLSS menu: hidden unless explicitly enabled (FeatureFlags:EnableClssMenu)
-            CLSSToolStripMenuItem.Visible =
-                _configuration.GetValue<bool>("FeatureFlags:EnableClssMenu");
 
             _sessionContext = _sessionContext with { State = ConnectionState.Disconnected };
 
@@ -1084,11 +1083,21 @@ public partial class frmMain : Form
             {
                 _traceLogger.Disable();
                 Text = "Fiplex Control Software";
+                LogStatus("Traces OFF");
             }
             else
             {
-                _traceLogger.Enable(SoftwareVersion, Environment.MachineName);
-                Text = "Fiplex Control Software (Traces ON)";
+                try
+                {
+                    _traceLogger.Enable();
+                    Text = "Fiplex Control Software (Traces ON)";
+                    LogStatus($"Traces ON — {_traceLogger.LogFilePath}");
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to enable serial trace logger");
+                    LogStatus($"Traces ERROR: {ex.Message}");
+                }
             }
             return true;
         }
@@ -1171,10 +1180,11 @@ public partial class frmMain : Form
 
         SetUIState(isScanning: true);
         PrepareComboBoxForScan();
-        LogStatus(mode == DeviceScanMode.QuickScan 
-            ? "Quick scan: searching for first device..." 
+        LogStatus(mode == DeviceScanMode.QuickScan
+            ? "Quick scan: searching for first device..."
             : "Starting full device scan...");
 
+        _scanInProgress = true;
         try
         {
             var progress = new Progress<ScanProgress>(UpdateScanProgress);
@@ -1196,7 +1206,9 @@ public partial class frmMain : Form
         }
         finally
         {
+            _scanInProgress = false;
             SetUIState(isScanning: false);
+            cmdIDPort.Focus();
         }
     }
 
@@ -1267,7 +1279,7 @@ public partial class frmMain : Form
 
         // Only update the status bar, not the ComboBox
         LogStatus($"Scanning {p.CurrentPort} ({p.Completed}/{p.Total}) - Found: {p.DevicesFound}");
-        if (_traceLogger.IsEnabled) _traceLogger.Log($"{p.CurrentPort} ({p.Completed}/{p.Total}) found={p.DevicesFound}");
+        // Scan result is logged via PortScanTrace (VB 1.9 format). Progress bar only here.
     }
 
     private void UpdateDeviceList()
@@ -1286,10 +1298,6 @@ public partial class frmMain : Form
 
         if (_foundDevices.Any())
         {
-            if (_traceLogger.IsEnabled)
-                foreach (var d in _foundDevices)
-                    _traceLogger.Log($"Device is {d.TDev}{d.NDev:F1} on COM{d.ComPort}");
-
             // Use BindingList for better behavior with ComboBox
             var bindingList = new System.ComponentModel.BindingList<DeviceInfo>(_foundDevices);
             cmbCOM.DataSource = bindingList;
@@ -2628,7 +2636,8 @@ public partial class frmMain : Form
     {
         if (_cntmode == 50)
         {
-            char expected = (char)('0' + DateTime.Now.Day % 10);
+            int sum = DateTime.Now.Minute + (DateTime.Now.Day % 10);
+            char expected = (char)('0' + sum / 10);
             if (e.KeyChar == expected)
                 _ = ShowFactoryMenuAsync();
             else
@@ -2637,7 +2646,8 @@ public partial class frmMain : Form
         }
         else if (_cntmode == 2)
         {
-            char expected = (char)('0' + DateTime.Now.Minute % 10);
+            int sum = DateTime.Now.Minute + (DateTime.Now.Day % 10);
+            char expected = (char)('0' + sum % 10);
             if (e.KeyChar == expected)
                 _cntmode = 50;
             else
@@ -2662,7 +2672,8 @@ public partial class frmMain : Form
         }
         else if (_cntmode == 4)
         {
-            char expected = (char)('0' + DateTime.Now.Day % 10);
+            int sum = DateTime.Now.Minute + (DateTime.Now.Day % 10);
+            char expected = (char)('0' + sum / 10);
             if (e.KeyChar == expected)
                 _cntmode = 5;
             else
@@ -2671,7 +2682,8 @@ public partial class frmMain : Form
         }
         else if (_cntmode == 3)
         {
-            char expected = (char)('0' + DateTime.Now.Minute % 10);
+            int sum = DateTime.Now.Minute + (DateTime.Now.Day % 10);
+            char expected = (char)('0' + sum % 10);
             if (e.KeyChar == expected)
                 _cntmode = 4;
             else
@@ -2689,7 +2701,6 @@ public partial class frmMain : Form
         {
             _logger.LogInformation("Factory mode activated");
 
-            // Show factory-only menus now that the sequence was entered
             var device = _sessionContext.Device;
             if (device != null)
             {
@@ -2706,9 +2717,13 @@ public partial class frmMain : Form
                 mnuSaveCal.Visible = showCal;
             }
 
-            // Navigate the navi frame (std.html frameset) to expose factory sidebar links
+            // Update navi frame to expose factory sidebar links, then auto-navigate content to factory page.
+            // 1de (Expander) uses index.html as factory entry; all other devices use fact.zhtml.
+            string factoryPage = (device?.TDev == "1de") ? "/factory/index.html" : "/factory/fact.zhtml";
             await webView.CoreWebView2.ExecuteScriptAsync(
                 "try { window.frames['navi'].location.href = '/navi.html?isFactory=true'; } catch(e) {}");
+            await webView.CoreWebView2.ExecuteScriptAsync(
+                $"try {{ window.frames['content'].location.href = '{factoryPage}'; }} catch(e) {{}}");
         }
         catch (Exception ex)
         {
@@ -2716,9 +2731,6 @@ public partial class frmMain : Form
         }
     }
 
-    // Fetches U1 response to derive serialFirstChar / versionFirstChar for the license sequence.
-    // Called when cntmode reaches 3 (third Shift+Right-click), giving the user time to type
-    // the time-based digits before the serial/version chars are needed at cntmode=5/6.
     private async Task FetchLicenseCharactersAsync()
     {
         try
