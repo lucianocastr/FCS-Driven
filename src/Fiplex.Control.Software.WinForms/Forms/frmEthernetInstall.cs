@@ -1,3 +1,4 @@
+using System.Drawing.Drawing2D;
 using Microsoft.Extensions.Logging;
 using Fiplex.Control.Software.WinForms.Core.Config.Interfaces;
 using Fiplex.Control.Software.WinForms.Models;
@@ -33,6 +34,27 @@ public partial class frmEthernetInstall : Form
         _logger = logger;
         
         InitializeComponent();
+
+        // GDI+ status icons — same style as frmLicenseKey
+        pctOK.Image = CreateStatusIcon(success: true,  Color.White);
+        pctOK.BackColor = Color.White;
+        pctOK.SizeMode = PictureBoxSizeMode.CenterImage;
+
+        pctKO.Image = CreateStatusIcon(success: false, Color.White);
+        pctKO.BackColor = Color.White;
+        pctKO.SizeMode = PictureBoxSizeMode.CenterImage;
+
+        // FlatStyle.Flat ignores ForeColor when Enabled=false; redraw text manually
+        cmdApply.Paint += (s, e) =>
+        {
+            if (cmdApply.Enabled) return;
+            var r = cmdApply.ClientRectangle;
+            using var bg = new SolidBrush(Color.FromArgb(0, 88, 155));
+            e.Graphics.FillRectangle(bg, r);
+            TextRenderer.DrawText(e.Graphics, cmdApply.Text, cmdApply.Font,
+                r, Color.FromArgb(160, 200, 230),
+                TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter);
+        };
     }
     
     /// <summary>
@@ -240,7 +262,8 @@ public partial class frmEthernetInstall : Form
         
         pctOK.Visible = success;
         pctKO.Visible = !success;
-        
+        Application.DoEvents();
+
         _logger.LogInformation(
             "Ethernet operation result: {Result}",
             success ? "Success" : "Error");
@@ -270,6 +293,36 @@ public partial class frmEthernetInstall : Form
             DialogResult = DialogResult.OK;
             Close();
         }
+    }
+
+    private static Bitmap CreateStatusIcon(bool success, Color background)
+    {
+        const int size = 32;
+        var bmp = new Bitmap(size, size, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        using var g = Graphics.FromImage(bmp);
+        g.Clear(background);
+        g.SmoothingMode = SmoothingMode.AntiAlias;
+
+        var circleColor = success ? Color.FromArgb(40, 167, 69) : Color.FromArgb(220, 53, 69);
+        using var fill = new SolidBrush(circleColor);
+        g.FillEllipse(fill, 1, 1, size - 2, size - 2);
+
+        using var pen = new Pen(Color.White, 3.5f)
+        {
+            StartCap = LineCap.Round,
+            EndCap   = LineCap.Round,
+            LineJoin = LineJoin.Round
+        };
+
+        if (success)
+            g.DrawLines(pen, new PointF[] { new(9, 17), new(14, 23), new(23, 11) });
+        else
+        {
+            g.DrawLine(pen, 10, 10, 22, 22);
+            g.DrawLine(pen, 22, 10, 10, 22);
+        }
+
+        return bmp;
     }
 
     /// <summary>

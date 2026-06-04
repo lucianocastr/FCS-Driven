@@ -5,7 +5,7 @@
 |---|---|
 | Referencia | `260513_New FCS_Findings_V1.xlsx` |
 | Fecha de apertura | 13/05/2026 |
-| Última actualización | 15/05/2026 |
+| Última actualización | 18/05/2026 — #4, #14, #18 validados; #12 pendiente validación Fiplex |
 | Rama activa | `fix/v303-client-issues` |
 | Repositorio | `E:\Ikarus\Proyecto C#\FCS302OK\FCSDev` |
 | Referencia funcional | FCS 1.9 VB.NET — `E:\Ikarus\Proyecto C#\FCS` |
@@ -19,11 +19,9 @@
 | Categoría | Cant. |
 |---|---|
 | Issues totales reportados | 21 |
-| Validados en hardware | 13 |
-| Fix aplicado — pendiente validación | 1 |
-| En análisis | 0 |
-| Fix aplicado — pendiente validación | 2 |
-| Pendientes | 5 |
+| Validados en hardware | 20 |
+| Fix aplicado — pendiente validación Fiplex | 1 |
+| Pendientes | 0 |
 
 ---
 
@@ -33,22 +31,22 @@
 |---|---|---|---|---|---|
 | #20 | Ventana no maximiza después del login | UI | Alta | ✅ Validado | `8edf1ac` |
 | #21 | Product selector no resiza al maximizar | UI | Alta | ✅ Validado | `7b47f09` |
-| #11 | Clear EEPROM visible para customers | Seguridad | Alta | Pendiente | — |
+| #11 | Clear EEPROM visible para customers | Seguridad | Alta | ✅ Validado | `e9094b6` |
 | #15 | Password change muestra éxito pero no se aplica | Bug crítico | Alta | ✅ Validado | `c173310` |
-| #3 | No se puede acceder al menú factory | Bug | Alta | Fix aplicado — pendiente validación | `e9094b6` |
+| #3 | No se puede acceder al menú factory | Bug | Alta | ✅ Validado | `e9094b6` |
 | #19 | Selection box invisible en login form | Cosmético | Media | ✅ Validado | `41629c7` |
 | #17 | Requisitos de complejidad de password no se muestran | UX | Media | ✅ Validado | `c173310` |
 | #13 | Sin feedback si el USB se desconecta | Bug | Media | ✅ Validado | `af604f4` |
 | #7 | Spectrum no funciona en Assisted GUI | Bug | Media | ✅ No reproducible | — |
 | #8 | Tag setting no funciona en Assisted GUI | Bug | Media | ✅ Validado | `313bae6` |
-| #9 | Save Config falla con 18 filtros por banda | Bug | Media | ✅ No reproducible | — |
+| #9 | Save Config falla con 18 filtros por banda | Bug | Media | ✅ Validado | `4bc0fdf` |
 | #10 | Isolation Measurement falla | Bug | Media | ✅ Validado | `313bae6` |
-| #4 | Clear EEPROM error | Bug | Media | Pendiente | — |
+| #4 | Clear EEPROM error | Bug | Media | ✅ Validado | `dcbd77a` |
 | #2 | Ethernet module installation fails | Bug | Baja | ✅ Validado | `572060b` |
 | #16 | COM port number no listado en selector | Mejora | Baja | ✅ Validado | `490e481` |
 | #12 | Unsupported devices no mostrados | Mejora | Baja | Fix aplicado — pendiente validación | `062012a` |
-| #18 | Wrong license key sin mensaje de error | Mejora | Baja | Pendiente | — |
-| #14 | Shortcut para USB log / factory / license | Mejora | Baja | Pendiente | — |
+| #18 | Wrong license key sin mensaje de error | Mejora | Baja | ✅ Validado | `a33a4a2` |
+| #14 | Shortcut para USB log / factory / license | Mejora | Baja | ✅ Validado | `80c3bb2` |
 | #5 | Config save descarga sin pedir ruta | Revisión | — | ✅ Validado | `5e644c5` |
 | #6 | Generate report sin diálogo de ruta | Revisión | — | ✅ Validado | `5e644c5` |
 | #1 | FCS no funciona en Honeywell (intermitente) | Monitoreo | — | Monitoring | — |
@@ -286,7 +284,7 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 
 **Archivos:** `Core/Devices/DeviceDiscoveryService.cs`, `Forms/frmMain.cs`
 **Commit:** `062012a`
-**Validado:** Pendiente — sin dispositivo no catalogado disponible
+**Validado:** Pendiente validación Fiplex — sin dispositivo no catalogado disponible para testing externo
 
 ---
 
@@ -305,17 +303,23 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 **Root cause:**
 `_cntmode` estaba declarado en `frmMain.cs` (línea 64) pero nunca usado. No había handlers para `cmdRefresh.MouseDown` ni `cmdRefresh.KeyPress`. La función `NavigateToFactoryMenuAsync()` existía pero nunca era invocada por interacción de usuario.
 
-**Fix aplicado:**
-- Campo `_eButton = [MouseButtons.Right, MouseButtons.Left]` para la secuencia de clicks
+**Fix aplicado — Factory Menu:**
+- Campo `_eButton = [MouseButtons.Right, MouseButtons.Left, MouseButtons.Right]` (3 clicks: factory en cntmode=2, licence en cntmode=3)
 - Suscripción de `cmdRefresh.MouseDown` y `cmdRefresh.KeyPress` en el constructor
 - `cmdRefresh_MouseDown`: Shift+RightClick → `_cntmode=1`, Shift+LeftClick → `_cntmode=2`
 - `cmdRefresh_KeyPress` con `_cntmode=2`: dígito `DateTime.Now.Minute % 10` → `_cntmode=50`
 - `cmdRefresh_KeyPress` con `_cntmode=50`: dígito `DateTime.Now.Day % 10` → `ShowFactoryMenuAsync()`
 - `ShowFactoryMenuAsync()`: ExecuteScriptAsync navega el frame `navi` a `navi.html?isFactory=true`, exponiendo Factory/SerialNr/Equalizer en la sidebar sin recargar el frame de contenido
+- `ConfigureDeviceSpecificMenus`: forzado `mnuProd.Visible = false` y `mnuCal.Visible = false` — no se muestran hasta secuencia factory (resuelve también #11)
+
+**Fix aplicado — License Manager (CLSS):**
+- Tercer Shift+RightClick → `_cntmode=3` + kickoff de `FetchLicenseCharactersAsync()` (envía U1, extrae `_serialFirstChar` = buff[3][0] y `_versionFirstChar` = primer dígito decimal de AsciiToInt(buff[5][0..1]))
+- `cmdRefresh_KeyPress` con `_cntmode=3/4/5/6`: Minute%10 → Day%10 → serialFirstChar → versionFirstChar → `ShowLicenseManager()`
+- `ShowLicenseManager()`: abre `frmLicenseMaster` (5dm) o `frmLicense` (2c y demás) vía DI
 
 **Archivo:** `Forms/frmMain.cs`
-**Commit:** `e9094b6`
-**Validado:** Pendiente validación en hardware
+**Commit:** `e9094b6` (factory) + fix/v303 branch (license manager)
+**Validado:** ✅ Hardware — 15/05/2026 — factory sidebar ✓ | mnuProd oculto ✓ | mnuClear oculto (#11) ✓ | frmLicense abre con datos M1 ✓
 
 ---
 
@@ -337,4 +341,13 @@ El evento `CoreWebView2.DownloadStarting` no estaba suscrito (había un comentar
 | 15/05/2026 | Issue #13 validado — commit af604f4 (timer polling BytesToRead, detección USB disconnect en 1s) |
 | 15/05/2026 | Issue #12 fix aplicado — commit 062012a (Unknown device en selector, pendiente validación con hardware) |
 | 15/05/2026 | Issue #3 fix aplicado — commit e9094b6 (factory menu: Shift+Click sequence + time digits en Refresh, JS navega navi frame) |
+| 15/05/2026 | Issue #3 validado — Production Tests + Calibrations ocultos hasta secuencia; sidebar Factory/SerialNr/Equalizer aparece correctamente |
+| 15/05/2026 | Issue #11 validado — mnuClear hijo de mnuProd; al fijar mnuProd.Visible=false en #3, Clear EEPROM queda oculto para customers automáticamente |
+| 15/05/2026 | Issue #3 License Manager validado — frmLicense abre con secuencia Shift+3clicks + time + serial + version; datos M1 cargados del dispositivo |
+| 15/05/2026 | CLSS menu ocultado — FeatureFlags:EnableClssMenu=false (default); visible solo en deployments Honeywell/CLSS |
+| 18/05/2026 | Issue #4 validado — commit dcbd77a (Clear EEPROM: J1 write-back corrige NACK en 2c v2.0) |
+| 18/05/2026 | Issue #14 validado — commit 80c3bb2 (Traces ON: T key con Scan Devices → WriteTraceLog a %APPDATA%\Fiplex) |
+| 18/05/2026 | Issue #18 validado — commit a33a4a2 (Wrong license key: feedback NACK con MaxRetries=1, indicadores OK/KO) |
+| 18/05/2026 | Issue #12 — estado sin cambios: fix aplicado (062012a), pendiente validación con hardware no catalogado por Fiplex |
+| 18/05/2026 | Mejoras discovery: FullScan en startup, eliminado double-open, OpenPortTimeout 300ms, guard 3s (paridad VB 1.9) |
 

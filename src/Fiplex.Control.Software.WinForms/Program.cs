@@ -18,6 +18,7 @@ using Fiplex.Control.Software.WinForms.Core.Configuration.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Commands;
 using Fiplex.Control.Software.WinForms.Core.Commands.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Metrics;
+using Fiplex.Control.Software.WinForms.Core.Diagnostics;
 using Fiplex.Control.Software.WinForms.Models;
 
 namespace Fiplex.Control.Software.WinForms;
@@ -161,6 +162,9 @@ internal static class Program
         // HTTP Command Logger (Singleton, shared logging for comparative analysis)
         // Generates files in %LocalAppData%/Fiplex.Control.Software/HttpCommandLogs/
         services.AddSingleton<HttpCommandLogger>();
+
+        // Serial Trace Logger (Singleton, non-blocking — VB 1.9 USBmessages_YYYYMMDD.txt parity)
+        services.AddSingleton<SerialTraceLogger>();
         
         // Router HTTP→Serial (Singleton, shared configuration)
         services.AddSingleton<ResponseFormatter>();

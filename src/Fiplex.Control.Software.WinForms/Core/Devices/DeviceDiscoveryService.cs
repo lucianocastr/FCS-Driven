@@ -32,8 +32,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     // Scan configuration constants
     private const int MaxRetries = 5;
     private const int TimeoutSeconds = 3;
-    private static readonly TimeSpan ProbePortTimeout = TimeSpan.FromMilliseconds(500);
-    private static readonly TimeSpan OpenPortTimeout = TimeSpan.FromMilliseconds(1200);
+    private static readonly TimeSpan OpenPortTimeout = TimeSpan.FromMilliseconds(300);
     private const string IdentificationCommand = "I1";
     private const string ExpectedPrefix = "Fiplex";
     private const int MinResponseLength = 15;
@@ -86,25 +85,6 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                 Total: candidatePorts.Count,
                 DevicesFound: foundDevices.Count
             ));
-
-            // Verify if the port can be opened (timeout-guarded)
-            var canOpen = await ExecuteWithTimeoutAsync(
-                () => CanOpenPort(portName),
-                ProbePortTimeout,
-                ct);
-
-            _logger.LogDebug(
-                "[Scan {ScanId}] {Port} - CanOpenPort => {Result} ({ElapsedMs} ms)",
-                scanId,
-                portName,
-                canOpen,
-                portStopwatch.ElapsedMilliseconds);
-
-            if (!canOpen)
-            {
-                _logger.LogTrace("{Port} cannot be opened (in use)", portName);
-                continue;
-            }
 
             // Attempt to identify device
             var device = await TryIdentifyDeviceAsync(portName, portNumber, scanId, ct);
@@ -195,24 +175,6 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     }
 
     /// <summary>
-    /// Checks if the port can be opened by attempting to open it with SerialPort.
-    /// </summary>
-    private bool CanOpenPort(string portName)
-    {
-        try
-        {
-            using var port = new SerialPort(portName);
-            port.Open();
-            port.Close();
-            return true;
-        }
-        catch
-        {
-            return false;
-        }
-    }
-
-    /// <summary>
     /// Attempts to identify a Fiplex device on the port.
     /// Sends I1 command and analyzes the response to detect Fiplex devices.
     /// </summary>
@@ -276,7 +238,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
 
                 // Hard timeout guard: prevents a single COM port from freezing full scan.
                 var resultTask = _pipeline.EnqueueCommandAsync(command);
-                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(TimeoutSeconds + 1), ct);
+                var timeoutTask = Task.Delay(TimeSpan.FromSeconds(TimeoutSeconds), ct);
                 if (await Task.WhenAny(resultTask, timeoutTask) != resultTask)
                 {
                     _logger.LogWarning(
@@ -474,35 +436,5 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         return usbPorts;
     }
 
-    /// <summary>
-    /// Executes a potentially blocking synchronous COM probe with timeout guard.
-    /// If timeout is reached, returns false and allows scan to continue.
-    /// </summary>
-    private async Task<bool> ExecuteWithTimeoutAsync(
-        Func<bool> operation,
-        TimeSpan timeout,
-        CancellationToken ct)
-    {
-        try
-        {
-            var operationTask = Task.Run(operation, ct);
-            var timeoutTask = Task.Delay(timeout, ct);
-
-            if (await Task.WhenAny(operationTask, timeoutTask) != operationTask)
-            {
-                return false;
-            }
-
-            return await operationTask;
-        }
-        catch (OperationCanceledException)
-        {
-            throw;
-        }
-        catch
-        {
-            return false;
-        }
-    }
 }
 

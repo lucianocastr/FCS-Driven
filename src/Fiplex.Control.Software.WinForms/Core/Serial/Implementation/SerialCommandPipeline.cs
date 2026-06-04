@@ -52,7 +52,11 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     public event Action<Guid, CommandState>? CommandStateChanged;
     public event Action<Guid, SerialResult>? CommandCompleted;
     public event Action<ProtocolToken>? TokenReceived;
-    
+    public event Action<string>? CommandAttemptDiagnostic;
+    public event Action<string>? TxDiagnostic;
+    public event Action<string>? RxDiagnostic;
+    public event Action<string>? AckDiagnostic;
+
     /// <summary>
     /// Event when INVALID CREDENTIALS is detected.
     /// Allows the caller to provide password for retry.
@@ -109,6 +113,18 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
         _storedPassword = null;
     }
     
+    /// <summary>
+    /// Resets the protocol parser internal buffer.
+    /// Mirrors VB 1.9 instRx="" from CancelCommands.
+    /// NOTE: VB 1.9 FlushRS232() only waits for waitingLF=false — it does NOT discard the OS buffer.
+    /// For deviceWithPass=true devices, VB skips FlushRS232 entirely (only instRx="").
+    /// </summary>
+    public void FlushInputBuffer()
+    {
+        _parser.Reset();
+        _logger.LogDebug("FlushInputBuffer: parser state reset (instRx=\"\" equivalent)");
+    }
+
     /// <summary>
     /// Cancels all pending commands in the queue.
     /// Used when loading base.js and during disconnection.
@@ -298,6 +314,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 var payload = Encoding.ASCII.GetBytes(cmd.Payload + "\n");
                 var bytesSent = await _serialPort.WriteAsync(payload, ctx.Cts.Token);
                 _logger.LogDebug("TX: {Payload}", cmd.Payload);
+                TxDiagnostic?.Invoke($"Tx1 {cmd.Payload}");
                 _pendingAnswer = true;
                 
                 // Wait ACK
@@ -341,15 +358,19 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                         }
                         
                         _logger.LogDebug("RX (direct DataFrame): {Data}", ackData.Length > 100 ? ackData[..100] + "..." : ackData);
+                        RxDiagnostic?.Invoke($"Rx1 {ackData}");
                         CompleteCommand(ctx, CommandResultStatus.Success, ackData, bytesSent);
                         return;
                     }
 
                     if (ackResult != TokenType.Ack)
                     {
-                        // When the device sends NACK instead of ACK on a data-read command,
-                        // propagate the literal "NACK" string so that dpreviousans consumers
-                        // (e.g. spect.js load_spectrum) can detect and handle the NACK case.
+                        var diagData = ackData?.Length > 0 ? ackData[..Math.Min(30, ackData.Length)] : "(empty)";
+                        var diagMsg = $"cmd={cmd.Payload[..Math.Min(2,cmd.Payload.Length)]} retry={ctx.RetryCount}/{cmd.MaxRetries} ackResult={ackResult} data='{diagData}'";
+                        _logger.LogWarning("ACK failed: {Diag}", diagMsg);
+                        CommandAttemptDiagnostic?.Invoke(diagMsg);
+                        AckDiagnostic?.Invoke($"--- {(ackResult == TokenType.Timeout ? "ACK timeout" : $"ACK {ackResult}")} ({ctx.AckTimer.ElapsedMilliseconds}ms) retry {ctx.RetryCount}/{cmd.MaxRetries}");
+
                         if (ackResult == TokenType.Nack && cmd.ExpectsData)
                         {
                             _logger.LogWarning("NACK received instead of ACK for data command {CmdId}, propagating as NACK response", cmd.Id);
@@ -358,10 +379,10 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                             return;
                         }
 
-                        _logger.LogWarning("ACK timeout {CmdId} retry {Retry}/{Max}", 
-                            cmd.Id, ctx.RetryCount, cmd.MaxRetries);
                         continue;
                     }
+
+                    AckDiagnostic?.Invoke($"ACK ok ({ctx.AckTimer.ElapsedMilliseconds}ms)");
                 }
 
                 // Wait Data
@@ -373,8 +394,9 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
                     if (dataResult == TokenType.Timeout)
                     {
-                        _logger.LogWarning("Data timeout {CmdId} retry {Retry}/{Max}", 
+                        _logger.LogWarning("Data timeout {CmdId} retry {Retry}/{Max}",
                             cmd.Id, ctx.RetryCount, cmd.MaxRetries);
+                        AckDiagnostic?.Invoke($"--- DATA timeout retry {ctx.RetryCount}/{cmd.MaxRetries}");
                         continue;
                     }
 
@@ -415,6 +437,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                     }
 
                     _logger.LogDebug("RX: {Data}", data.Length > 100 ? data[..100] + "..." : data);
+                    RxDiagnostic?.Invoke($"Rx1 {data}");
                     CompleteCommand(ctx, CommandResultStatus.Success, data, bytesSent);
                     return;
                 }
@@ -437,6 +460,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
 
         _waitingAnswer = false;
         _pendingAnswer = false;
+        AckDiagnostic?.Invoke($"--- MaxRetries superado ({cmd.MaxRetries}/{cmd.MaxRetries}) IsWaitingAnswer=false");
         CompleteCommand(ctx, CommandResultStatus.MaxRetriesExceeded);
     }
 
