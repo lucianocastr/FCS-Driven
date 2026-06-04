@@ -83,7 +83,7 @@ public class VersionCheckService : IVersionCheckService
         // Split('+')[0] removes the Git hash that .NET adds automatically
         CurrentVersion = (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "3.0.1")
+            ?.InformationalVersion ?? "3.0.2")
             .Split('+')[0];
 
         _logger.LogDebug("VersionCheckService initialized. Current version: {Version}", CurrentVersion);
