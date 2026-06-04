@@ -108,7 +108,7 @@ public partial class frmMain : Form
     private static readonly string SoftwareVersion =
         (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "3.4.0")
+            ?.InformationalVersion ?? "3.5.0")
         .Split('+')[0];
 
     public frmMain(
@@ -1702,6 +1702,9 @@ public partial class frmMain : Form
                     {
                     using (var passwordDialog = _serviceProvider.GetRequiredService<frmPassword>())
                     {
+                        // VB6 1.12 parity: show "Forgot Password" link for PassLevel >= 2
+                        passwordDialog.PassLevel = selectedDevice.PassLevel;
+
                         // Auth runs inside the dialog — stays open on wrong password (VB 1.9 parity)
                         passwordDialog.AuthenticateCommand = async (pwd) =>
                         {
@@ -1715,7 +1718,20 @@ public partial class frmMain : Form
                             };
                         };
 
-                        if (passwordDialog.ShowDialog(this) != DialogResult.OK)
+                        var dlgResult = passwordDialog.ShowDialog(this);
+
+                        if (passwordDialog.ForgotPasswordClicked)
+                        {
+                            _logger.LogInformation("User clicked Forgot Password — opening reset dialog");
+                            using var resetDialog = new frmResetPass();
+                            resetDialog.RequestResetKeyCommand = ct => _authService.RequestResetKeyAsync(ct);
+                            resetDialog.ExecutePasswordResetCommand = (pwd, ct) => _authService.ExecutePasswordResetAsync(pwd, ct);
+                            resetDialog.ShowDialog(this);
+                            await DisconnectAsync();
+                            return;
+                        }
+
+                        if (dlgResult != DialogResult.OK)
                         {
                             _logger.LogInformation("User cancelled password dialog");
                             await DisconnectAsync();
@@ -2805,9 +2821,11 @@ public partial class frmMain : Form
             {
                 UpdateProductionMenuVisibility(device);
 
+                // VB6 1.12 factWindow 480: mnuCal.Visible = True for all device types after factory unlock.
+                // 2de added to recover Calibration parity for DAS Expansion SDRP (DISC-02).
                 bool showCal = device.TDev switch
                 {
-                    "2c" or "4dm" or "5dm" => true,
+                    "2c" or "4dm" or "5dm" or "2de" => true,
                     _ => false
                 };
                 mnuCal.Visible = showCal;
@@ -4218,7 +4236,8 @@ public partial class frmMain : Form
         }
 
         // GRUPO 3: Dispositivo 1de (solo Clear)
-        if (tdev == "1de")
+        // VB6 1.12 factWindow 481-487: tdev = "1de" Or tdev = "2de" share the same visibility pattern.
+        if (tdev == "1de" || tdev == "2de")
         {
             mnuProd.Visible = true;
             mnuClear.Visible = true;
@@ -4401,57 +4420,6 @@ public partial class frmMain : Form
                     _pipeline.FlushInputBuffer();
                 }
 
-                // J1 pre-read before J0 (2c/ndev>=2): use J1 data as J0 payload.
-                // Root cause #4: device firmware 2c v2.0 uses extended J format (584 chars data)
-                // vs VB 1.9 hardcoded (557 chars data). Device NACKs J0 due to wrong payload length.
-                // Fix: read J1 first, write the same data back as J0 → exact length match guaranteed.
-                if (prefix == "J0" && tdev == "2c" && ndev >= 2.0)
-                {
-                    ProdLog($"[J1] Sending J1 pre-read...");
-                    var j1Cmd = new SerialCommand
-                    {
-                        Payload = "J1",
-                        ExpectsAck = true,
-                        ExpectsData = true,
-                        AckTimeout = TimeSpan.FromSeconds(3),
-                        DataTimeout = TimeSpan.FromSeconds(5),
-                        MaxRetries = 1,
-                        CancellationToken = _cts?.Token ?? default
-                    };
-                    var j1Result = await _pipeline.EnqueueCommandAsync(j1Cmd);
-                    ProdLog($"[J1] Result: Success={j1Result.Success} Status={j1Result.Status} DataLen={j1Result.Data?.Length ?? 0}");
-                    if (j1Result.Success && j1Result.Data?.Length > 0)
-                    {
-                        var j1Data = j1Result.Data;
-                        _pipeline.FlushInputBuffer();
-                        await Task.Delay(200);
-                        var correctedPayload = "J0" + j1Data;
-                        ProdLog($"[J1→J0] Using J1 data as J0 payload. payloadLen={correctedPayload.Length}");
-                        var j0Cmd = new SerialCommand
-                        {
-                            Payload = correctedPayload,
-                            ExpectsAck = true,
-                            ExpectsData = false,
-                            MaxRetries = 1,
-                            AckTimeout = TimeSpan.FromSeconds(cmdInfo.TimeoutSeconds),
-                            CancellationToken = _cts?.Token ?? default
-                        };
-                        var j0Result = await _pipeline.EnqueueCommandAsync(j0Cmd);
-                        ProdLog($"[J1→J0] Result: Success={j0Result.Success} Status={j0Result.Status} Retries={j0Result.Metrics?.RetryCount ?? -1} RTT={(int)(j0Result.Metrics?.TotalRoundTripTime.TotalMilliseconds ?? 0)}ms");
-                        if (!j0Result.Success)
-                        {
-                            ProdLog($"[J1→J0] FAILED: {cmdInfo.Description}");
-                            LogStatus($"Production FAILED at: {cmdInfo.Description} (Status={j0Result.Status})");
-                            return false;
-                        }
-                        lastSentPrefix = prefix;
-                        continue;
-                    }
-                    ProdLog($"[J1] J1 failed or no data — falling back to hardcoded J0 payload");
-                    _pipeline.FlushInputBuffer();
-                    await Task.Delay(200);
-                }
-
                 var command = new SerialCommand
                 {
                     Payload = cmdInfo.Payload,
@@ -4575,6 +4543,9 @@ public partial class frmMain : Form
 
             case "1de":
                 return GetProductionConfig_1DE(ndev, nchannels, mode, clearROM);
+
+            case "2de":
+                return GetProductionConfig_2DE(ndev, nchannels, mode, clearROM);
 
             default:
                 // For other devices, return null to indicate not supported
@@ -4715,8 +4686,15 @@ public partial class frmMain : Form
             // VB 1.9: frmToSend(0) = part1 & Mid(confstr,636,1) & part2
             // Mid(confstr,636,1) = second hex digit of BBU byte (bits: MMS=0, bbuType=0→ "0")
             // For factory reset "0" is the correct default (no BBU, no MMS)
-            const string cPart1 = "C000000914003C000CB09C5518EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A3E3FD5302A300FD5302A3D8FD5302A3000";
-            const string cPart2 = "1480000000B09C5518EF008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0E0005521EF00800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFF00008DA1A1A1A18DA1A1A1A12B009C002B009C002B009C0000500001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180";
+            // VB6 1.12 parity: frmMainW.frm:3073-3076 Rama 2 (ndev=2). BUG-001 C0 fix (post Trial C PASS) —
+            // restores byte-exact C payload baseline (VB.NET 1.9 1692 chars -> VB6 1.12 1652 chars).
+            // Part1 SHA-256: 1edf2fb5be0c237007365922c08b92472551cc9c5152a1e12b63013d92b69f2a (637 chars)
+            // Part2 SHA-256: 61749b89b33f8495da698b7f011e07ab1b75c6f1883e72442934e56b028abb72 (1014 chars)
+            // Full Payload SHA-256: 6b60d17c17479087bb6dd98e7b4bb7c65c96cc3fe8171945d0e3a30ae02add6d (1652 chars)
+            // NOTE: ndev>=3 sub-branch NOT implemented in C# (VB6 1.12 Rama 1 ndev>=3, B2B0, 1948 chars).
+            //       Tracked in PRE-004 — GetProductionConfig_2C ndev>=3 parity audit.
+            const string cPart1 = "C000000914003C000CB0B05518EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521EF008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3000";
+            const string cPart2 = "1480000000B0B05518EF00800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0E0005521EF00800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFF0000A6A6A6A6A6A6A6A6A6A62B009C002B009C002B009C0000500001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180";
             configPayload = cPart1 + bbuByte + cPart2;
             // VB 1.9: J command selected per MMS flag and bbuType (lines 2697-2705)
             if (mms)
@@ -4727,7 +4705,9 @@ public partial class frmMain : Form
             }
             else
             {
-                jPayload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB003F003F007FFFFFFFFF0F08080008080400000000000000000000080808080201080001104020808080804080808080808080000000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  Annunciator 1                 Annunciator 2                 Annunciator 3                 Annunciator 4                 ";
+                // VB6 1.12 parity: frmMainW.frm:3085 (586 chars). BUG-001 RC-1 fix —
+                // restores byte-exact J payload baseline (was truncated 559->586, delta -27).
+                jPayload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB003F003F007FFFFFFFFF0F08080008080400000000000000000000080808080201080001104020808080804080808080808080000000000000000000000000000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  Annunciator 1                 Annunciator 2                 Annunciator 3                 Annunciator 4                 ";
             }
         }
         else
@@ -5373,6 +5353,61 @@ public partial class frmMain : Form
             {
                 Payload = "U0E702E702E702E702E702E702E702E702500A",
                 Description = "1de Thresholds (U command)",
+                ExpectsAck = true,
+                TimeoutSeconds = 5
+            });
+        }
+
+        return config;
+    }
+
+    /// <summary>
+    /// Production configuration for 2de device (DAS Expansion / DAS Expansion SDRP).
+    /// VB6 1.12 parity: frmMainW.frm 3135-3147 (C0+O001) and 3594-3595 (clearROM T0 tag).
+    /// </summary>
+    private ProductionConfigData GetProductionConfig_2DE(double ndev, short nchannels, short mode, bool clearROM)
+    {
+        var config = new ProductionConfigData();
+
+        // VB6 1.12 frmMainW.frm 3137-3139: hardcoded C0 configuration frame.
+        // Descriptors use PadRight(30) to enforce the 30-char fixed-width invariant (review note N-1)
+        // without depending on manual whitespace counting at VB6 line continuations.
+        string c0Hex1 = "00000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180030300FFFFFFFF0F000F404000000000000000000000000000004040404040404040010204080000000004";
+        string c0Hex2 = "00000000000000000000F0FE000000000000000000000000000000000000000000015180EC02EC02EC02EC02EC02EC02EC02EC025502";
+        string c0Descriptors =
+            "External Input 1".PadRight(30) +
+            "External Input 2".PadRight(30) +
+            "External Input 3".PadRight(30) +
+            "Force RF OFF".PadRight(30) +
+            "Annunciator 1".PadRight(30) +
+            "Annunciator 2".PadRight(30) +
+            "Annunciator 3".PadRight(30) +
+            "Annunciator 4".PadRight(30);
+
+        config.Commands.Add(new ProductionCommand
+        {
+            Payload = "C0" + c0Hex1 + c0Hex2 + c0Descriptors,
+            Description = "2de Configuration (C0 hardcoded)",
+            ExpectsAck = true,
+            TimeoutSeconds = 10
+        });
+
+        // VB6 1.12 frmMainW.frm 3140: O001 output enable.
+        config.Commands.Add(new ProductionCommand
+        {
+            Payload = "O001",
+            Description = "2de Output Enable (O001)",
+            ExpectsAck = true,
+            TimeoutSeconds = 10
+        });
+
+        // VB6 1.12 frmMainW.frm 3594-3595: clearROM tag (32 chars: "T0" + "EXPANSION FIPLEX" + 14 spaces).
+        if (clearROM)
+        {
+            config.Commands.Add(new ProductionCommand
+            {
+                Payload = "T0EXPANSION FIPLEX".PadRight(32),
+                Description = "2de Tag reset (T command)",
                 ExpectsAck = true,
                 TimeoutSeconds = 5
             });

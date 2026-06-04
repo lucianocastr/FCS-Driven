@@ -2,6 +2,7 @@ using Fiplex.Control.Software.WinForms.Models;
 
 namespace Fiplex.Control.Software.WinForms.Core.Security.Interfaces;
 
+
 /// <summary>
 /// Service for device authentication and version validation.
 /// </summary>
@@ -80,4 +81,16 @@ public interface IAuthService
     /// </returns>
     /// <seealso cref="AuthResult"/>
     Task<AuthResult> CheckAuthenticationRequirementAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Requests the encrypted reset key from the device (VB6 1.12: :1pg4j!%J,3HN@6dx*).
+    /// If the device responds with waiting=true, waits 3500ms and retries with :0pg4j!%J,3HN@6dx*.
+    /// </summary>
+    Task<ResetKeyStatus> RequestResetKeyAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Submits the decrypted password for reset (VB6 1.12: Z0{decryptedPassword}).
+    /// Returns AckReceived=true on success, or a parsed status on failure.
+    /// </summary>
+    Task<ResetKeyStatus> ExecutePasswordResetAsync(string decryptedPassword, CancellationToken ct = default);
 }

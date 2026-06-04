@@ -43,6 +43,10 @@ public class DeviceResponseProcessor
         
         if (_activeHandler != null)
         {
+            // BBU handler needs the device type to apply the 5dm-specific prefix in AnalyzeDeepDischVolt.
+            if (_activeHandler is DeviceBbuResponseHandler bbuHandler)
+                bbuHandler.ConfigureDeviceType(deviceType);
+
             _logger.LogInformation(
                 "Response handler activated for device {Type} v{Version}: {Handler}",
                 deviceType, deviceVersion, _activeHandler.GetType().Name);
@@ -106,6 +110,8 @@ public class DeviceResponseProcessor
                 h22.Reset();
             else if (handler is Device1C_V52_ResponseHandler h52)
                 h52.Reset();
+            else if (handler is DeviceBbuResponseHandler hBbu)
+                hBbu.Reset();
         }
         
         _logger.LogDebug("DeviceResponseProcessor reset");

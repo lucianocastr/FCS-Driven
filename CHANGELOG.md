@@ -1,5 +1,23 @@
 #
 
+## [3.5.0] - 2026-06-01
+
+### Added
+- **INIT-001 Phase 2B password reset + PassLevel propagation** — Forgot Password flow with `frmResetPass` dialog. Adds `AuthService.RequestResetKeyAsync` + `ExecutePasswordResetAsync` + `ResetKeyStatus` model. `PassLevel` propagation from `DeviceInfo` to password dialog enables "Forgot Password" link for PassLevel ≥ 2 devices.
+- **INIT-001 SDRP catalog suffix matching + catalog enhancements** — `DeviceCatalogService.ResolveDevice` uses suffix matching (`Substring(11, 4)`) instead of exact-match. `DeviceInfo` extended with `FrVersion`, `PassLevel`, `MaxVersion` properties. `fdevices.tsv` extended with passLevel + maxVersion columns. VB6 1.12 parity: `frversion > 0` → `PassLevel = 2`.
+- **INIT-002 BBU response handler + AnalyzeDeepDischVolt** — `DeviceBbuResponseHandler` class with `AnalyzeDeepDischVolt` method detects and corrects deep discharge voltage condition. DI registration in `Program.cs`. Integrated with `DeviceResponseProcessor` for 5dm-specific prefix application.
+- **INIT-003 PathShared dinámico + 4 htdocs versionados** — `DeviceDiscoveryService` extracts `frVersion` from device identification response (`Substring(6, 5)`), applies MaxVersion cap (`cappedFrVersion`), and constructs versioned `PathShared` (`PathShared + "_" + cappedFrVersion`). 4 new htdocs versionados added: `htdocs_2c3`, `htdocs_2de`, `htdocs_3dr1_1`, `htdocs_5dm1_1`. VB6 1.12 parity per `frmMainW.frm:2743-2744`.
+- **DISC-01A + DISC-02 2de support** — `tdev=2de` now visible in Production Menu (`tdev == "1de" || tdev == "2de"`) and Calibration Menu (`showCal` switch includes `"2de"`). New `GetProductionConfig_2DE` method per VB6 1.12 `frmMainW.frm:3135-3147` (C0+O001) and `3594-3595` (clearROM T0 EXPANSION FIPLEX tag).
+
+### Fixed
+- **BUG-001 — Clear EEPROM 2c ndev=2 C0 payload restored to VB6 1.12 baseline** (`frmMain.cs`)
+  - **Root cause:** `GetProductionConfig_2C` was using a C0 payload inherited from VB.NET 1.9 (B09C prefix, 1692 chars) instead of the formal VB6 1.12 baseline Rama 2 (B0B0 prefix, 1652 chars) for tdev=2c ndev=2.
+  - **Fix:** R-1/R-2 restore `cPart1` and `cPart2` literals byte-exact from VB6 1.12 `frmMainW.frm:3073-3076`. cPart1 SHA-256: `1edf2fb5be0c237007365922c08b92472551cc9c5152a1e12b63013d92b69f2a` (637 chars). cPart2 SHA-256: `61749b89b33f8495da698b7f011e07ab1b75c6f1883e72442934e56b028abb72` (1014 chars). Full payload SHA-256: `6b60d17c17479087bb6dd98e7b4bb7c65c96cc3fe8171945d0e3a30ae02add6d` (1652 chars).
+  - **Validated:** Empirically validated 2026-05-30 over real BDA Signal Booster 2c ndev=2: 12/12 critical UI fields transitioned UNCHANGED → MATCH vs golden VB6 1.12 baseline.
+- **REG-007 — Clear EEPROM 2c ndev=2 J0 payload restored to VB6 1.12 baseline + J1→J0 workaround removed** (`frmMain.cs`)
+  - **Root cause:** `SendProdConfigAsync` contained a J1 pre-read → J0 echo workaround that compensated for a truncated jPayload no-MMS literal (559 chars instead of VB6 1.12 `frmMainW.frm:3085` byte-exact 586 chars).
+  - **Fix:** Removed J1 pre-read workaround block. Restored jPayload no-MMS to VB6 1.12 byte-exact 586 chars. Log markers `[J1]` and `[J1→J0]` no longer appear.
+
 ## [3.4.0] - 2026-05-26
 
 ### Added
