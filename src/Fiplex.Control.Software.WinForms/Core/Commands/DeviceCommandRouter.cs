@@ -553,13 +553,6 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             var serialCommandPayload = BuildSerialCommand(getCommand.Command, queryParams);
             _logger.LogDebug("HTTP ? Serial: {Page} ? {Command}", normalizedPage, serialCommandPayload);
 
-            // 2. Apply hex encoding if required
-            if (getCommand.Encode)
-            {
-                serialCommandPayload = EncodeToHex(serialCommandPayload);
-                _logger.LogDebug("Command encoded to hex: {Command}", serialCommandPayload);
-            }
-
             // 3. Send command with retry logic (3 intentos)
             string response = string.Empty;
             int maxRetries = 3;
@@ -603,12 +596,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                                 ? serialCommandPayload.Substring(2) 
                                 : string.Empty;
                             currentPayload = $"*0{_storedPassword}{commandSuffix}";
-                            
-                            if (getCommand.Encode)
-                            {
-                                currentPayload = EncodeToHex(currentPayload);
-                            }
-                            
+
                             continue; // Retry with the new command
                         }
                         
@@ -660,12 +648,12 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                 response = _responseProcessor.ProcessResponse(getCommand.Command, response);
             }
 
-            // 5. Decode response if necessary
+            // 5. Hex-encode response if required (v1.9 semantics: send command as-is, encode response)
             var finalResponse = response;
             if (getCommand.Encode && !string.IsNullOrEmpty(response))
             {
-                finalResponse = DecodeFromHex(response);
-                _logger.LogDebug("Serial ? HTTP: {Response} ? {Decoded} (decoded)", response, finalResponse);
+                finalResponse = EncodeToHex(response);
+                _logger.LogDebug("Serial ? HTTP: {Response} ? {Encoded} (hex-encoded)", response, finalResponse);
             }
 
             // 6. Apply splitwith3tabs format if required
@@ -696,14 +684,9 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
             _logger.LogDebug("Serial ? HTTP: {Response}", finalResponse);
             
-            // 7. Store response for previousans/dpreviousans
-            lock (_previousAnswerLock)
-            {
-                _previousAnswer = response;  // Raw response (not decoded)
-                _decodedPreviousAnswer = finalResponse;  // Processed/formatted response
-            }
-            _logger.LogDebug("Response stored for previousans ({RawLen} chars) and dpreviousans ({DecodedLen} chars)", 
-                response.Length, finalResponse.Length);
+            // NOTE: _previousAnswer/_decodedPreviousAnswer are intentionally NOT updated here.
+            // They are only written by ProcessPostRequestAsync so that dpreviousans/previousans
+            // always reflect the result of the last POST serial command, not a regular GET poll.
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, status, stopwatch.Elapsed.TotalSeconds, retries);
@@ -791,7 +774,27 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             return "ERROR: Command name is empty";
         }
 
-        // Normalize page
+        // Build robust lookup candidates (legacy POST keys are often declared without '/')
+        var lookupCandidates = new List<string>();
+        if (!string.IsNullOrWhiteSpace(page))
+        {
+            lookupCandidates.Add(page);
+
+            if (page.StartsWith("/"))
+            {
+                var withoutSlash = page.TrimStart('/');
+                if (!string.IsNullOrWhiteSpace(withoutSlash))
+                {
+                    lookupCandidates.Add(withoutSlash);
+                }
+            }
+            else
+            {
+                lookupCandidates.Add($"/{page}");
+            }
+        }
+
+        // Normalized page for logs/metrics (keeps old convention with leading '/')
         var normalizedPage = page.StartsWith("/") ? page : $"/{page}";
         
         // STAGE 8: Start time measurement
@@ -799,10 +802,41 @@ public class DeviceCommandRouter : IDeviceCommandRouter
         int retries = 0;
         string status = "success";
 
-        // Look up command in cache
-        if (!_postCommandCache.TryGetValue(normalizedPage, out var postCommand))
+        // Look up command in cache (try both with and without slash)
+        PostCommand? postCommand = null;
+        foreach (var candidate in lookupCandidates.Distinct(StringComparer.OrdinalIgnoreCase))
         {
-            _logger.LogWarning("POST command not found: {Page}", normalizedPage);
+            if (_postCommandCache.TryGetValue(candidate, out var matchedCommand))
+            {
+                postCommand = matchedCommand;
+                normalizedPage = candidate.StartsWith("/") ? candidate : $"/{candidate}";
+                break;
+            }
+        }
+
+        if (postCommand == null)
+        {
+            // When the key ends with _req (e.g. "fact_req") it is a trigger-only parameter
+            // with no direct mapping in settings.cfg.  Resolve it to the corresponding _fw
+            // command (e.g. "fact_fw") so the device read command executes and stores its
+            // response in _decodedPreviousAnswer, making dpreviousans work correctly.
+            if (page.EndsWith("_req", StringComparison.OrdinalIgnoreCase))
+            {
+                var baseName = page[..^"_req".Length];          // "fact_req" → "fact"
+                var fwKey    = baseName + "_fw";                // → "fact_fw"
+                if (_postCommandCache.ContainsKey(fwKey))
+                {
+                    _logger.LogDebug(
+                        "_req trigger '{Page}' resolved to '{FwKey}', executing with empty body",
+                        page, fwKey);
+                    stopwatch.Stop();
+                    // Execute the _fw command with an empty body so no extra data is
+                    // appended to the serial command (e.g. F1, not F11).
+                    return await ProcessPostRequestAsync(fwKey, string.Empty, ct);
+                }
+            }
+
+            _logger.LogWarning("POST command not found: {Page}. Candidates: {Candidates}", page, string.Join(", ", lookupCandidates));
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, "not_found", stopwatch.Elapsed.TotalSeconds, 0);
@@ -851,18 +885,12 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
             _logger.LogDebug("HTTP → Serial: {Page} → {Command}", normalizedPage, serialCommandPayload);
 
-            // Apply hex encoding to the complete command if required
-            if (postCommand.Encode)
-            {
-                serialCommandPayload = EncodeToHex(serialCommandPayload);
-                _logger.LogDebug("POST command encoded to hex: {Command}", serialCommandPayload);
-            }
-
             // Retry logic con manejo de INVALID CREDENTIALS
             string response = string.Empty;
             int maxRetries = 3;
             int attempt = 0;
             string currentPayload = serialCommandPayload;
+            bool commandSucceeded = false;
             
             while (attempt < maxRetries)
             {
@@ -876,7 +904,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                         Payload = currentPayload,
                         ExpectsAck = true,
                         ExpectsData = postCommand.WaitResponse,
-                        AckTimeout = TimeSpan.FromMilliseconds(800),
+                        AckTimeout = TimeSpan.FromMilliseconds(3000),
                         DataTimeout = TimeSpan.FromSeconds(10),
                         MaxRetries = 1,
                         CancellationToken = ct
@@ -898,14 +926,11 @@ public class DeviceCommandRouter : IDeviceCommandRouter
                                 ? serialCommandPayload.Substring(2) 
                                 : string.Empty;
                             currentPayload = $"*0{_storedPassword}{commandSuffix}";
-                            
-                            if (postCommand.Encode)
-                            {
-                                currentPayload = EncodeToHex(currentPayload);
-                            }
-                            
+
                             continue;
                         }
+
+                        commandSucceeded = true;
                         
                         RecordSuccess();
                         status = "success";
@@ -926,9 +951,22 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             }
             
             retries = attempt - 1;
+
+            void UpdatePostCaches(string dataResponse)
+            {
+                lock (_previousAnswerLock)
+                {
+                    // WaitResponse=false → fire-and-forget: assume OK regardless of ACK
+                    bool effectiveSuccess = commandSucceeded || !postCommand.WaitResponse;
+                    _previousAnswer = effectiveSuccess ? "0" : "-1";
+                    _decodedPreviousAnswer = dataResponse;
+                }
+            }
             
             if (attempt >= maxRetries && !postCommand.WaitResponse)
             {
+                UpdatePostCaches(response);
+
                 _logger.LogDebug("POST without response wait completed after retries");
                 
                 stopwatch.Stop();
@@ -949,6 +987,8 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
             if (!postCommand.WaitResponse)
             {
+                UpdatePostCaches(response);
+
                 _logger.LogDebug("POST without response wait: {Page}", normalizedPage);
                 
                 stopwatch.Stop();
@@ -961,6 +1001,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             {
                 var decoded = DecodeFromHex(response);
                 _logger.LogDebug("Serial ? HTTP: {Response} ? {Decoded} (decoded)", response, decoded);
+                UpdatePostCaches(decoded);
                 
                 stopwatch.Stop();
                 _metrics?.RecordCommand(normalizedPage, status, stopwatch.Elapsed.TotalSeconds, retries);
@@ -969,6 +1010,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
             }
 
             _logger.LogDebug("Serial ? HTTP: {Response}", response);
+            UpdatePostCaches(response);
             
             stopwatch.Stop();
             _metrics?.RecordCommand(normalizedPage, status, stopwatch.Elapsed.TotalSeconds, retries);

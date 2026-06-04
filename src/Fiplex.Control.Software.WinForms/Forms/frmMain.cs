@@ -16,7 +16,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Web.WebView2.Core;
+using Microsoft.Web.WebView2.WinForms;
 using System.Reflection;
+using System.Text.Json;
 
 namespace Fiplex.Control.Software.WinForms.Forms;
 
@@ -48,6 +50,8 @@ public partial class frmMain : Form
     private int _httpPort = 8000;
     private string? _sessionToken;
     private DevelopmentModeSettings? _devModeSettings;
+    private Form? _filterInfoPopupForm;
+    private WebView2? _filterInfoPopupWebView;
 
     // Current device configuration (FILE commands)
     private DeviceConfiguration? _currentDeviceConfig;
@@ -74,7 +78,7 @@ public partial class frmMain : Form
     private static readonly string SoftwareVersion =
         (Assembly.GetExecutingAssembly()
             .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
-            ?.InformationalVersion ?? "3.0.2")
+            ?.InformationalVersion ?? "3.0.3")
         .Split('+')[0];
 
     public frmMain(
@@ -412,7 +416,401 @@ public partial class frmMain : Form
     private void CoreWebView2_NewWindowRequested(object? sender, CoreWebView2NewWindowRequestedEventArgs e)
     {
         e.Handled = true;
-        webView.CoreWebView2.Navigate(e.Uri);
+
+        try
+        {
+            if (!string.IsNullOrWhiteSpace(e.Uri) &&
+                Uri.TryCreate(e.Uri, UriKind.Absolute, out var popupUri) &&
+                IsFilterInfoPopupUri(popupUri))
+            {
+                _ = ShowFilterInfoPopupAsync(e.Uri);
+                return;
+            }
+
+            // Bug #1 fix: WebView2/Chromium fires NewWindowRequested for target="content" from a subframe.
+            // Navigate the named frame via JS to keep the frameset intact.
+            if (e.Name == "content" &&
+                !string.IsNullOrWhiteSpace(e.Uri) &&
+                Uri.TryCreate(e.Uri, UriKind.Absolute, out var frameNavUri) &&
+                frameNavUri.IsLoopback &&
+                webView?.CoreWebView2 != null)
+            {
+                var safeUri = e.Uri.Replace("\\", "\\\\").Replace("'", "\\'");
+                _ = webView.CoreWebView2.ExecuteScriptAsync(
+                    $"(function(){{var f=top.frames['content'];if(f)f.location.href='{safeUri}';}})();"
+                );
+                _logger.LogDebug("Frame navigation via JS: target='content' uri={Uri}", e.Uri);
+                return;
+            }
+
+            // Filter Info / Filter Tool use window.open(...).
+            // Ensure popup navigation keeps the in-session token to avoid 403 Forbidden.
+            if (webView?.CoreWebView2 != null &&
+                !string.IsNullOrWhiteSpace(_sessionToken) &&
+                !string.IsNullOrWhiteSpace(e.Uri) &&
+                Uri.TryCreate(e.Uri, UriKind.Absolute, out var loopbackPopupUri) &&
+                loopbackPopupUri.IsLoopback)
+            {
+                var headers = $"X-Fiplex-Token: {_sessionToken}\r\n";
+                var request = webView.CoreWebView2.Environment.CreateWebResourceRequest(
+                    e.Uri,
+                    "GET",
+                    null,
+                    headers);
+
+                webView.CoreWebView2.NavigateWithWebResourceRequest(request);
+                _logger.LogDebug("Popup navigation redirected with session token: {Uri}", e.Uri);
+                return;
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error handling popup navigation with token, fallback to normal navigation");
+        }
+
+        if (webView?.CoreWebView2 != null)
+        {
+            webView.CoreWebView2.Navigate(e.Uri);
+        }
+    }
+
+    private static bool IsFilterInfoPopupUri(Uri popupUri)
+    {
+        return popupUri.IsLoopback &&
+               (popupUri.AbsolutePath.EndsWith("/fhelp.html", StringComparison.OrdinalIgnoreCase) ||
+                popupUri.AbsolutePath.EndsWith("/ftool.zhtml", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private async Task ShowFilterInfoPopupAsync(string uri)
+    {
+        if (InvokeRequired)
+        {
+            BeginInvoke(new Action(() => _ = ShowFilterInfoPopupAsync(uri)));
+            return;
+        }
+
+        try
+        {
+            EnsureFilterInfoPopupWindow();
+
+            if (_filterInfoPopupForm == null || _filterInfoPopupWebView == null)
+            {
+                return;
+            }
+
+            await EnsureFilterInfoPopupWebViewInitializedAsync();
+
+            NavigatePopupWithSessionToken(_filterInfoPopupWebView, uri);
+
+            if (!_filterInfoPopupForm.Visible)
+            {
+                CenterFilterInfoPopup(_filterInfoPopupForm);
+                _filterInfoPopupForm.Show(this);
+            }
+
+            _filterInfoPopupForm.BringToFront();
+            _filterInfoPopupForm.Activate();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error showing floating Filter Info popup, falling back to main WebView navigation");
+
+            if (webView?.CoreWebView2 != null)
+            {
+                NavigatePopupWithSessionToken(webView, uri);
+            }
+        }
+    }
+
+    private void EnsureFilterInfoPopupWindow()
+    {
+        if (_filterInfoPopupForm != null &&
+            !_filterInfoPopupForm.IsDisposed &&
+            _filterInfoPopupWebView != null &&
+            !_filterInfoPopupWebView.IsDisposed)
+        {
+            return;
+        }
+
+        // Scale popup content area by DPI factor so WebView2 renders 820x520 CSS pixels
+        // on any DPI setting, matching v1.9's window.open("height=520,width=820") viewport.
+        var dpiScale = DeviceDpi / 96f;
+        var popupClientW = (int)(820 * dpiScale);
+        var popupClientH = (int)(520 * dpiScale);
+
+        var popupForm = new Form
+        {
+            Owner = this,
+            Text = "Filter Tool",
+            StartPosition = FormStartPosition.Manual,
+            ShowInTaskbar = false,
+            FormBorderStyle = FormBorderStyle.SizableToolWindow,
+            MinimizeBox = false,
+            MaximizeBox = false,
+            AutoScaleMode = AutoScaleMode.None,
+            BackColor = Color.White,
+            ClientSize = new Size(popupClientW, popupClientH),
+            MinimumSize = new Size(popupClientW, popupClientH)
+        };
+
+        var popupWebView = new WebView2
+        {
+            Dock = DockStyle.Fill,
+            Margin = Padding.Empty,
+            DefaultBackgroundColor = Color.White
+        };
+
+        popupWebView.NavigationCompleted += FilterInfoPopupWebView_NavigationCompleted;
+
+        popupForm.Controls.Add(popupWebView);
+        popupForm.FormClosed += (_, _) =>
+        {
+            if (_filterInfoPopupWebView != null)
+            {
+                _filterInfoPopupWebView.NavigationCompleted -= FilterInfoPopupWebView_NavigationCompleted;
+                _filterInfoPopupWebView.Dispose();
+            }
+
+            _filterInfoPopupWebView = null;
+            _filterInfoPopupForm = null;
+        };
+
+        _filterInfoPopupForm = popupForm;
+        _filterInfoPopupWebView = popupWebView;
+    }
+
+    private async Task EnsureFilterInfoPopupWebViewInitializedAsync()
+    {
+        if (_filterInfoPopupWebView?.CoreWebView2 != null)
+        {
+            return;
+        }
+
+        if (_filterInfoPopupWebView == null)
+        {
+            return;
+        }
+
+        await _filterInfoPopupWebView.EnsureCoreWebView2Async();
+
+        _filterInfoPopupWebView.AllowExternalDrop = false;
+        _filterInfoPopupWebView.CoreWebView2.Settings.IsScriptEnabled = true;
+        _filterInfoPopupWebView.CoreWebView2.Settings.AreDefaultScriptDialogsEnabled = true;
+        _filterInfoPopupWebView.CoreWebView2.Settings.AreDevToolsEnabled = false;
+        _filterInfoPopupWebView.CoreWebView2.Settings.IsStatusBarEnabled = false;
+
+        if (_httpServerIsRunning)
+        {
+            _filterInfoPopupWebView.CoreWebView2.AddWebResourceRequestedFilter(
+                $"http://localhost:{_httpPort}/*", CoreWebView2WebResourceContext.All);
+            _filterInfoPopupWebView.CoreWebView2.AddWebResourceRequestedFilter(
+                $"http://127.0.0.1:{_httpPort}/*", CoreWebView2WebResourceContext.All);
+        }
+
+        _filterInfoPopupWebView.CoreWebView2.WebResourceRequested -= CoreWebView2_WebResourceRequested;
+        _filterInfoPopupWebView.CoreWebView2.WebResourceRequested += CoreWebView2_WebResourceRequested;
+
+        _filterInfoPopupWebView.CoreWebView2.WebMessageReceived -= FilterToolPopup_WebMessageReceived;
+        _filterInfoPopupWebView.CoreWebView2.WebMessageReceived += FilterToolPopup_WebMessageReceived;
+    }
+
+    private void FilterToolPopup_WebMessageReceived(object? sender, CoreWebView2WebMessageReceivedEventArgs e)
+    {
+        try
+        {
+            var msg = e.TryGetWebMessageAsString();
+            if (string.IsNullOrEmpty(msg) || !msg.StartsWith("ftool-apply:", StringComparison.Ordinal))
+                return;
+
+            var frmsJson = msg["ftool-apply:".Length..];
+            if (string.IsNullOrWhiteSpace(frmsJson) || webView?.CoreWebView2 == null)
+                return;
+
+            // Sanitize frmsJson: it's already a JSON array from localStorage, pass it directly to toolSubmit
+            var script = $"(function(){{try{{var frms={frmsJson};top.frames['content'].toolSubmit(frms);}}catch(e){{}}}})()" ;
+            _ = webView.CoreWebView2.ExecuteScriptAsync(script);
+            _logger.LogDebug("Filter Tool Apply Proposal relayed to content frame");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Error relaying Filter Tool Apply Proposal to content frame");
+        }
+    }
+
+    private void NavigatePopupWithSessionToken(WebView2 targetWebView, string uri)
+    {
+        if (targetWebView.CoreWebView2 != null &&
+            !string.IsNullOrWhiteSpace(_sessionToken) &&
+            Uri.TryCreate(uri, UriKind.Absolute, out var popupUri) &&
+            popupUri.IsLoopback)
+        {
+            var headers = $"X-Fiplex-Token: {_sessionToken}\r\n";
+            var request = targetWebView.CoreWebView2.Environment.CreateWebResourceRequest(
+                uri,
+                "GET",
+                null,
+                headers);
+
+            targetWebView.CoreWebView2.NavigateWithWebResourceRequest(request);
+            return;
+        }
+
+        targetWebView.CoreWebView2?.Navigate(uri);
+    }
+
+    private async void FilterInfoPopupWebView_NavigationCompleted(object? sender, CoreWebView2NavigationCompletedEventArgs e)
+    {
+        if (!e.IsSuccess || _filterInfoPopupWebView?.CoreWebView2 == null || _filterInfoPopupForm == null)
+        {
+            return;
+        }
+
+        try
+        {
+            // ftool.zhtml: fixed viewport matching v1.9 window.open("height=520,width=820").
+            // Scaled by DPI so WebView2 renders exactly 820x520 CSS pixels regardless of display DPI.
+            // Skip DOM measurement and CSS injection — designed for fhelp.html only.
+            var source = _filterInfoPopupWebView.CoreWebView2.Source ?? string.Empty;
+            if (source.Contains("/ftool.zhtml", StringComparison.OrdinalIgnoreCase))
+            {
+                var dpi = DeviceDpi / 96f;
+                _filterInfoPopupForm.ClientSize = new Size((int)(820 * dpi), (int)(520 * dpi));
+                CenterFilterInfoPopup(_filterInfoPopupForm);
+                return;
+            }
+
+            await ApplyFilterInfoPopupLayoutAsync();
+            await Task.Delay(150);
+            await ApplyFilterInfoPopupLayoutAsync();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Could not apply floating layout to Filter Info popup");
+        }
+    }
+
+    private async Task ApplyFilterInfoPopupLayoutAsync()
+    {
+        if (_filterInfoPopupWebView?.CoreWebView2 == null || _filterInfoPopupForm == null)
+        {
+            return;
+        }
+
+        const string layoutScript = """
+            (() => {
+                const doc = document.documentElement;
+                const body = document.body || doc;
+                const styleId = 'fcs-filter-info-popup-style';
+
+                if (!document.getElementById(styleId)) {
+                    const style = document.createElement('style');
+                    style.id = styleId;
+                    style.textContent = `
+                        html, body {
+                            width: auto !important;
+                            min-width: 0 !important;
+                            overflow-y: auto !important;
+                            overflow-x: hidden !important;
+                            max-height: 100vh !important;
+                            box-sizing: border-box;
+                            margin: 0;
+                        }
+
+                        body {
+                            padding-right: 12px;
+                        }
+                    `;
+                    (document.head || body).appendChild(style);
+                }
+
+                const candidates = [body, ...Array.from(body.querySelectorAll('*'))];
+                let minLeft = Number.POSITIVE_INFINITY;
+                let maxRight = 0;
+
+                for (const element of candidates) {
+                    if (!(element instanceof HTMLElement)) {
+                        continue;
+                    }
+
+                    const style = getComputedStyle(element);
+                    if (style.display === 'none' || style.visibility === 'hidden') {
+                        continue;
+                    }
+
+                    const rect = element.getBoundingClientRect();
+                    if (rect.width < 2 || rect.height < 2) {
+                        continue;
+                    }
+
+                    minLeft = Math.min(minLeft, rect.left);
+                    maxRight = Math.max(maxRight, rect.right);
+                }
+
+                const measuredContentWidth = Number.isFinite(minLeft)
+                    ? Math.max(0, maxRight - minLeft)
+                    : 0;
+
+                const width = Math.ceil(Math.max(
+                    measuredContentWidth,
+                    body.scrollWidth,
+                    body.offsetWidth,
+                    doc.scrollWidth,
+                    doc.offsetWidth
+                ));
+                const height = Math.ceil(Math.max(body.scrollHeight, body.offsetHeight, doc.scrollHeight, doc.offsetHeight));
+
+                return {
+                    title: document.title || 'Filter Info',
+                    width,
+                    height
+                };
+            })();
+            """;
+
+        var metricsJson = await _filterInfoPopupWebView.CoreWebView2.ExecuteScriptAsync(layoutScript);
+        using var metrics = JsonDocument.Parse(metricsJson);
+
+        var root = metrics.RootElement;
+        var contentWidth = root.TryGetProperty("width", out var widthProperty) ? widthProperty.GetInt32() : 840;
+        var contentHeight = root.TryGetProperty("height", out var heightProperty) ? heightProperty.GetInt32() : 500;
+        var title = root.TryGetProperty("title", out var titleProperty) ? titleProperty.GetString() : null;
+
+        if (!string.IsNullOrWhiteSpace(title))
+        {
+            _filterInfoPopupForm.Text = title;
+        }
+
+        ResizeAndPositionFilterInfoPopup(contentWidth, contentHeight);
+    }
+
+    private void ResizeAndPositionFilterInfoPopup(int contentWidth, int contentHeight)
+    {
+        if (_filterInfoPopupForm == null)
+        {
+            return;
+        }
+
+        var hostBounds = webView.RectangleToScreen(webView.ClientRectangle);
+        var chromeWidth = _filterInfoPopupForm.Width - _filterInfoPopupForm.ClientSize.Width;
+        var chromeHeight = _filterInfoPopupForm.Height - _filterInfoPopupForm.ClientSize.Height;
+
+        var maxPopupWidth = Math.Max(820, hostBounds.Width - 16);
+        var desiredWidth = Math.Clamp(contentWidth + chromeWidth + 32, 820, maxPopupWidth);
+
+        var maxPopupHeight = Math.Max(520, hostBounds.Height - 16);
+        var desiredHeight = Math.Clamp(contentHeight + chromeHeight + 16, 520, maxPopupHeight);
+
+        _filterInfoPopupForm.Size = new Size(desiredWidth, desiredHeight);
+        CenterFilterInfoPopup(_filterInfoPopupForm);
+    }
+
+    private void CenterFilterInfoPopup(Form popupForm)
+    {
+        var hostBounds = webView.RectangleToScreen(webView.ClientRectangle);
+        var x = hostBounds.Left + Math.Max(0, (hostBounds.Width - popupForm.Width) / 2);
+        var y = hostBounds.Top + Math.Max(0, (hostBounds.Height - popupForm.Height) / 2);
+
+        popupForm.Location = new Point(x, y);
     }
 
     private void CoreWebView2_NavigationStarting(object? sender, CoreWebView2NavigationStartingEventArgs e)
@@ -548,8 +946,10 @@ public partial class frmMain : Form
     {
         try
         {
-            _logger.LogDebug("HTTP command received: {Command}, Params: {Params}",
-                e.CommandName, string.Join(", ", e.Parameters.Select(kvp => $"{kvp.Key}={kvp.Value}")));
+            _logger.LogDebug("HTTP command received: {Method} {Command}, Params: {Params}",
+                e.HttpMethod,
+                e.CommandName,
+                string.Join(", ", e.Parameters.Select(kvp => $"{kvp.Key}={kvp.Value}")));
 
             // Validate that we are connected
             if (_sessionContext.State != ConnectionState.Connected)
@@ -559,11 +959,21 @@ public partial class frmMain : Form
                 return;
             }
 
-            // Delegate to IDeviceCommandRouter
-            var response = await _commandRouter.ProcessGetRequestAsync(
-                e.CommandName,
-                e.Parameters,
-                _cts?.Token ?? default);
+            string response;
+            if (e.HttpMethod.Equals("POST", StringComparison.OrdinalIgnoreCase))
+            {
+                response = await _commandRouter.ProcessPostRequestAsync(
+                    e.CommandName,
+                    e.CommandValue,
+                    _cts?.Token ?? default);
+            }
+            else
+            {
+                response = await _commandRouter.ProcessGetRequestAsync(
+                    e.CommandName,
+                    e.Parameters,
+                    _cts?.Token ?? default);
+            }
 
             e.SetResponse(response);
 

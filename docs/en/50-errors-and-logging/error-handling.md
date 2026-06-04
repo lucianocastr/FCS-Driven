@@ -61,10 +61,12 @@ flowchart TB
 The COM discovery flow uses defensive timeout guards around synchronous and asynchronous serial probes.
 This prevents the application from staying indefinitely in `Scanning COMx` when a foreign or malfunctioning serial device is attached.
 
+Only ports that are currently installed in Windows are evaluated (`SerialPort.GetPortNames()`); there is no fixed COM1→COM255 sweep.
+
 | Discovery Stage | Guard | Outcome on Timeout |
-|-----------------|-------|--------------------|
-| `CheckComPort` | 300 ms | Port treated as unavailable; scan continues |
-| `ExistePort` | 500 ms | Port treated as busy/unusable; scan continues |
+|-----------------|-------|--------------------||
+| Port enumeration | — | Empty list → scan completes immediately with no devices |
+| `CanOpenPort` | 500 ms | Port treated as busy/unusable; scan continues |
 | `OpenAsync` | 1200 ms | Retry or skip port |
 | `I1` identification | ~4 s hard guard | Cancel pending command, close port, continue scan |
 
@@ -218,16 +220,26 @@ _logger.LogDebug("Serial TX: {Data}", BitConverter.ToString(buffer));
 Port scan logging now uses a structured pattern with a per-scan identifier:
 
 ```csharp
-_logger.LogDebug("[Scan {ScanId}] COM{Port} - CheckComPort => {Result} ({ElapsedMs} ms)",
-    scanId, portNumber, portAvailable, elapsedMs);
+// Installed ports resolved before the loop
+_logger.LogInformation(
+    "Starting device scan {ScanId} with {PortCount} installed COM candidate(s) (Mode: {Mode})",
+    scanId, candidatePorts.Count, mode);
 
-_logger.LogDebug("[Scan {ScanId}] {Port} retry {Retry} - raw response '{Response}' ({ElapsedMs} ms)",
+// Per-port openability check
+_logger.LogDebug(
+    "[Scan {ScanId}] {Port} - CanOpenPort => {Result} ({ElapsedMs} ms)",
+    scanId, portName, canOpen, elapsedMs);
+
+// Per-retry identification response
+_logger.LogDebug(
+    "[Scan {ScanId}] {Port} retry {Retry} - raw response '{Response}' ({ElapsedMs} ms)",
     scanId, portName, retry, response, elapsedMs);
 ```
 
 This provides exact traceability for:
 
-- COM availability checks
+- resolved installed COM port candidates (and USB-prioritized order)
+- per-port openability check
 - open/close timing
 - retries
 - raw discovery responses

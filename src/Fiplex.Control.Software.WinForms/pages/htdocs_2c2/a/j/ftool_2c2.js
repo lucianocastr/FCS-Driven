@@ -349,6 +349,12 @@ function ftoolGui() {
 		self.saveSettingVals();
 		//filterToolApplyEvent = true;
 		localStorage.setItem("filterToolCheckApply"+Prjstr+window.location.host,1);
+		try {
+			var frmsRaw = localStorage.getItem("ftGui_frms"+Prjstr+window.location.host);
+			if (window.chrome && window.chrome.webview && frmsRaw) {
+				window.chrome.webview.postMessage("ftool-apply:" + frmsRaw);
+			}
+		} catch(e) {}
 	}
 	this.applyFreqs = function(band) {
 		var chList = [];
