@@ -287,7 +287,15 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     if (_serialPort.IsOpen)
                     {
                         var closeTask = _serialPort.CloseAsync();
-                        await Task.WhenAny(closeTask, Task.Delay(PortCloseTimeout, ct));
+                        // INIT-005 Phase 1A (I-1): same abandonment decision as before,
+                        // now logged. Correlates with the adapter's "Close START" by port
+                        // and time window (one close per port at a time).
+                        if (await Task.WhenAny(closeTask, Task.Delay(PortCloseTimeout, ct)) != closeTask)
+                        {
+                            _logger.LogWarning(
+                                "[Scan {ScanId}] Close {Port} ABANDONED after={GuardMs}ms — close task did not complete within guard; handle may remain held for process lifetime",
+                                scanId, portName, (int)PortCloseTimeout.TotalMilliseconds);
+                        }
                     }
 
                     continue;
