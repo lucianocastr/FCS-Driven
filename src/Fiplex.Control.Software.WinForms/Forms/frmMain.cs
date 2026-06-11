@@ -10,6 +10,7 @@ using Fiplex.Control.Software.WinForms.Core.Devices.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Http;
 using Fiplex.Control.Software.WinForms.Core.Http.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Security.Interfaces;
+using Fiplex.Control.Software.WinForms.Core.Serial.Implementation;
 using Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Serial.Models;
 using Fiplex.Control.Software.WinForms.Models;
@@ -73,6 +74,7 @@ public partial class frmMain : Form
 
     private SerialTraceLogger _traceLogger = null!;
     private AppLogLevelSwitch _appLogSwitch = null!;
+    private PortQuarantine _portQuarantine = null!;
 
     private System.Windows.Forms.Timer? _portHealthTimer;
 
@@ -130,7 +132,8 @@ public partial class frmMain : Form
         IConfiguration configuration,
         ILogger<frmMain> logger,
         SerialTraceLogger traceLogger,
-        AppLogLevelSwitch appLogSwitch)
+        AppLogLevelSwitch appLogSwitch,
+        PortQuarantine portQuarantine)
     {
         _pipeline = pipeline;
         _discovery = discovery;
@@ -151,6 +154,7 @@ public partial class frmMain : Form
         _logger = logger;
         _traceLogger = traceLogger;
         _appLogSwitch = appLogSwitch;
+        _portQuarantine = portQuarantine;
 
         InitializeComponent();
 
@@ -1535,6 +1539,19 @@ public partial class frmMain : Form
             }
             else
             {
+                // INIT-005 Phase 2 (M-2): refuse to connect through a quarantined port —
+                // its handle is likely retained by an abandoned driver call and opening
+                // it again would fail or spawn another orphan.
+                if (_portQuarantine.TryGet(portName, out var quarantineEntry))
+                {
+                    _logger.LogWarning(
+                        "Connection refused: port {Port} is QUARANTINED (reason={Reason}, since={Since:HH:mm:ss})",
+                        portName, quarantineEntry!.Reason, quarantineEntry.Since);
+                    throw new InvalidOperationException(
+                        $"Port {portName} is unavailable in this session (a previous operation on it never completed). " +
+                        "Close and reopen the application to use this port again.");
+                }
+
                 // Actual port opening
                 opened = await _serialPort.OpenAsync(portName);
             }

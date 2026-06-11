@@ -33,7 +33,14 @@ public enum CommandResultStatus
     
     /// <summary>Response validation failed</summary>
     ValidationFailed,
-    
+
     /// <summary>Protocol error</summary>
-    ProtocolError
+    ProtocolError,
+
+    /// <summary>
+    /// The write to the serial port did not complete within the write budget
+    /// (INIT-005 Phase 2 · M-1). The port is considered hostile: the command is
+    /// not retried and the port becomes a quarantine candidate.
+    /// </summary>
+    WriteTimeout
 }

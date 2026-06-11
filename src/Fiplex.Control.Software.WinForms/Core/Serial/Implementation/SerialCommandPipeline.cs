@@ -19,6 +19,11 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     private readonly ILogger<SerialCommandPipeline> _logger;
     private readonly ConcurrentQueue<CommandRequest> _commandQueue = new();
     
+    // INIT-005 Phase 2 (M-1): time budget for the serial write. Worst real case:
+    // ~600 bytes @ 9600 baud ≈ 625ms of wire time — 2000ms gives >3x margin.
+    // Validated against FILE/Clear EEPROM scenarios before freezing (campaign E/F).
+    private const int WriteBudgetMs = 2000;
+
     private CancellationTokenSource? _pipelineCts;
     private Task? _processingTask;
     private Task? _readTask;
@@ -353,7 +358,26 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 UpdateState(cmd.Id, CommandState.Sending);
                 ctx.Phase = CommandPhase.Write;
                 var payload = Encoding.ASCII.GetBytes(cmd.Payload + "\n");
-                var bytesSent = await _serialPort.WriteAsync(payload, ctx.Cts.Token);
+                // INIT-005 Phase 2 (M-1): the write was the only driver call in the command
+                // path without a time budget — a hostile port that accepts the open but never
+                // completes the write parked the head-of-line forever (Phase 1A: phase=Write
+                // perpetuo). Budget = 3x the worst-case wire time of the largest payload at
+                // 9600 baud. On expiry the command fails as WriteTimeout and is NOT retried:
+                // re-writing to the same stuck port would only spawn another orphan.
+                var writeTask = _serialPort.WriteAsync(payload, ctx.Cts.Token);
+                if (await Task.WhenAny(writeTask, Task.Delay(WriteBudgetMs, ctx.Cts.Token)) != writeTask)
+                {
+                    _logger.LogWarning(
+                        "WRITE_ABANDONED cmd={CmdId} payload={Payload} after={BudgetMs}ms — write did not complete within budget; completing as WriteTimeout without retry, port is a quarantine candidate",
+                        cmd.Id, cmd.Payload[..Math.Min(10, cmd.Payload.Length)], WriteBudgetMs);
+                    // Observe the orphan task's eventual fault so it never surfaces as unobserved.
+                    _ = writeTask.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+                    _waitingAnswer = false;
+                    _pendingAnswer = false;
+                    CompleteCommand(ctx, CommandResultStatus.WriteTimeout);
+                    return;
+                }
+                var bytesSent = await writeTask;
                 // INIT-005 Phase 1A (I-5A): proof the command left the host. Its absence for
                 // a command known to be queued means it never reached the wire (E-1).
                 _logger.LogDebug(

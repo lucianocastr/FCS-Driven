@@ -126,7 +126,15 @@ public sealed class SerialPortAdapter : ISerialPort
             try
             {
                 if (_serialPort.IsOpen)
+                {
+                    // INIT-005 Phase 2 (M-3): best-effort abort of pending TX I/O before the
+                    // close (PurgeComm TXABORT|TXCLEAR via the managed API). Restores the
+                    // MSComm teardown semantics: a write IRP parked by a hostile port may be
+                    // released here, letting the close actually complete. Never fatal.
+                    try { _serialPort.DiscardOutBuffer(); }
+                    catch (Exception purgeEx) { _logger.LogDebug("[Serial] Purge {Port} failed pre-close: {Reason}", portName, purgeEx.GetType().Name); }
                     _serialPort.Close();
+                }
                 _serialPort.Dispose();
                 _logger.LogInformation("[Serial] Close {Port} OK     closeId={CloseId} duration={Ms}ms", portName, closeId, sw.ElapsedMilliseconds);
             }
@@ -155,7 +163,14 @@ public sealed class SerialPortAdapter : ISerialPort
             var sw = Stopwatch.StartNew();
             try
             {
-                if (portToClose.IsOpen) portToClose.Close();
+                if (portToClose.IsOpen)
+                {
+                    // INIT-005 Phase 2 (M-3): best-effort TX purge before close — may release
+                    // a stuck write IRP so this close completes instead of being abandoned.
+                    try { portToClose.DiscardOutBuffer(); }
+                    catch (Exception purgeEx) { _logger.LogDebug("[Serial] Purge {Port} failed pre-close: {Reason}", portName, purgeEx.GetType().Name); }
+                    portToClose.Close();
+                }
                 if (sw.ElapsedMilliseconds > LateCloseThresholdMs)
                 {
                     _logger.LogWarning(
