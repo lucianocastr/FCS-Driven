@@ -1,5 +1,38 @@
 #
 
+## [3.7.0] - 2026-06-15
+
+### Added
+- **INIT-005 Phase 1A — Serial lifecycle instrumentation** (`6154e32`)
+  - Close lifecycle logging: `[Serial] Close {Port} {START|OK|ABANDONED|LATE_COMPLETED} duration={Ms}ms`
+  - ZOMBIE snapshot detector: comando perpetuo registrado cuando `cancelCount ≥ 2` — campos `EnqueuedAt`, `CancelCount`, `Phase`
+  - `POST_WRITE` log tras escritura exitosa al puerto
+  - 3 archivos afectados: `SerialPortAdapter.cs`, `DeviceDiscoveryService.cs`, `SerialCommandPipeline.cs`
+
+### Fixed
+- **BT-COM-001 / INIT-005 Phase 2 — Hostile-port mitigation** (`548ccab`)
+  - **M-1 Write budget**: `WhenAny(WriteAsync, Delay(2000ms))` — escribe con límite de tiempo; resultado `CommandResultStatus.WriteTimeout` al agotar presupuesto; sin retry
+  - **M-2 PortQuarantine**: nuevo singleton `PortQuarantine` (DI); excluye puerto hostil de scans subsiguientes al detectar `write-abandoned` o `close-abandoned`; guard de reconexión en `frmMain`
+  - **M-3 DiscardOutBuffer pre-close**: `best-effort` antes de cerrar el puerto; drena el stack del driver; elimina residuo / handle leak
+  - CUSTOMER-VALIDATED (2026-06-15): FCSLog cliente `FCSLog_20260615.txt` confirma ZOMBIE=0, AccessDenied=0, Close ABANDONED=0, Discovery y Connect exitosos sobre COM hostil; fix validado en lab propio (banco COM5 RFCOMM hostil + Booster COM8) y en entorno Fiplex (COM4 BT hostil + Booster COM6)
+
+- **DISC-010 — Restaurar contrato POST de paridad VB6 1.12** (`52b6a79`)
+  - **Raíz**: `SettingsParser.cs:192` — default `waitResponse=true` cuando settings.cfg no tiene 4ª columna; 48 de 49 perfiles son 3-columna → Apply Changes fallaba visual con ~60s timeout (el cambio quedaba aplicado porque el equipo ya había respondido ACK)
+  - **Fix parser legacy** (`ParsePostCommand`): cuando falta col4, infiere `waitResponse` por sufijo del payload (`endsWith("0")` o `startsWith("!")` → ACK-only; else ACK+DATA)
+  - **Fix parser pipe** (`ParseCSharpFormatAsync`): aplica la misma inferencia a la ruta pipe (causa gemela latente)
+  - **Principio**: columna explícita en settings.cfg tiene precedencia absoluta; sufijo decide solo el default cuando col4 falta
+  - **Log DBG**: `POST contract {cmd}: waitResponse={v} source={explicit-col4|inferred-suffix}`
+  - Paridad VB6 1.12 restaurada: suffix-0 writes (C0,T0,J0,!0,O0,E0,N0,Q0,F0,K0,…) = ACK-only; suffix-1 reads (C1,T1,J1,E1,U1,A1,…) = ACK+DATA (sin cambio)
+  - **Residual de validación externa**: inferred-suffix runtime no ejercitado en banco propio (único hardware disponible —Booster— mapea a htdocs_2c2, el único perfil 4-columna); cierra con campaña de campo Fiplex sobre dispositivo 3-columna
+
+### Build Metadata
+- `<Version>` (ProductVersion): **3.6.0 → 3.7.0**
+- `<AssemblyVersion>`: `3.0.2.0` (sin cambio — **CONGELADO** por diseño .NET binding)
+- `<FileVersion>`: `3.0.2.0` (sin cambio — **CONGELADO** · metadatos Windows)
+- TargetFramework: `net10.0-windows` (sin cambio)
+
+---
+
 ## [3.6.0] - 2026-06-03
 
 ### Added

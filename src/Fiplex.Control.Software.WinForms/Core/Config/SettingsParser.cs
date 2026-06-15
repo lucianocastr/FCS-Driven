@@ -175,26 +175,58 @@ public class SettingsParser : ISettingsParser
     }
 
     /// <summary>
+    /// DISC-010 (W1): infers the POST contract from the serial payload when the
+    /// settings.cfg line carries no explicit waitResponse column.
+    /// VB6 1.12 baseline: write/apply commands (suffix '0', or the '!' equipment-name
+    /// write) are ACK-only; read commands (suffix '1') return DATA.
+    /// Returns true = ACK+DATA (wait for data frame), false = ACK-only.
+    /// </summary>
+    private static bool InferWaitResponseFromPayload(string payload)
+    {
+        if (string.IsNullOrEmpty(payload)) return true; // conservative default
+        return !(payload.EndsWith("0", StringComparison.Ordinal) ||
+                 payload.StartsWith("!", StringComparison.Ordinal));
+    }
+
+    /// <summary>
     /// /page	COMMAND	encode	waitResponse	noEncode
     /// </summary>
     private CommandDefinition? ParsePostCommand(string[] parts)
     {
         if (parts.Length < 2) return null;
-        
+
         var page = parts[0].Trim();
         var command = parts[1].Trim();
-        
+
         // encode: "hex" o "1"
         var encodeStr = parts.Length > 2 ? parts[2].Trim().ToLowerInvariant() : "0";
         var hexEncoding = encodeStr == "hex" || encodeStr == "1";
-        
-        // waitResponse: "1" waits for response, "0" fire-and-forget
-        var waitResponseStr = parts.Length > 3 ? parts[3].Trim() : "1";
-        var waitResponse = waitResponseStr == "1";
-        
+
+        // waitResponse: "1" waits for response, "0" fire-and-forget.
+        // DISC-010 (W2): if the explicit 4th column is present it is authoritative;
+        // if absent, infer the contract from the payload suffix (VB6 parity) instead
+        // of the previous blanket default "1" that forced every POST to wait for DATA.
+        bool waitResponse;
+        string waitResponseSource;
+        if (parts.Length > 3)
+        {
+            waitResponse = parts[3].Trim() == "1";
+            waitResponseSource = "explicit-col4";
+        }
+        else
+        {
+            waitResponse = InferWaitResponseFromPayload(command);
+            waitResponseSource = "inferred-suffix";
+        }
+
+        // DISC-010 (W4): record the resolved contract per command for field audit.
+        _logger.LogDebug(
+            "POST contract {Command}: waitResponse={WaitResponse} source={Source}",
+            command, waitResponse, waitResponseSource);
+
         // noEncode: parameters not to encode (optional)
         var noEncode = parts.Length > 4 ? parts[4].Trim() : "";
-        
+
         return new CommandDefinition(
             Page: page,
             Command: command,
@@ -361,8 +393,17 @@ public class SettingsParser : ISettingsParser
                         HttpMethod = currentMethod,
                         ExpectedLength = expectedLength,
                         HexEncoding = requiresEncoding,
-                        WaitResponse = currentMethod == "POST"
+                        // DISC-010 (W3): the pipe format carries no waitResponse field, so
+                        // infer the POST contract from the payload suffix (VB6 parity) instead
+                        // of the previous blanket "every POST waits for DATA".
+                        WaitResponse = currentMethod == "POST" && InferWaitResponseFromPayload(command)
                     };
+                    if (currentMethod == "POST")
+                    {
+                        _logger.LogDebug(
+                            "POST contract {Command}: waitResponse={WaitResponse} source=inferred-suffix(pipe)",
+                            command, commandDef.WaitResponse);
+                    }
 
                     commands.Add(commandDef);
                 }

@@ -259,6 +259,8 @@ internal static class Program
         services.AddSingleton<ISerialProtocolParser, SerialProtocolParser>();
         services.AddSingleton<IResponseValidator, ResponseValidator>();
         services.AddSingleton<ISerialCommandPipeline, SerialCommandPipeline>();
+        // INIT-005 Phase 2 (M-2): process-lifetime registry of hostile ports.
+        services.AddSingleton<PortQuarantine>();
     }
 
     private static void ConfigureDeviceServices(IServiceCollection services)

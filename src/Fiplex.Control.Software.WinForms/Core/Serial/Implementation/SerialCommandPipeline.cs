@@ -19,6 +19,11 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     private readonly ILogger<SerialCommandPipeline> _logger;
     private readonly ConcurrentQueue<CommandRequest> _commandQueue = new();
     
+    // INIT-005 Phase 2 (M-1): time budget for the serial write. Worst real case:
+    // ~600 bytes @ 9600 baud ≈ 625ms of wire time — 2000ms gives >3x margin.
+    // Validated against FILE/Clear EEPROM scenarios before freezing (campaign E/F).
+    private const int WriteBudgetMs = 2000;
+
     private CancellationTokenSource? _pipelineCts;
     private Task? _processingTask;
     private Task? _readTask;
@@ -63,7 +68,11 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     /// </summary>
     public event Func<Task<string?>>? CredentialsRequired;
 
-    private record CommandRequest(SerialCommand Command, TaskCompletionSource<SerialResult> Tcs);
+    private record CommandRequest(SerialCommand Command, TaskCompletionSource<SerialResult> Tcs, DateTime EnqueuedAt);
+
+    // INIT-005 Phase 1A (I-2): last pipeline stage a command reached, set passively
+    // by ExecuteCommandAsync. Read only by cancellation diagnostics.
+    private enum CommandPhase { Queued, Write, WaitAck, WaitData }
 
     private class CommandContext
     {
@@ -74,6 +83,10 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
         public Stopwatch AckTimer { get; } = new();
         public CancellationTokenSource Cts { get; }
         public string? LastResponse { get; set; }
+        // INIT-005 Phase 1A (I-2): incremented via Interlocked on each CancelPendingCommands
+        // that finds this context in flight. A context surviving 2+ cancellations is a zombie.
+        public int CancelCount;
+        public CommandPhase Phase { get; set; }
 
         public CommandContext(CommandRequest request, CancellationToken pipelineToken)
         {
@@ -139,26 +152,51 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
     public void CancelPendingCommands()
     {
         _logger.LogInformation("Cancelling all pending commands");
-        
+
         // Empty queue and cancel each command
         var cancelledCount = 0;
+        var queuedCount = 0;
         while (_commandQueue.TryDequeue(out var request))
         {
+            // INIT-005 Phase 1A (I-2): identity and age of every queued command at cancellation.
+            _logger.LogDebug(
+                "Cancelled QUEUED   cmd={CmdId} payload={Payload} age={AgeMs}ms",
+                request.Command.Id,
+                request.Command.Payload[..Math.Min(10, request.Command.Payload.Length)],
+                (long)(DateTime.Now - request.EnqueuedAt).TotalMilliseconds);
             request.Tcs.TrySetCanceled();
             cancelledCount++;
+            queuedCount++;
         }
-        
+
         // Cancel in-progress command if exists
-        if (_currentCommandContext != null)
+        // INIT-005 Phase 1A (I-2): local copy — same Cancel() semantics, race-safe read.
+        var inflight = _currentCommandContext;
+        if (inflight != null)
         {
-            _currentCommandContext.Cts.Cancel();
+            var cancelSurvivals = Interlocked.Increment(ref inflight.CancelCount);
+            var inflightCmd = inflight.Request.Command;
+            var inflightAge = inflight.RoundTripTimer.ElapsedMilliseconds;
+            var inflightPayload = inflightCmd.Payload[..Math.Min(10, inflightCmd.Payload.Length)];
+            _logger.LogDebug(
+                "Cancelled INFLIGHT cmd={CmdId} payload={Payload} phase={Phase} age={AgeMs}ms cancelCount={Count}",
+                inflightCmd.Id, inflightPayload, inflight.Phase, inflightAge, cancelSurvivals);
+            if (cancelSurvivals >= 2)
+            {
+                _logger.LogWarning(
+                    "ZOMBIE DETECTED cmd={CmdId} payload={Payload} phase={Phase} age={AgeMs}ms cancelCount={Count} — inflight context survived multiple cancellations without completing; head-of-line may be blocked",
+                    inflightCmd.Id, inflightPayload, inflight.Phase, inflightAge, cancelSurvivals);
+            }
+            inflight.Cts.Cancel();
             cancelledCount++;
         }
-        
+
         // Reset states
         _waitingAnswer = false;
         _pendingAnswer = false;
-        
+
+        // INIT-005 Phase 1A (I-2): per-cancellation summary. Legacy count line preserved below.
+        _logger.LogInformation("Cancel SNAPSHOT queued={Queued} inflight={Inflight}", queuedCount, inflight != null ? 1 : 0);
         _logger.LogInformation("Pending commands cancelled: {Count}", cancelledCount);
     }
 
@@ -168,7 +206,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
             throw new InvalidOperationException("Pipeline not running");
 
         var tcs = new TaskCompletionSource<SerialResult>(TaskCreationOptions.RunContinuationsAsynchronously);
-        _commandQueue.Enqueue(new CommandRequest(command, tcs));
+        _commandQueue.Enqueue(new CommandRequest(command, tcs, DateTime.Now));
         return tcs.Task;
     }
 
@@ -318,8 +356,33 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
             {
                 // TX
                 UpdateState(cmd.Id, CommandState.Sending);
+                ctx.Phase = CommandPhase.Write;
                 var payload = Encoding.ASCII.GetBytes(cmd.Payload + "\n");
-                var bytesSent = await _serialPort.WriteAsync(payload, ctx.Cts.Token);
+                // INIT-005 Phase 2 (M-1): the write was the only driver call in the command
+                // path without a time budget — a hostile port that accepts the open but never
+                // completes the write parked the head-of-line forever (Phase 1A: phase=Write
+                // perpetuo). Budget = 3x the worst-case wire time of the largest payload at
+                // 9600 baud. On expiry the command fails as WriteTimeout and is NOT retried:
+                // re-writing to the same stuck port would only spawn another orphan.
+                var writeTask = _serialPort.WriteAsync(payload, ctx.Cts.Token);
+                if (await Task.WhenAny(writeTask, Task.Delay(WriteBudgetMs, ctx.Cts.Token)) != writeTask)
+                {
+                    _logger.LogWarning(
+                        "WRITE_ABANDONED cmd={CmdId} payload={Payload} after={BudgetMs}ms — write did not complete within budget; completing as WriteTimeout without retry, port is a quarantine candidate",
+                        cmd.Id, cmd.Payload[..Math.Min(10, cmd.Payload.Length)], WriteBudgetMs);
+                    // Observe the orphan task's eventual fault so it never surfaces as unobserved.
+                    _ = writeTask.ContinueWith(t => _ = t.Exception, TaskContinuationOptions.OnlyOnFaulted);
+                    _waitingAnswer = false;
+                    _pendingAnswer = false;
+                    CompleteCommand(ctx, CommandResultStatus.WriteTimeout);
+                    return;
+                }
+                var bytesSent = await writeTask;
+                // INIT-005 Phase 1A (I-5A): proof the command left the host. Its absence for
+                // a command known to be queued means it never reached the wire (E-1).
+                _logger.LogDebug(
+                    "POST_WRITE cmd={CmdId} payload={Payload} bytes={Bytes} elapsed={Ms}ms",
+                    cmd.Id, cmd.Payload[..Math.Min(10, cmd.Payload.Length)], bytesSent, ctx.RoundTripTimer.ElapsedMilliseconds);
                 if (!cmd.IsSilent) _logger.LogDebug("TX: {Payload}", cmd.Payload[..Math.Min(20, cmd.Payload.Length)]);
                 if (!cmd.IsSilent) _logger.LogTrace("TX_FULL: {Payload}", cmd.Payload);
                 TxDiagnostic?.Invoke($"Tx0 {cmd.Payload}");
@@ -329,6 +392,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 if (cmd.ExpectsAck)
                 {
                     UpdateState(cmd.Id, CommandState.AwaitingAck);
+                    ctx.Phase = CommandPhase.WaitAck;
                     ctx.AckTimer.Restart();
                     var (ackResult, ackData) = await WaitForTokenWithTypeAsync(cmd.AckTimeout, ctx.Cts.Token);
                     ctx.AckTimer.Stop();
@@ -412,6 +476,7 @@ public sealed class SerialCommandPipeline : ISerialCommandPipeline
                 if (cmd.ExpectsData)
                 {
                     UpdateState(cmd.Id, CommandState.AwaitingData);
+                    ctx.Phase = CommandPhase.WaitData;
                     var (dataResult, data) = await WaitForDataWithValidationAsync(cmd.DataTimeout, ctx.Cts.Token);
                     _pendingAnswer = false;
 

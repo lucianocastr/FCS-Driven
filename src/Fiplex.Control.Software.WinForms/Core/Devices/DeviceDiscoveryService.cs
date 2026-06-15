@@ -4,6 +4,7 @@ using System.Diagnostics;
 using Microsoft.Win32;
 using Fiplex.Control.Software.WinForms.Core.Devices.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Diagnostics;
+using Fiplex.Control.Software.WinForms.Core.Serial.Implementation;
 using Fiplex.Control.Software.WinForms.Core.Serial.Interfaces;
 using Fiplex.Control.Software.WinForms.Core.Serial.Models;
 using Fiplex.Control.Software.WinForms.Models;
@@ -29,6 +30,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     private readonly ISerialCommandPipeline _pipeline;
     private readonly IDeviceCatalogService _catalog;
     private readonly DiscoveryTelemetry _telemetry;
+    private readonly PortQuarantine _quarantine;
     private readonly ILogger<DeviceDiscoveryService> _logger;
 
     public event Action<string>? PortScanTrace;
@@ -53,12 +55,14 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
         ISerialCommandPipeline pipeline,
         IDeviceCatalogService catalog,
         DiscoveryTelemetry telemetry,
+        PortQuarantine quarantine,
         ILogger<DeviceDiscoveryService> logger)
     {
         _serialPort = serialPort ?? throw new ArgumentNullException(nameof(serialPort));
         _pipeline = pipeline ?? throw new ArgumentNullException(nameof(pipeline));
         _catalog = catalog ?? throw new ArgumentNullException(nameof(catalog));
         _telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
+        _quarantine = quarantine ?? throw new ArgumentNullException(nameof(quarantine));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
@@ -103,6 +107,15 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
 
             var portStopwatch = Stopwatch.StartNew();
             var (portName, portNumber) = candidatePorts[index];
+
+            // INIT-005 Phase 2 (M-2): never touch a port that already proved hostile.
+            if (_quarantine.TryGet(portName, out var quarantineEntry))
+            {
+                _logger.LogInformation(
+                    "[Scan {ScanId}] Port {Port} QUARANTINED (reason={Reason}, since={Since:HH:mm:ss}) — skipped",
+                    scanId, portName, quarantineEntry!.Reason, quarantineEntry.Since);
+                continue;
+            }
 
             _logger.LogDebug("[Scan {ScanId}] {Port} - scan start", scanId, portName);
 
@@ -287,13 +300,39 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     if (_serialPort.IsOpen)
                     {
                         var closeTask = _serialPort.CloseAsync();
-                        await Task.WhenAny(closeTask, Task.Delay(PortCloseTimeout, ct));
+                        // INIT-005 Phase 1A (I-1): same abandonment decision as before,
+                        // now logged. Correlates with the adapter's "Close START" by port
+                        // and time window (one close per port at a time).
+                        if (await Task.WhenAny(closeTask, Task.Delay(PortCloseTimeout, ct)) != closeTask)
+                        {
+                            _logger.LogWarning(
+                                "[Scan {ScanId}] Close {Port} ABANDONED after={GuardMs}ms — close task did not complete within guard; handle may remain held for process lifetime",
+                                scanId, portName, (int)PortCloseTimeout.TotalMilliseconds);
+                            // INIT-005 Phase 2 (M-2 trigger b): an abandoned close means the
+                            // handle is likely retained — reopening would AccessDenied forever.
+                            _quarantine.Quarantine(portName, "close-abandoned");
+                            return null;
+                        }
                     }
 
                     continue;
                 }
 
                 var result = await resultTask;
+
+                // INIT-005 Phase 2 (M-2 trigger a): a write that exhausted its budget marks
+                // the port hostile. No retry — re-writing would spawn another orphan. Close
+                // best-effort under the same guard and quarantine the port for the process.
+                if (result.Status == CommandResultStatus.WriteTimeout)
+                {
+                    _quarantine.Quarantine(portName, "write-abandoned");
+                    if (_serialPort.IsOpen)
+                    {
+                        var hostileCloseTask = _serialPort.CloseAsync();
+                        await Task.WhenAny(hostileCloseTask, Task.Delay(PortCloseTimeout, ct));
+                    }
+                    return null;
+                }
 
                 // Close port
                 await _serialPort.CloseAsync();

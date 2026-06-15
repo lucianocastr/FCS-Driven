@@ -110,19 +110,37 @@ public sealed class SerialPortAdapter : ISerialPort
         }
     }
 
+    // INIT-005 Phase 1A (I-1): a close that takes longer than this exceeded the
+    // PortCloseTimeout guard used by discovery and was likely abandoned by its caller.
+    // Mirrors DeviceDiscoveryService.PortCloseTimeout — instrumentation threshold only.
+    private const int LateCloseThresholdMs = 1500;
+
     public void Close()
     {
         if (_serialPort != null)
         {
+            var portName = _serialPort.PortName;
+            var closeId = Guid.NewGuid().ToString("N")[..4];
+            _logger.LogDebug("[Serial] Close {Port} START  closeId={CloseId} mode=sync", portName, closeId);
+            var sw = Stopwatch.StartNew();
             try
             {
-                if (_serialPort.IsOpen) 
+                if (_serialPort.IsOpen)
+                {
+                    // INIT-005 Phase 2 (M-3): best-effort abort of pending TX I/O before the
+                    // close (PurgeComm TXABORT|TXCLEAR via the managed API). Restores the
+                    // MSComm teardown semantics: a write IRP parked by a hostile port may be
+                    // released here, letting the close actually complete. Never fatal.
+                    try { _serialPort.DiscardOutBuffer(); }
+                    catch (Exception purgeEx) { _logger.LogDebug("[Serial] Purge {Port} failed pre-close: {Reason}", portName, purgeEx.GetType().Name); }
                     _serialPort.Close();
+                }
                 _serialPort.Dispose();
+                _logger.LogInformation("[Serial] Close {Port} OK     closeId={CloseId} duration={Ms}ms", portName, closeId, sw.ElapsedMilliseconds);
             }
             catch (Exception ex)
             {
-                _logger.LogWarning(ex, "Error closing port");
+                _logger.LogWarning(ex, "[Serial] Close {Port} FAIL   closeId={CloseId} duration={Ms}ms — error closing port", portName, closeId, sw.ElapsedMilliseconds);
             }
             finally
             {
@@ -138,17 +156,35 @@ public sealed class SerialPortAdapter : ISerialPort
         if (portToClose == null) return Task.CompletedTask;
 
         var portName = portToClose.PortName;
+        var closeId = Guid.NewGuid().ToString("N")[..4];
+        _logger.LogDebug("[Serial] Close {Port} START  closeId={CloseId} mode=async", portName, closeId);
         return Task.Run(() =>
         {
             var sw = Stopwatch.StartNew();
             try
             {
-                if (portToClose.IsOpen) portToClose.Close();
-                _logger.LogInformation("[Serial] Close {Port} OK     duration={Ms}ms", portName, sw.ElapsedMilliseconds);
+                if (portToClose.IsOpen)
+                {
+                    // INIT-005 Phase 2 (M-3): best-effort TX purge before close — may release
+                    // a stuck write IRP so this close completes instead of being abandoned.
+                    try { portToClose.DiscardOutBuffer(); }
+                    catch (Exception purgeEx) { _logger.LogDebug("[Serial] Purge {Port} failed pre-close: {Reason}", portName, purgeEx.GetType().Name); }
+                    portToClose.Close();
+                }
+                if (sw.ElapsedMilliseconds > LateCloseThresholdMs)
+                {
+                    _logger.LogWarning(
+                        "[Serial] Close {Port} LATE_COMPLETED closeId={CloseId} duration={Ms}ms — close exceeded the caller guard window and may have been abandoned by its caller",
+                        portName, closeId, sw.ElapsedMilliseconds);
+                }
+                else
+                {
+                    _logger.LogInformation("[Serial] Close {Port} OK     closeId={CloseId} duration={Ms}ms", portName, closeId, sw.ElapsedMilliseconds);
+                }
             }
             catch (Exception ex)
             {
-                _logger.LogWarning("[Serial] Close {Port} FAIL   duration={Ms}ms reason={Reason}", portName, sw.ElapsedMilliseconds, ex.GetType().Name);
+                _logger.LogWarning("[Serial] Close {Port} FAIL   closeId={CloseId} duration={Ms}ms reason={Reason}", portName, closeId, sw.ElapsedMilliseconds, ex.GetType().Name);
             }
             finally
             {
