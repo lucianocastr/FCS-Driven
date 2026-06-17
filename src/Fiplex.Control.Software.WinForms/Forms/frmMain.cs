@@ -3280,9 +3280,8 @@ public partial class frmMain : Form
                     MessageBoxButtons.OK,
                     MessageBoxIcon.Error);
 
-                // Refresh WebView also on error for Config
-                if (operationType == FileOperationType.LoadConfig ||
-                    operationType == FileOperationType.SaveConfig)
+                // Refresh WebView on SaveConfig error (VB6 parity: LoadConfig FAIL does not refresh)
+                if (operationType == FileOperationType.SaveConfig)
                 {
                     await RefreshWebViewAsync();
                 }
