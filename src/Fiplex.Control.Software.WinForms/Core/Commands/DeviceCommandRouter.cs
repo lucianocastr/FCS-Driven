@@ -320,9 +320,7 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     /// htdocs_5dm1 page declares /global_conf.shtml→U1 (without "") and has no
     /// gbconf_str POST mapping (verified by settings.cfg SHA-256 divergence).
     ///
-    /// INIT-004 Componente A — FL2 Routing. See:
-    ///   E:\Personal\Capacitaciones\Claude\ClaudeIA\docs\analysis\
-    ///     INIT-004_PARITY_GAP_ASSESSMENT.md §1
+    /// INIT-004 Componente A — FL2 Routing.
     /// </summary>
     private bool IsFl2MasterGlobalConfigContext(string page, string serialPayload, PostCommand postCommand)
     {
