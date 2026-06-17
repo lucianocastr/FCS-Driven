@@ -97,11 +97,12 @@ public partial class frmPassword : Form
             txtPassword.MaxLength = 16;
 
             lblPasswordError.AutoSize = false;
+            lblPasswordError.Location = new Point(20, 122);
             lblPasswordError.Size = new Size(318, 32);
 
             lblConfirm.Visible = true;
             txtConfirmPassword.Visible = true;
-            lblPasswordError.Visible = true;
+            lblPasswordError.Visible = false;
             lblPasswordError.Text = string.Empty;
 
             btnOK.Top = 162;
@@ -229,6 +230,7 @@ public partial class frmPassword : Form
             if (ChangePasswordCommand != null)
             {
                 SetControlsEnabled(false);
+                lblPasswordError.Visible = true;
                 lblPasswordError.ForeColor = SystemColors.GrayText;
                 lblPasswordError.Text = "Sending...";
 
@@ -236,6 +238,7 @@ public partial class frmPassword : Form
 
                 if (error == null)
                 {
+                    lblPasswordError.Visible = true;
                     lblPasswordError.ForeColor = Color.FromArgb(0, 140, 60);
                     lblPasswordError.Text = "Password changed successfully.";
                     await Task.Delay(1500);
