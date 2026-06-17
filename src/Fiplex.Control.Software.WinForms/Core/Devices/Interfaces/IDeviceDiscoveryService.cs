@@ -7,7 +7,7 @@ public interface IDeviceDiscoveryService
 {
     /// <summary>
     /// Fires after each port identification attempt. Format: "COM8 Nretry=0 ans=Fiplex..."
-    /// VB 1.9 parity: mirrors WriteLog("COM{i} Nretry={num} ans={instRx}") inside scan loop.
+    /// VB6 1.12 parity: mirrors WriteLog("COM{i} Nretry={num} ans={instRx}") inside scan loop.
     /// </summary>
     event Action<string>? PortScanTrace;
 

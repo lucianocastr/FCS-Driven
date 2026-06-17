@@ -36,7 +36,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     public event Action<string>? PortScanTrace;
 
     // Scan configuration constants
-    // MaxRetries=5: VB 1.9 parity (Loop While instRx="NACK" And num < 5).
+    // MaxRetries=5: VB6 1.12 parity (Loop While instRx="NACK" And num < 5).
     // Devices that respond on the first attempt are unaffected.
     // Slower devices (e.g. DAS Remote) that return NACK on early attempts get additional chances.
     private const int MaxRetries = 5;
@@ -315,7 +315,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                         }
                     }
 
-                    continue;
+                    break;
                 }
 
                 var result = await resultTask;
@@ -340,7 +340,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                 var response = (result.Data ?? string.Empty)
                     .Trim('\0', '\r', '\n', ' ');
 
-                // VB 1.9 parity: WriteLog("COM{i} Nretry={num} ans={instRx}") inside scan loop
+                // VB6 1.12 parity: WriteLog("COM{i} Nretry={num} ans={instRx}") inside scan loop
                 PortScanTrace?.Invoke($"{portName} Nretry={retry} ans={response}");
 
                 _logger.LogDebug(
@@ -358,12 +358,11 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     continue; // Retry
                 }
 
-                // Retry when response is empty/timeout or noisy/partial not yet matching IDN.
-                // This improves resilience after disconnect/reconnect cycles where first read can be unstable.
+                // VB6 1.12 parity: empty response exits scan loop (no retry).
                 if (string.IsNullOrWhiteSpace(response))
                 {
                     _logger.LogDebug("[Scan {ScanId}] {Port} retry {Retry} - empty response", scanId, portName, retry + 1);
-                    continue;
+                    break;
                 }
 
                 // Verify minimum response length
@@ -416,7 +415,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                                 portName, response);
                             _telemetry.IncrementDevicesUnknown();
 
-                            // VB 1.9 parity: SetDeviceType fallback sets NameTypeDevice="Unknown device"
+                            // VB6 1.12 parity: SetDeviceType fallback sets NameTypeDevice="Unknown device"
                             // and still adds the entry to cmbCOM. Do the same here.
                             return new DeviceInfo
                             {
@@ -433,24 +432,13 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                     }
                 }
 
-                // Invalid response. Retry while attempts remain to tolerate transient post-disconnect noise.
-                if (retry < MaxRetries - 1)
-                {
-                    _logger.LogDebug(
-                        "[Scan {ScanId}] {Port} retry {Retry} - invalid non-Fiplex response '{Response}', retrying",
-                        scanId,
-                        portName,
-                        retry + 1,
-                        response.Length > 100 ? response[..100] + "..." : response);
-
-                    continue;
-                }
-
+                // VB6 1.12 parity: invalid non-Fiplex response exits scan loop (no retry).
                 _logger.LogDebug(
-                    "[Scan {ScanId}] {Port} retry {Retry} - exhausted identification attempts",
+                    "[Scan {ScanId}] {Port} retry {Retry} - invalid non-Fiplex response '{Response}'",
                     scanId,
                     portName,
-                    retry + 1);
+                    retry + 1,
+                    response.Length > 100 ? response[..100] + "..." : response);
 
                 break;
             }
