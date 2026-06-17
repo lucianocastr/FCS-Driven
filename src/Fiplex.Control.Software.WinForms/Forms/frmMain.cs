@@ -3039,10 +3039,10 @@ public partial class frmMain : Form
         using var saveDialog = new SaveFileDialog
         {
             Title = "Save Device Configuration",
-            // Supports new format (.cfg)
-            Filter = "Configuration Files (*.cfg)|*.cfg|Legacy Format (*.cfgr)|*.cfgr|All Files (*.*)|*.*",
-            DefaultExt = "cfg",
-            FileName = $"{_sessionContext.Device?.TDev ?? "device"}_config_{DateTime.Now:yyyyMMdd_HHmmss}.cfg"
+            // VB6 1.12 parity: baseline format is .cfgr (DISC-019 / INIT-010)
+            Filter = "Configuration File (*.cfgr)|*.cfgr|Legacy Format (*.cfg)|*.cfg|All Files (*.*)|*.*",
+            DefaultExt = "cfgr",
+            FileName = $"{_sessionContext.Device?.TDev ?? "device"}_config_{DateTime.Now:yyyyMMdd_HHmmss}.cfgr"
         };
 
         if (saveDialog.ShowDialog() != DialogResult.OK)
@@ -3110,8 +3110,8 @@ public partial class frmMain : Form
         using var saveDialog = new SaveFileDialog
         {
             Title = "Save Device Calibration",
-            Filter = "Calibration Files (*.cal)|*.cal|Legacy Format (*.calr)|*.calr|All Files (*.*)|*.*",
-            DefaultExt = "cal",
+            Filter = "Calibration File (*.calr)|*.calr|Legacy Format (*.cal)|*.cal|All Files (*.*)|*.*",
+            DefaultExt = "calr",
             FileName = _lastCalSavePath ?? string.Empty
         };
 
