@@ -78,6 +78,12 @@ public partial class frmMain : Form
 
     private System.Windows.Forms.Timer? _portHealthTimer;
 
+    // INIT-011: status bar severity model. _currentState holds the last STATE
+    // message (the persistent baseline the bar reverts to when a transient
+    // Info/Success/Warning message expires). _statusRevertTimer drives the revert.
+    private string _currentState = "Ready";
+    private System.Windows.Forms.Timer? _statusRevertTimer;
+
     // Validated password for INVALID CREDENTIALS retries
     private string? _validatedPassword;
 
@@ -981,7 +987,7 @@ public partial class frmMain : Form
     {
         if (!e.IsSuccess)
         {
-            LogStatus($"Navigation error: {e.WebErrorStatus}");
+            SetStatus($"Navigation error: {e.WebErrorStatus}", StatusSeverity.Error);
         }
     }
 
@@ -1184,7 +1190,7 @@ public partial class frmMain : Form
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Failed to enable serial trace logger");
-                    LogStatus($"Traces ERROR: {ex.Message}");
+                    SetStatus($"Traces ERROR: {ex.Message}", StatusSeverity.Error);
                 }
             }
             return true;
@@ -1268,9 +1274,9 @@ public partial class frmMain : Form
 
         SetUIState(isScanning: true);
         PrepareComboBoxForScan();
-        LogStatus(mode == DeviceScanMode.QuickScan
+        SetStatus(mode == DeviceScanMode.QuickScan
             ? "Quick scan: searching for first device..."
-            : "Starting full device scan...");
+            : "Starting full device scan...", StatusSeverity.InfoProgress);
 
         _scanInProgress = true;
         try
@@ -1319,7 +1325,7 @@ public partial class frmMain : Form
     private void LogScanCompleteStatus(DeviceScanMode mode)
     {
         var modeLabel = mode == DeviceScanMode.QuickScan ? "Quick scan" : "Full scan";
-        LogStatus($"{modeLabel} complete: {_foundDevices.Count} device(s) found");
+        SetStatus($"{modeLabel} complete: {_foundDevices.Count} device(s) found", StatusSeverity.Success);
         _logger.LogInformation("{Mode} completed: {Count} devices", modeLabel, _foundDevices.Count);
     }
 
@@ -1328,7 +1334,7 @@ public partial class frmMain : Form
     /// </summary>
     private void HandleScanCancelled()
     {
-        LogStatus("Scan cancelled by user");
+        SetStatus("Scan cancelled by user", StatusSeverity.Warning);
         SetComboBoxMessage("Scan cancelled");
     }
 
@@ -1366,7 +1372,7 @@ public partial class frmMain : Form
         }
 
         // Only update the status bar, not the ComboBox
-        LogStatus($"Scanning {p.CurrentPort} ({p.Completed}/{p.Total}) - Found: {p.DevicesFound}");
+        SetStatus($"Scanning {p.CurrentPort} ({p.Completed}/{p.Total}) - Found: {p.DevicesFound}", StatusSeverity.InfoProgress);
         // Scan result is logged via PortScanTrace (VB 1.9 format). Progress bar only here.
     }
 
@@ -1756,7 +1762,7 @@ public partial class frmMain : Form
                         }
 
                         _logger.LogInformation("Authentication successful");
-                        LogStatus("Authentication successful");
+                        SetStatus("Authentication successful", StatusSeverity.Success);
 
                         _validatedPassword = passwordDialog.Password;
                         _pipeline.SetStoredPassword(passwordDialog.Password);
@@ -1912,7 +1918,7 @@ public partial class frmMain : Form
             await Task.Yield();
 
             UpdateUIForConnectedState();
-            LogStatus($"Connected to {selectedDevice.NameTypeDevice}");
+            SetStatus($"Connected to {selectedDevice.NameTypeDevice}", StatusSeverity.State);
             _logger.LogInformation("=== CONNECTION COMPLETE ===");
         }
         catch (Exception ex)
@@ -2110,7 +2116,7 @@ public partial class frmMain : Form
             };
 
             UpdateUIForDisconnectedState();
-            LogStatus("Disconnected");
+            SetStatus("Disconnected", StatusSeverity.State);
 
             // Clear validated password (security)
             _validatedPassword = null;
@@ -2724,20 +2730,89 @@ public partial class frmMain : Form
         cmdConnect.Enabled = (!isScanning && !isConnecting && _foundDevices.Any()) || isConnected;
     }
 
-    private void LogStatus(string message)
+    // INIT-011: severity classification for status bar messages.
+    private enum StatusSeverity
+    {
+        State,         // persistent baseline (connection/idle) — bar reverts here
+        Info,          // transient, 10 s
+        InfoProgress,  // persistent while a long operation keeps emitting events
+        Success,       // transient, 10 s
+        Warning,       // transient, 15 s
+        Error          // persistent until a new State or new operation flow
+    }
+
+    /// <summary>
+    /// Back-compat wrapper (INIT-011): legacy callers default to Info severity.
+    /// </summary>
+    private void LogStatus(string message) => SetStatus(message, StatusSeverity.Info);
+
+    /// <summary>
+    /// Sets the bottom status bar message with a severity-driven lifetime (INIT-011).
+    /// State/InfoProgress/Error persist; Info/Success revert after 10 s, Warning after 15 s.
+    /// On expiry the bar reverts to the current State baseline (<see cref="_currentState"/>).
+    /// </summary>
+    private void SetStatus(string message, StatusSeverity severity)
     {
         if (InvokeRequired)
         {
-            Invoke(() => LogStatus(message));
+            Invoke(() => SetStatus(message, severity));
             return;
         }
 
-        var timestamp = DateTime.Now.ToString("HH:mm:ss");
-        // lblStatus shows operational messages
+        // Any new message cancels a pending revert; transient severities re-arm below.
+        StopRevertTimer();
+
+        // lblStatus shows operational messages (no timestamp — INIT-011)
         // lbldaysRemaining remains exclusive for CLSS info
-        lblStatus.Text = $"[{timestamp}] {message}";
+        lblStatus.Text = message;
+        lblStatus.ForeColor = ColorFor(severity);
 
         _logger.LogDebug(message);
+
+        switch (severity)
+        {
+            case StatusSeverity.State:
+                _currentState = message;        // new persistent baseline
+                break;
+            case StatusSeverity.InfoProgress:
+            case StatusSeverity.Error:
+                break;                          // persistent — no timer
+            case StatusSeverity.Info:
+            case StatusSeverity.Success:
+                StartRevertTimer(10_000);
+                break;
+            case StatusSeverity.Warning:
+                StartRevertTimer(15_000);
+                break;
+        }
+    }
+
+    private static Color ColorFor(StatusSeverity severity) => severity switch
+    {
+        StatusSeverity.Success => Color.FromArgb(0, 140, 60),
+        StatusSeverity.Warning => Color.FromArgb(150, 90, 0),
+        StatusSeverity.Error => Color.FromArgb(196, 32, 32),
+        _ => Color.FromArgb(85, 85, 85)        // State / Info / InfoProgress
+    };
+
+    private void StartRevertTimer(int intervalMs)
+    {
+        if (_statusRevertTimer == null)
+        {
+            _statusRevertTimer = new System.Windows.Forms.Timer();
+            _statusRevertTimer.Tick += StatusRevertTimer_Tick;
+        }
+        _statusRevertTimer.Interval = intervalMs;
+        _statusRevertTimer.Start();
+    }
+
+    private void StopRevertTimer() => _statusRevertTimer?.Stop();
+
+    private void StatusRevertTimer_Tick(object? sender, EventArgs e)
+    {
+        StopRevertTimer();
+        lblStatus.Text = _currentState;
+        lblStatus.ForeColor = ColorFor(StatusSeverity.State);
     }
 
     private async void cmdRefresh_Click(object sender, EventArgs e)
@@ -3176,7 +3251,7 @@ public partial class frmMain : Form
         };
 
         _logger.LogInformation("Starting {Operation} to {Path}", operationName, filePath);
-        LogStatus($"{operationName} in progress...");
+        SetStatus($"{operationName} in progress...", StatusSeverity.InfoProgress);
 
         // Convert FileCommand to FileOperationCommand
         var commands = fileCommands.Select(fc => new FileOperationCommand
@@ -3194,7 +3269,7 @@ public partial class frmMain : Form
             var message = !string.IsNullOrEmpty(p.Message)
                 ? p.Message
                 : $"Processing {p.CurrentCommandName}...";
-            LogStatus($"{operationName}: {message} ({p.PercentComplete:F0}%)");
+            SetStatus($"{operationName}: {message} ({p.PercentComplete:F0}%)", StatusSeverity.InfoProgress);
         });
 
         // Use Available (not Visible) for snapshot: ToolStripMenuItem.Visible getter returns
@@ -3230,7 +3305,7 @@ public partial class frmMain : Form
                     "{Operation} completed: {Executed}/{Total} commands in {Duration}ms",
                     operationName, result.CommandsExecuted, result.TotalCommands, result.Duration.TotalMilliseconds);
 
-                LogStatus($"{operationName} completed successfully");
+                SetStatus($"{operationName} completed successfully", StatusSeverity.Success);
                 MessageBox.Show(
                     $"{operationName} completed successfully.\n\n" +
                     $"Commands executed: {result.CommandsExecuted}\n" +
@@ -3271,7 +3346,7 @@ public partial class frmMain : Form
             else
             {
                 _logger.LogError("{Operation} failed: {Error}", operationName, result.ErrorMessage);
-                LogStatus($"{operationName} failed");
+                SetStatus($"{operationName} failed", StatusSeverity.Error);
                 MessageBox.Show(
                     $"{operationName} failed.\n\n" +
                     $"Error: {result.ErrorMessage}\n" +
@@ -3290,12 +3365,12 @@ public partial class frmMain : Form
         catch (OperationCanceledException)
         {
             _logger.LogWarning("{Operation} cancelled", operationName);
-            LogStatus($"{operationName} cancelled");
+            SetStatus($"{operationName} cancelled", StatusSeverity.Warning);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "{Operation} error", operationName);
-            LogStatus($"{operationName} error: {ex.Message}");
+            SetStatus($"{operationName} error: {ex.Message}", StatusSeverity.Error);
             MessageBox.Show(
                 $"An error occurred during {operationName}.\n\n{ex.Message}",
                 "Error",
@@ -3550,7 +3625,7 @@ public partial class frmMain : Form
                     _validatedPassword = newPassword;
                     _pipeline.SetStoredPassword(newPassword);
                     _commandRouter.SetStoredPassword(newPassword);
-                    LogStatus("Password changed successfully");
+                    SetStatus("Password changed successfully", StatusSeverity.Success);
                     _logger.LogInformation("Device password changed successfully");
                     return null;
                 }
@@ -3560,14 +3635,14 @@ public partial class frmMain : Form
                         ? ParsePasswordValidationError(responsePayload)
                         : "The device did not accept the new password.";
                     _logger.LogWarning("Password change failed: {Status} Response: {Data}", result.Status, responsePayload);
-                    LogStatus("Password change failed");
+                    SetStatus("Password change failed", StatusSeverity.Error);
                     return errorDetail;
                 }
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error changing device password");
-                LogStatus("Password change error");
+                SetStatus("Password change error", StatusSeverity.Error);
                 return $"An error occurred: {ex.Message}";
             }
             finally
@@ -3702,14 +3777,14 @@ public partial class frmMain : Form
             if (result == DialogResult.OK)
             {
                 _logger.LogInformation("Ethernet configuration changed, refreshing device UI");
-                LogStatus("Ethernet configuration applied, refreshing...");
+                SetStatus("Ethernet configuration applied, refreshing...", StatusSeverity.Success);
 
                 // Refresh WebView after applying changes
                 _ = NavigateToDeviceUIAsync(true);
             }
             else
             {
-                LogStatus("Ethernet configuration cancelled");
+                SetStatus("Ethernet configuration cancelled", StatusSeverity.Warning);
             }
         }
         catch (Exception ex)
@@ -3773,7 +3848,7 @@ public partial class frmMain : Form
 
         try
         {
-            LogStatus("Resetting to factory default...");
+            SetStatus("Resetting to factory default...", StatusSeverity.InfoProgress);
             Cursor = Cursors.WaitCursor;
             cmdConnect.Enabled = false;
             mnuFactDefault.Enabled = false;
@@ -3782,7 +3857,7 @@ public partial class frmMain : Form
 
             if (success)
             {
-                LogStatus("Factory reset completed successfully");
+                SetStatus("Factory reset completed successfully", StatusSeverity.Success);
                 MessageBox.Show(
                     "Configuration has been reset to factory default.\n\n" +
                     "The device interface will be refreshed.",
@@ -3795,7 +3870,7 @@ public partial class frmMain : Form
             }
             else
             {
-                LogStatus("Factory reset failed");
+                SetStatus("Factory reset failed", StatusSeverity.Error);
                 MessageBox.Show(
                     "Failed to reset configuration to factory default.\n\n" +
                     "Please check the device connection and try again.",
@@ -3807,7 +3882,7 @@ public partial class frmMain : Form
         catch (Exception ex)
         {
             _logger.LogError(ex, "Factory reset error");
-            LogStatus("Factory reset error");
+            SetStatus("Factory reset error", StatusSeverity.Error);
             MessageBox.Show(
                 $"An error occurred during factory reset.\n\n{ex.Message}",
                 "Error",
@@ -4084,7 +4159,7 @@ public partial class frmMain : Form
         _productionTestInProgress = true;
         try
         {
-            LogStatus($"Applying {operationName}...");
+            SetStatus($"Applying {operationName}...", StatusSeverity.InfoProgress);
             Cursor = Cursors.WaitCursor;
             SetProductionMenusEnabled(false);
 
@@ -4095,7 +4170,7 @@ public partial class frmMain : Form
 
             if (success)
             {
-                LogStatus($"{operationName} completed successfully");
+                SetStatus($"{operationName} completed successfully", StatusSeverity.Success);
                 _logger.LogInformation("Production test completed: {Operation}", operationName);
 
                 MessageBox.Show(
@@ -4109,7 +4184,7 @@ public partial class frmMain : Form
             }
             else
             {
-                LogStatus($"{operationName} failed");
+                SetStatus($"{operationName} failed", StatusSeverity.Error);
                 MessageBox.Show(
                     $"Failed to apply {operationName}.\n\n" +
                     "Please check the device connection and try again.",
@@ -4121,7 +4196,7 @@ public partial class frmMain : Form
         catch (Exception ex)
         {
             _logger.LogError(ex, "Error during production test: {Operation}", operationName);
-            LogStatus($"{operationName} error");
+            SetStatus($"{operationName} error", StatusSeverity.Error);
             MessageBox.Show(
                 $"An error occurred during {operationName}.\n\n{ex.Message}",
                 "Error",
@@ -4411,7 +4486,7 @@ public partial class frmMain : Form
             }
 
             // Show progress message
-            LogStatus("Applying production configuration...");
+            SetStatus("Applying production configuration...", StatusSeverity.InfoProgress);
 
             // Send each command from configuration
             int cmdIndex = 0;
@@ -4421,7 +4496,7 @@ public partial class frmMain : Form
                 cmdIndex++;
                 var prefix = cmdInfo.Payload.Length >= 2 ? cmdInfo.Payload[..2] : cmdInfo.Payload;
                 ProdLog($"[#{cmdIndex}] Sending: {prefix} — {cmdInfo.Description} (timeout={cmdInfo.TimeoutSeconds}s payloadLen={cmdInfo.Payload.Length})");
-                LogStatus($"Production: sending {prefix} ({cmdInfo.Description})...");
+                SetStatus($"Production: sending {prefix} ({cmdInfo.Description})...", StatusSeverity.InfoProgress);
 
                 // VB 1.9: CancelCommands(True) → instRx="" before each command
                 // Note: FlushRS232 (OS buffer discard) is skipped for deviceWithPass=true devices
@@ -4453,7 +4528,7 @@ public partial class frmMain : Form
                 if (!result.Success && cmdInfo.ExpectsAck)
                 {
                     ProdLog($"[#{cmdIndex}] FAILED: {cmdInfo.Description} — Status={result.Status}");
-                    LogStatus($"Production FAILED at: {cmdInfo.Description} (Status={result.Status})");
+                    SetStatus($"Production FAILED at: {cmdInfo.Description} (Status={result.Status})", StatusSeverity.Error);
                     return false;
                 }
 
@@ -5437,6 +5512,11 @@ public partial class frmMain : Form
     private async void frmMain2_FormClosing(object sender, FormClosingEventArgs e)
     {
         _logger.LogInformation("Form closing");
+
+        // INIT-011: stop/dispose the status-bar revert timer before teardown.
+        _statusRevertTimer?.Stop();
+        _statusRevertTimer?.Dispose();
+        _statusRevertTimer = null;
 
         try
         {
