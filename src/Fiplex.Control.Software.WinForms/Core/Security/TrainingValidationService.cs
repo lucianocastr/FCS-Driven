@@ -589,12 +589,19 @@ namespace Fiplex.Control.Software.WinForms.Core.Security;
             return "CLSS login status unknown";
         }
 
-        // Use LoginDaysRemaining to calculate remaining login days
+        // Use LoginDaysRemaining to calculate remaining login days.
+        // INIT-012: LoginDaysRemaining is date-truncated, so the last valid day
+        // reports 0 while the JWT is still valid by timestamp — distinguish
+        // "expires today" (loginDays == 0) from genuinely expired (loginDays < 0).
         var loginDays = LoginDaysRemaining;
-        
+
         if (loginDays > 0)
         {
             return $"CLSS login is valid for the next {loginDays} days";
+        }
+        else if (loginDays == 0)
+        {
+            return "CLSS login expires today";
         }
         else
         {
