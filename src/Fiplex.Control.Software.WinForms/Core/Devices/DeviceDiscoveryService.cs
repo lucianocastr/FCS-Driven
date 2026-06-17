@@ -308,9 +308,10 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
                             _logger.LogWarning(
                                 "[Scan {ScanId}] Close {Port} ABANDONED after={GuardMs}ms — close task did not complete within guard; handle may remain held for process lifetime",
                                 scanId, portName, (int)PortCloseTimeout.TotalMilliseconds);
-                            // INIT-005 Phase 2 (M-2 trigger b): an abandoned close means the
-                            // handle is likely retained — reopening would AccessDenied forever.
-                            _quarantine.Quarantine(portName, "close-abandoned");
+                            // INIT-006: close-abandoned skips this scan attempt but does not
+                            // permanently quarantine the port (VB6 1.12 parity — no permanent block).
+                            // The port will be retried in the next scan cycle, allowing rediscovery
+                            // after the driver releases the handle on reconnection.
                             return null;
                         }
                     }
