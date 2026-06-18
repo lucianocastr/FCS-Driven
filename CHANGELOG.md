@@ -1,5 +1,23 @@
 #
 
+## [3.8.1] - 2026-06-18
+
+### Fixed
+- **Mensaje de error de navegación al conectar**
+  - Se elimina un mensaje "Navigation error: ConnectionAborted" que podía aparecer
+    en la barra de estado durante la conexión a un dispositivo, aun cuando la
+    interfaz del dispositivo cargaba correctamente y la operación era normal.
+  - La conexión vuelve a realizar una única carga de la interfaz, como en el
+    software original, eliminando el aviso engañoso.
+
+### Build Metadata
+- `<Version>` (ProductVersion): **3.8.0 → 3.8.1**
+- `<AssemblyVersion>`: `3.0.2.0` (sin cambio — **CONGELADO** por diseño .NET binding)
+- `<FileVersion>`: `3.0.2.0` (sin cambio — **CONGELADO** · metadatos Windows)
+- TargetFramework: `net10.0-windows` (sin cambio)
+
+---
+
 ## [3.8.0] - 2026-06-17
 
 ### Fixed
