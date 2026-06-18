@@ -1802,14 +1802,6 @@ public partial class frmMain : Form
                         $"http://127.0.0.1:{port}/*", CoreWebView2WebResourceContext.All);
                     webView.CoreWebView2.WebResourceRequested += CoreWebView2_WebResourceRequested;
                 }
-
-                // Navigate WebView2 to main page
-                if (webView?.CoreWebView2 != null)
-                {
-                    var url = $"http://localhost:{port}/index.html";
-                    webView.CoreWebView2.Navigate(url);
-                    _logger.LogDebug("WebView2 navigating to {Url}", url);
-                }
             }
             catch (Exception ex)
             {
