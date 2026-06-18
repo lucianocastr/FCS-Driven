@@ -1,5 +1,52 @@
 #
 
+## [3.8.0] - 2026-06-17
+
+### Fixed
+- **Descubrimiento de dispositivos más predecible**
+  - Se restaura el comportamiento original de reintentos durante el descubrimiento:
+    el equipo solo reintenta cuando corresponde, evitando esperas innecesarias
+  - Cuando un puerto se cierra de forma abrupta, el descubrimiento vuelve a
+    explorarlo en el siguiente escaneo en lugar de excluirlo de forma permanente,
+    mejorando la reconexión cuando el puerto vuelve a estar disponible
+
+- **Carga de configuración ante error**
+  - Si la carga de configuración falla, la interfaz ya no se actualiza de forma
+    innecesaria, alineándose con el comportamiento esperado
+  - El guardado de configuración conserva su actualización al finalizar
+
+- **Diálogo "Change Device Password"**
+  - El campo "Confirm new password" vuelve a mostrarse completo; se corrige la
+    superposición que lo ocultaba parcialmente
+  - El mensaje de error permanece oculto al abrir el diálogo y solo aparece cuando
+    hay una validación que mostrar
+
+- **Extensiones de Calibración y Configuración**
+  - "Save Calibration" vuelve a proponer la extensión `.calr` y "Save
+    Configuration" la extensión `.cfgr`
+  - La carga sigue aceptando los formatos previos (`.cal` y `.cfg`), por lo que los
+    archivos ya generados se mantienen utilizables
+
+### Added
+- **Barra de estado con mensajes temporizados**
+  - Los mensajes de la barra inferior dejan de quedar fijos durante toda la sesión:
+    la información y las confirmaciones de éxito desaparecen tras unos segundos y la
+    barra vuelve a reflejar el estado actual
+  - Los mensajes de error permanecen visibles hasta ser reemplazados, y cada tipo de
+    mensaje se distingue por color
+
+- **Mensaje de expiración de CLSS más claro**
+  - En el último día de validez, la barra muestra "CLSS login expires today" en
+    lugar de indicar que la sesión ya expiró, reflejando que aún es válida ese día
+
+### Build Metadata
+- `<Version>` (ProductVersion): **3.7.0 → 3.8.0**
+- `<AssemblyVersion>`: `3.0.2.0` (sin cambio — **CONGELADO** por diseño .NET binding)
+- `<FileVersion>`: `3.0.2.0` (sin cambio — **CONGELADO** · metadatos Windows)
+- TargetFramework: `net10.0-windows` (sin cambio)
+
+---
+
 ## [3.7.0] - 2026-06-15
 
 ### Added
