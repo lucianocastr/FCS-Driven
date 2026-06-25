@@ -483,6 +483,7 @@ public partial class frmMain : Form
             webView.CoreWebView2.Settings.AreDefaultScriptDialogsEnabled = true;
             webView.CoreWebView2.Settings.IsWebMessageEnabled = true;
             webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
+            webView.CoreWebView2.Settings.IsStatusBarEnabled = false;
 
             _logger.LogInformation("WebView2 initialized successfully");
 
