@@ -4436,11 +4436,13 @@ public partial class frmMain : Form
                 ProdLog($"[C1] OK: len={c1Response.Length} raw[634..635]='{mmsDbg}' bbuByte='{bbuDbg}' mms={mmsValDbg} bbuType={bbuTypeDbg}");
             }
 
-            // INIT-014 / VB6 1.12 parity (frmMainW.frm:3309-3388): 5dm reads F1 (commonUl) and,
-            // for frversion==0 && ndev>=1, C1 (MMS + BBU byte) before building the C0 variant.
-            if (tdev == "5dm")
+            // INIT-014 / VB6 1.12 parity (frmMainW.frm:3309-3388): 5dm reads F1 (commonUl) and, for
+            // frversion==0 && ndev>=1, C1 (MMS + BBU byte) before building the C0 variant.
+            // INIT-015 / VB6 1.12 parity (frmMainW.frm:3087-3089): 2c ndev=1 reads F1 for the MMS flag
+            // (selects the J). NON-FATAL for 2c — on failure leave MMS=false and continue (VB6 does not abort).
+            if (tdev == "5dm" || (tdev == "2c" && ndev >= 1.0 && ndev < 2.0))
             {
-                ProdLog("[F1] Sending F1 pre-read (5dm)...");
+                ProdLog(tdev == "5dm" ? "[F1] Sending F1 pre-read (5dm)..." : "[F1] Sending F1 pre-read (2c ndev=1)...");
                 var f1Cmd = new SerialCommand
                 {
                     Payload = "F1",
@@ -4453,39 +4455,58 @@ public partial class frmMain : Form
                 };
                 var f1Result = await _pipeline.EnqueueCommandAsync(f1Cmd);
                 ProdLog($"[F1] Result: Success={f1Result.Success} Status={f1Result.Status} DataLen={f1Result.Data?.Length ?? 0}");
-                if (!f1Result.Success || string.IsNullOrEmpty(f1Result.Data) || f1Result.Data.Length < 482)
+                if (tdev == "5dm")
                 {
-                    ProdLog($"[F1] FAILED — Status={f1Result.Status} DataLen={f1Result.Data?.Length ?? 0}");
-                    return false;
-                }
-                f1Response = f1Result.Data;
-                bool commonUlDbg = false;
-                if (int.TryParse(f1Response.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, null, out int f1b))
-                    commonUlDbg = (f1b & 0x80) != 0;
-                ProdLog($"[F1] OK: len={f1Response.Length} raw[2..3]='{f1Response.Substring(2, 2)}' commonUl={commonUlDbg}");
-
-                if (device.FrVersion == 0 && ndev >= 1.0)
-                {
-                    ProdLog("[C1] Sending C1 pre-read (5dm ndev>=1)...");
-                    var c1Cmd5 = new SerialCommand
+                    if (!f1Result.Success || string.IsNullOrEmpty(f1Result.Data) || f1Result.Data.Length < 482)
                     {
-                        Payload = "C1",
-                        ExpectsAck = true,
-                        ExpectsData = true,
-                        AckTimeout = TimeSpan.FromSeconds(2),
-                        DataTimeout = TimeSpan.FromSeconds(10),
-                        MaxRetries = 1,
-                        CancellationToken = _cts?.Token ?? default
-                    };
-                    var c1Result5 = await _pipeline.EnqueueCommandAsync(c1Cmd5);
-                    ProdLog($"[C1] Result: Success={c1Result5.Success} Status={c1Result5.Status} DataLen={c1Result5.Data?.Length ?? 0}");
-                    if (!c1Result5.Success || string.IsNullOrEmpty(c1Result5.Data) || c1Result5.Data.Length < 1768)
-                    {
-                        ProdLog($"[C1] FAILED — Status={c1Result5.Status} DataLen={c1Result5.Data?.Length ?? 0}");
+                        ProdLog($"[F1] FAILED — Status={f1Result.Status} DataLen={f1Result.Data?.Length ?? 0}");
                         return false;
                     }
-                    c1Response = c1Result5.Data;
-                    ProdLog($"[C1] OK: len={c1Response.Length} bbuByte='{c1Response[1719]}' raw[1718..1719]='{c1Response.Substring(1718, 2)}'");
+                    f1Response = f1Result.Data;
+                    bool commonUlDbg = false;
+                    if (int.TryParse(f1Response.Substring(2, 2), System.Globalization.NumberStyles.HexNumber, null, out int f1b))
+                        commonUlDbg = (f1b & 0x80) != 0;
+                    ProdLog($"[F1] OK: len={f1Response.Length} raw[2..3]='{f1Response.Substring(2, 2)}' commonUl={commonUlDbg}");
+
+                    if (device.FrVersion == 0 && ndev >= 1.0)
+                    {
+                        ProdLog("[C1] Sending C1 pre-read (5dm ndev>=1)...");
+                        var c1Cmd5 = new SerialCommand
+                        {
+                            Payload = "C1",
+                            ExpectsAck = true,
+                            ExpectsData = true,
+                            AckTimeout = TimeSpan.FromSeconds(2),
+                            DataTimeout = TimeSpan.FromSeconds(10),
+                            MaxRetries = 1,
+                            CancellationToken = _cts?.Token ?? default
+                        };
+                        var c1Result5 = await _pipeline.EnqueueCommandAsync(c1Cmd5);
+                        ProdLog($"[C1] Result: Success={c1Result5.Success} Status={c1Result5.Status} DataLen={c1Result5.Data?.Length ?? 0}");
+                        if (!c1Result5.Success || string.IsNullOrEmpty(c1Result5.Data) || c1Result5.Data.Length < 1768)
+                        {
+                            ProdLog($"[C1] FAILED — Status={c1Result5.Status} DataLen={c1Result5.Data?.Length ?? 0}");
+                            return false;
+                        }
+                        c1Response = c1Result5.Data;
+                        ProdLog($"[C1] OK: len={c1Response.Length} bbuByte='{c1Response[1719]}' raw[1718..1719]='{c1Response.Substring(1718, 2)}'");
+                    }
+                }
+                else
+                {
+                    // 2c ndev=1 — NON-FATAL: leave MMS=false on failure and continue.
+                    if (f1Result.Success && !string.IsNullOrEmpty(f1Result.Data))
+                    {
+                        f1Response = f1Result.Data;
+                        bool mmsDbg = f1Response.Length > 226
+                            && int.TryParse(f1Response.Substring(224, 2), System.Globalization.NumberStyles.HexNumber, null, out int f1bDbg)
+                            && (f1bDbg & 0x2) != 0;
+                        ProdLog($"[F1] OK: len={f1Response.Length} mms={mmsDbg}");
+                    }
+                    else
+                    {
+                        ProdLog($"[F1] non-fatal failure — MMS defaults to false. Status={f1Result.Status}");
+                    }
                 }
             }
 
@@ -4646,7 +4667,7 @@ public partial class frmMain : Form
                 return GetProductionConfig_1C_V8(nchannels, mode, clearROM);
 
             case "2c":
-                return GetProductionConfig_2C(ndev, nchannels, mode, clearROM, c1Response);
+                return GetProductionConfig_2C(ndev, nchannels, mode, clearROM, c1Response, f1Response);
 
             case "2dr" or "2dr2":
                 return GetProductionConfig_2DR(nchannels, mode, clearROM);
@@ -4793,7 +4814,7 @@ public partial class frmMain : Form
     /// <summary>
     /// Production configuration for 2c device (BDA Dual).
     /// </summary>
-    private ProductionConfigData GetProductionConfig_2C(double ndev, short nchannels, short mode, bool clearROM, string? c1Response = null)
+    private ProductionConfigData GetProductionConfig_2C(double ndev, short nchannels, short mode, bool clearROM, string? c1Response = null, string? f1Response = null)
     {
         var config = new ProductionConfigData();
 
@@ -4846,6 +4867,20 @@ public partial class frmMain : Form
                 // restores byte-exact J payload baseline (was truncated 559->586, delta -27).
                 jPayload = "J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB003F003F007FFFFFFFFF0F08080008080400000000000000000000080808080201080001104020808080804080808080808080000000000000000000000000000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  Annunciator 1                 Annunciator 2                 Annunciator 3                 Annunciator 4                 ";
             }
+        }
+        else if (ndev >= 1.0)
+        {
+            // VB6 1.12 parity (frmMainW.frm:3087-3096): 2c ndev=1 uses a FIXED 1620-char C0
+            // (= the ndev<1 payload + trailing "0001518000015180"). F1 is read only for the MMS
+            // flag, which selects the J. F1 read happens in SendProdConfigAsync (non-fatal). INIT-015.
+            bool mms = false;
+            if (!string.IsNullOrEmpty(f1Response) && f1Response.Length > 226
+                && int.TryParse(f1Response.Substring(224, 2), System.Globalization.NumberStyles.HexNumber, null, out int f1Bits))
+            {
+                mms = (f1Bits & 0x2) != 0; // VB6 Mid(factstr,225,2) & 0x2
+            }
+            configPayload = @"C000000914003C000CB09C5518E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3E0005521E3008000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC8000FFEC00FD5302A300FD5302A300FD5302A300FD5302A3000914003C0001B09C5518E300800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0E0005521E300800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000080000000800000008000000000FD3002D000FD3002D000FD3002D000FD3002D0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFFB0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0B0FFFFFFFF00008DA1A1A1A18DA1A1A1A12B009C002B009C002B009C00005000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180";
+            jPayload = mms ? @"J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB083F003F05FFFFFFFFFF07040404040402000000000000000000000404040404080404011040208080808040808080808080800F000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1              External Input 2              External Input 3              Force RF OFF                  Annunciator 1                 Annunciator 2                 Annunciator 3                 Annunciator 4                 " : @"J003E803E8000A03E803E8000A057E7F0000031F1F0C000003AB083F003F007F7FFF0FFF070808000808040000000000000000000008080808020108000110402080808080808080808080808000000001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180000151800001518000015180External Input 1????????????? External Input 2????????????? External Input 3????????????? Force RF OFF????????????????? Annunciator 1???????????????? Annunciator 2???????????????? Annunciator 3???????????????? Annunciator 4?????????????????";
         }
         else
         {
