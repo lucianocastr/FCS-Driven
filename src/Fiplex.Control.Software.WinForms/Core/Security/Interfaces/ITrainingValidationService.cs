@@ -26,7 +26,13 @@ public interface ITrainingValidationService
     /// Indicates if the training is valid (not expired).
     /// </summary>
     bool IsTrainingValid { get; }
-    
+
+    /// <summary>
+    /// True if the CLSS login window has expired (offline-window enforcement).
+    /// Fail-secure: returns true when no login window is known (no LoginExpiryDate).
+    /// </summary>
+    bool IsLoginWindowExpired();
+
     /// <summary>
     /// Reads token/license information from CLSS or local file.
     /// </summary>

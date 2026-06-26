@@ -109,6 +109,18 @@ namespace Fiplex.Control.Software.WinForms.Core.Security;
     }
 
     /// <inheritdoc />
+    public bool IsLoginWindowExpired()
+    {
+        // A1 fail-secure: no known login window → treat as expired (block connect).
+        if (_loginExpiryDate == null)
+            return true;
+
+        // A2/A3: reuse the display calc (LoginDaysRemaining) so gate == label.
+        // "Expires today" (LoginDaysRemaining == 0) is still the last valid day → NOT expired.
+        return LoginDaysRemaining < 0;
+    }
+
+    /// <inheritdoc />
     /// <remarks>
     /// Priority: 
     /// - UserName/Organization: ALWAYS from JWT (this is the real login)

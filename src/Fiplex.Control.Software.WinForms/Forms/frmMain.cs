@@ -1525,6 +1525,21 @@ public partial class frmMain : Form
                 return;
             }
 
+            // LOGIN WINDOW (INIT-027 / ISSUE 40 · SECURITY): block connect if the CLSS login/offline
+            // window has expired. Fail-secure (blocks when no window is known). Login-only signal —
+            // NOT FireAccessToken.IsValid (false offline → would break legit offline) nor
+            // IsLicenseExpired (conflates Training, already checked above).
+            if (_trainingValidation.IsLoginWindowExpired())
+            {
+                _logger.LogWarning("Connection blocked: CLSS login window expired");
+                MessageBox.Show(
+                    "Your CLSS login has expired. Reconnect online to renew your session.",
+                    "Connection Blocked",
+                    MessageBoxButtons.OK,
+                    MessageBoxIcon.Warning);
+                return;
+            }
+
             // PHASE 1: Device selection validation
             _logger.LogInformation("PHASE 1: Validating device selection");
             if (!ValidateDeviceSelection())
