@@ -484,6 +484,15 @@ public partial class frmMain : Form
             webView.CoreWebView2.Settings.IsWebMessageEnabled = true;
             webView.CoreWebView2.Settings.AreDevToolsEnabled = true;
 
+            // ISSUE-38a / INIT-024: surface uncaught JS errors (IE-parity script-error dialog).
+            // WebView2/Chromium swallows them to the DevTools console; VB6's IE popped a dialog. Subscribe to the
+            // DevTools protocol 'Runtime.exceptionThrown' event — it captures uncaught exceptions natively across
+            // ALL frames (top AND the htdocs 'content' sub-frame where e.g. config.js 'factory' fails), with no
+            // injected script or per-frame postMessage bridge. (Subscribed before the first Navigate.)
+            await webView.CoreWebView2.CallDevToolsProtocolMethodAsync("Runtime.enable", "{}");
+            var jsExceptionReceiver = webView.CoreWebView2.GetDevToolsProtocolEventReceiver("Runtime.exceptionThrown");
+            jsExceptionReceiver.DevToolsProtocolEventReceived += OnJsException;
+
             _logger.LogInformation("WebView2 initialized successfully");
 
             // Navigate to default page on initial load
@@ -494,6 +503,36 @@ public partial class frmMain : Form
             _logger.LogError(ex, "WebView2 initialization failed");
             MessageBox.Show($"WebView2 initialization failed: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
         }
+    }
+
+    /// <summary>
+    /// ISSUE-38a / INIT-024: handler for the DevTools 'Runtime.exceptionThrown' event (fires for uncaught JS
+    /// errors in any frame). Logs to FCSLog (always) and shows an informative dialog with the description/url/
+    /// line/col verbatim — IE script-error parity. CDP line/column are 0-based, shown +1 to match IE/editors.
+    /// </summary>
+    private void OnJsException(object? sender, CoreWebView2DevToolsProtocolEventReceivedEventArgs e)
+    {
+        string text;
+        try
+        {
+            var d = JsonDocument.Parse(e.ParameterObjectAsJson).RootElement.GetProperty("exceptionDetails");
+            var msg = d.TryGetProperty("exception", out var exc) && exc.TryGetProperty("description", out var desc)
+                ? desc.GetString()
+                : (d.TryGetProperty("text", out var t) ? t.GetString() : null);
+            var url = d.TryGetProperty("url", out var u) ? u.GetString() : null;
+            var line = d.TryGetProperty("lineNumber", out var l) ? l.GetInt32() + 1 : 0;
+            var col = d.TryGetProperty("columnNumber", out var c) ? c.GetInt32() + 1 : 0;
+            text = string.IsNullOrEmpty(url)
+                ? (msg ?? "Uncaught script error")
+                : $"{msg}\n\n{url}  (line {line}, col {col})";
+        }
+        catch { return; }   // malformed CDP payload — ignore
+
+        _logger.LogWarning("[JS-ERROR] {Detail}", text.Replace("\n", " | "));
+
+        if (IsHandleCreated)
+            BeginInvoke(new Action(() =>
+                MessageBox.Show(this, text, "Script error", MessageBoxButtons.OK, MessageBoxIcon.Warning)));
     }
 
     /// <summary>
