@@ -334,6 +334,15 @@ public class DeviceCommandRouter : IDeviceCommandRouter
     }
 
     /// <summary>
+    /// ISSUE-44 / INIT-023: identifies the Self-diagnose command (X0…; settings ctl_diag_str → X0).
+    /// X0 is unique to the diagnose POST across the htdocs settings, so the payload prefix is a precise gate.
+    /// Routes X001 through a single-shot, no-retry path (MaxRetries=0, like the FL2 handler) so the generic
+    /// retry path does not re-send it and desync the late TX/RX-chain result DataFrame.
+    /// </summary>
+    private static bool IsDiagnoseContext(string serialPayload)
+        => serialPayload.StartsWith("X0", StringComparison.Ordinal);
+
+    /// <summary>
     /// Processes fragmented command for 5dm devices.
     ///   U1 → U10002 + U10305 + U10608
     ///   O1 → O10002 + O10305 + O10608
@@ -1132,6 +1141,43 @@ public class DeviceCommandRouter : IDeviceCommandRouter
 
                 _logger.LogInformation("[FL2] Dispatch complete · assembled.Length={Length}", assembled.Length);
                 return assembled;
+            }
+
+            // ISSUE-44 / INIT-023: Self-diagnose (X001 / ctl_diag_str). The device runs the TX/RX-chain test and
+            // returns the result as a LATE DataFrame (~9s, NO prior ACK). Send X001 ONCE (MaxRetries=0, mirroring
+            // the FL2 handler above) so the generic retry path does not re-send it and desync the serial dialog.
+            // Fire-and-forget so the POST returns within the JS xhr=5s budget; when the late DataFrame arrives it
+            // updates _decodedPreviousAnswer, which check_result reads via /rftest.shtml → dpreviousans.
+            if (IsDiagnoseContext(serialCommandPayload))
+            {
+                _logger.LogInformation("[DIAG] Single-shot dispatch (MaxRetries=0): {Command}", serialCommandPayload);
+
+                var diagCmd = new SerialCommand
+                {
+                    Payload = serialCommandPayload,
+                    ExpectsAck = false,                        // device replies with a DataFrame, no prior ACK
+                    ExpectsData = true,
+                    DataTimeout = TimeSpan.FromSeconds(25),    // bounded wait for the ~9s test result (no re-send)
+                    MaxRetries = 0,                            // INVARIANT: single send — no re-send/desync
+                    CancellationToken = CancellationToken.None // detached: survives the fire-and-forget POST return
+                };
+
+                _ = _serialPipeline.EnqueueCommandAsync(diagCmd).ContinueWith(t =>
+                {
+                    if (t.Status == TaskStatus.RanToCompletion && t.Result.Success && !string.IsNullOrEmpty(t.Result.Data))
+                    {
+                        lock (_previousAnswerLock)
+                        {
+                            _previousAnswer = "0";
+                            _decodedPreviousAnswer = t.Result.Data;
+                        }
+                    }
+                }, TaskScheduler.Default);
+
+                stopwatch.Stop();
+                _metrics?.RecordCommand(normalizedPage, "success", stopwatch.Elapsed.TotalSeconds, 0);
+                _logger.LogDebug("[DIAG] X0 fired; POST returns OK (result via dpreviousans/check_result poll)");
+                return "OK";
             }
 
             // Retry logic con manejo de INVALID CREDENTIALS
