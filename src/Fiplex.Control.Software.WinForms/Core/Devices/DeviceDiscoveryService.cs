@@ -40,7 +40,7 @@ public class DeviceDiscoveryService : IDeviceDiscoveryService
     // Devices that respond on the first attempt are unaffected.
     // Slower devices (e.g. DAS Remote) that return NACK on early attempts get additional chances.
     private const int MaxRetries = 5;
-    private const int TimeoutSeconds = 3;
+    private const int TimeoutSeconds = 1; // FromSeconds(1)=1000ms = VB6 1.12 tmrScan.Interval (parity, DISC-027/INIT-017)
     // OpenPortTimeout=4000ms: some USB-serial drivers (e.g. dual-port CP2105 adapters used by DAS Remote)
     // take >2s to complete Open(). At 2000ms the port was silently skipped with no retry and no trace log entry.
     private static readonly TimeSpan OpenPortTimeout = TimeSpan.FromMilliseconds(4000);
