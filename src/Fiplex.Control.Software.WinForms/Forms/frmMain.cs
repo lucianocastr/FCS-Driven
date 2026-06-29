@@ -2017,8 +2017,11 @@ public partial class frmMain : Form
             _logger.LogInformation("=== STARTING DISCONNECTION ===");
             LogStatus("Disconnecting...");
 
-            // Cancel ongoing operations
-            _cts?.Cancel();
+            // Cancel ongoing operations.
+            // INIT-025 / OBS-D: guard against a CTS already disposed by an overlapping disconnect.
+            // The `?.` covers null but not disposed; same pattern as frmEthernetInstall.cs:350 / frmInitLicense.cs:355.
+            try { _cts?.Cancel(); }
+            catch (ObjectDisposedException) { /* CTS already disposed by an overlapping disconnect — no-op */ }
 
             // Cancel pending/blocked serial commands before stopping services.
             // This prevents scan deadlocks after reconnect/disconnect cycles.
