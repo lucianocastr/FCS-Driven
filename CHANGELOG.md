@@ -1,5 +1,37 @@
 #
 
+## [3.9.1] - 2026-06-29
+
+### Corregido
+- **Descubrimiento de dispositivos (discovery):** mejora de velocidad al escanear los puertos.
+- **Reconocimiento de dispositivos:** se incorporan modelos que no estaban siendo reconocidos.
+- **Barra de estado:** se elimina la URL interna que podía aparecer al pasar el mouse sobre la interfaz del dispositivo.
+- **TX Chain Verification (diagnóstico):** el resultado de la prueba vuelve a reflejarse correctamente.
+- **Configuración de producción / "Clear EEPROM":** corregida para 8 tipos de dispositivo.
+- **Errores de script de la interfaz del dispositivo:** ahora se muestran al operador en lugar de quedar ocultos.
+
+### Seguridad
+- **Expiración del login CLSS:** se hace cumplir al conectar. Si la sesión de login está vencida, la conexión se bloquea
+  (antes la expiración se mostraba pero no se aplicaba).
+
+### Cambiado
+- **Verificación de versión al inicio:** desactivada (el servicio web de versiones ya no está disponible).
+- **Desconexión:** se corrige un error interno que podía registrarse al desconectar un dispositivo.
+
+### Notas
+- El error de script "'factory' no está definido" en *Generate Report* ahora se hace visible al operador. Su causa de
+  fondo proviene del software base original y será atendida por Fiplex.
+- Pendiente de definición por Fiplex (próximas versiones): límite de 7 días de la ventana de login offline;
+  validación del modelo 2c3; ítem #43.
+
+### Build Metadata
+- `<Version>` (ProductVersion): **3.8.1 → 3.9.1**
+- `<AssemblyVersion>`: `3.0.2.0` (sin cambio — **CONGELADO** por diseño .NET binding)
+- `<FileVersion>`: `3.0.2.0` (sin cambio — **CONGELADO** · metadatos Windows)
+- TargetFramework: `net10.0-windows` (sin cambio)
+
+---
+
 ## [3.8.1] - 2026-06-18
 
 ### Fixed
