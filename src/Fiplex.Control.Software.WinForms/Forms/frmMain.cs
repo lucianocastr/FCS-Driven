@@ -275,8 +275,10 @@ public partial class frmMain : Form
             // Initialize WebView2
             await InitializeWebView2Async();
 
-            // Check for updates in background without blocking UI
-            await CheckForUpdatesAsync();
+            // Check for updates al inicio DESACTIVADO (INIT-028 / Fiplex): el endpoint web de versiones ya no existe y
+            // Fiplex decidió quitar esta validación. El servicio (VersionCheckService) y el método CheckForUpdatesAsync()
+            // quedan intactos para reactivarlo si en el futuro hay un endpoint nuevo.
+            // await CheckForUpdatesAsync();
 
             // Quick scan for devices when form loads
             // Stops when first valid device is found (QuickScan)
